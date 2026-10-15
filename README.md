@@ -92,7 +92,7 @@ node scripts/migrate-data.mjs qa-bcr-suite-data.json out
 psql -d qabcr -f out/seed.sql -f out/verify-seed.sql -f supabase/tests/rls_test.sql
 ```
 
-## Fase 2: login y roles (`app/qa-bcr-suite.html`)
+## Fase 2: login y roles (`index.html`)
 
 Parte de `qa-bcr-suite_6.html`; los cambios están en `app/cambios-fase2.diff`. Los datos siguen en `localStorage` y el JSON: eso cambia en la Fase 3.
 

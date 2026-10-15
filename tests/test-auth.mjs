@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 // Requiere: npm i playwright-core y supabase-js descomprimido en ./package (npm pack @supabase/supabase-js@2.117.2).
 const DIR = new URL('..', import.meta.url).pathname;
 const SUPA = 'https://demo.supabase.co';
-const html = readFileSync(DIR + 'app/qa-bcr-suite.html', 'utf8');
+const html = readFileSync(DIR + 'index.html', 'utf8');
 const configured = html
   .replace("const SUPABASE_URL='';", `const SUPABASE_URL='${SUPA}';`)
   .replace("const SUPABASE_ANON_KEY='';", "const SUPABASE_ANON_KEY='anon-test-key';");
