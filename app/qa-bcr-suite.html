@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QA BCR Suite</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080c16;
+    --surface: #0f1623;
+    --card: #131d2e;
+    --card2: #172035;
+    --border: #1a2840;
+    --border2: #223050;
+    --accent: #0057b8;
+    --cyan: #00d4ff;
+    --cyan-glow: rgba(0,212,255,0.18);
+    --cyan-dim: rgba(0,212,255,0.07);
+    --purple: #7c3aed;
+    --purple-glow: rgba(124,58,237,0.18);
+    --purple-dim: rgba(124,58,237,0.07);
+    --gold: #f7c948;
+    --teal: #00c9a7;
+    --red: #ff4d6d;
+    --text: #dde5f5;
+    --muted: #4a5a7a;
+    --dim: #263550;
+    --sidebar-w: 220px;
+    --radius: 14px;
+    --radius-sm: 9px;
+  }
+
+  body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(0,87,184,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0,87,184,0.025) 1px, transparent 1px); background-size: 48px 48px; pointer-events: none; z-index: 0; }
+
+  .layout { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+
+  /* SIDEBAR */
+  .sidebar { width: var(--sidebar-w); background: rgba(15,22,35,0.98); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; backdrop-filter: blur(12px); }
+  .sidebar-brand { padding: 24px 20px 20px; border-bottom: 1px solid var(--border); }
+  .brand-icon { width: 38px; height: 38px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 0 20px rgba(0,87,184,0.5); margin-bottom: 10px; }
+  .brand-name { font-size: 15px; font-weight: 800; letter-spacing: -0.3px; line-height: 1.1; }
+  .brand-sub { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.05em; margin-top: 3px; }
+  .sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .nav-section-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); padding: 0 8px; margin: 10px 0 6px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; transition: all 0.18s; color: var(--muted); font-size: 13px; font-weight: 600; position: relative; }
+  .nav-item:hover { background: var(--card); color: var(--text); border-color: var(--border); }
+  .nav-item.active { background: var(--card2); color: var(--text); border-color: var(--border2); }
+  .nav-item.active.item-qa    { color: var(--teal); border-color: rgba(0,201,167,0.25); background: rgba(0,201,167,0.06); }
+  .nav-item.active.item-daily { color: var(--cyan); border-color: rgba(0,212,255,0.25); background: var(--cyan-dim); }
+  .nav-item.active.item-admin { color: var(--gold); border-color: rgba(247,201,72,0.25); background: rgba(247,201,72,0.06); }
+  .nav-item.active.item-calc  { color: #34d399; border-color: rgba(52,211,153,0.25); background: rgba(52,211,153,0.06); }
+  .nav-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; background: var(--surface); }
+  .nav-item.active .nav-icon { background: var(--card); }
+  .nav-pip { width: 5px; height: 5px; border-radius: 50%; position: absolute; right: 12px; opacity: 0; transition: opacity 0.18s; }
+  .nav-item.active .nav-pip { opacity: 1; }
+  .item-home  .nav-pip { background: var(--gold); }
+  .item-qa    .nav-pip { background: var(--teal); }
+  .item-daily .nav-pip { background: var(--cyan); }
+  .item-admin .nav-pip { background: var(--gold); }
+  .item-calc  .nav-pip { background: #34d399; }
+  .sidebar-footer { padding: 14px 20px; border-top: 1px solid var(--border); }
+  .sidebar-footer-text { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--dim); line-height: 1.5; }
+
+  /* MAIN */
+  .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; position: relative; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* HOME */
+  .home-page { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 60px 52px 80px; }
+  .home-eyebrow { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+  .home-title { font-size: clamp(34px, 5vw, 54px); font-weight: 800; letter-spacing: -1.5px; line-height: 1.05; margin-bottom: 14px; }
+  .home-title .hl-teal { color: var(--teal); }
+  .home-title .hl-cyan { color: var(--cyan); }
+  .home-desc { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--muted); line-height: 1.7; max-width: 460px; margin-bottom: 48px; }
+  .home-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; max-width: 900px; }
+  .home-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 28px; cursor: pointer; transition: all 0.25s; position: relative; overflow: hidden; }
+  .home-card::before { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 0.25s; border-radius: 18px; }
+  .home-card.card-qa::before   { background: radial-gradient(ellipse at top left, rgba(0,201,167,0.09), transparent 65%); }
+  .home-card.card-daily::before { background: radial-gradient(ellipse at top left, rgba(0,212,255,0.09), transparent 65%); }
+  .home-card:hover { transform: translateY(-4px); border-color: var(--border2); }
+  .home-card:hover::before { opacity: 1; }
+  .home-card.card-qa:hover   { box-shadow: 0 12px 40px rgba(0,201,167,0.1); }
+  .home-card.card-daily:hover { box-shadow: 0 12px 40px rgba(0,212,255,0.1); }
+  .home-card-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 18px; position: relative; z-index: 1; }
+  .card-qa   .home-card-icon { background: rgba(0,201,167,0.12); border: 1px solid rgba(0,201,167,0.2); }
+  .card-daily .home-card-icon { background: var(--cyan-dim); border: 1px solid rgba(0,212,255,0.2); }
+  .home-card-title { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; margin-bottom: 8px; position: relative; z-index: 1; }
+  .card-qa   .home-card-title { color: var(--teal); }
+  .card-daily .home-card-title { color: var(--cyan); }
+  .home-card-desc { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); line-height: 1.65; position: relative; z-index: 1; margin-bottom: 20px; }
+  .home-card-arrow { display: flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; font-size: 11px; position: relative; z-index: 1; transition: gap 0.2s; }
+  .card-qa   .home-card-arrow { color: var(--teal); }
+  .card-daily .home-card-arrow { color: var(--cyan); }
+  .home-card:hover .home-card-arrow { gap: 10px; }
+  .home-version { margin-top: 52px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--dim); }
+
+  /* QA PAGE */
+  .qa-page { padding: 40px 40px 80px; max-width: 980px; }
+  .page-header { margin-bottom: 28px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .page-header-left { display: flex; align-items: center; gap: 13px; }
+  .page-back { width: 34px; height: 34px; border-radius: 9px; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; transition: all 0.15s; flex-shrink: 0; }
+  .page-back:hover { background: var(--card2); border-color: var(--border2); }
+  .page-title { font-size: clamp(18px, 3vw, 24px); font-weight: 800; letter-spacing: -0.4px; }
+  .page-subtitle { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .ai-badge { font-family: 'DM Mono', monospace; font-size: 11px; padding: 4px 10px; border-radius: 20px; background: rgba(0,201,167,0.1); border: 1px solid rgba(0,201,167,0.3); color: var(--teal); white-space: nowrap; flex-shrink: 0; }
+  .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .card-label { font-size: 10px; font-family: 'DM Mono', monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 7px; }
+  .card-label::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); display: block; }
+  .project-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .proj-btn { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; cursor: pointer; color: var(--text); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600; text-align: left; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .proj-btn:hover { border-color: var(--accent); background: rgba(0,87,184,0.1); }
+  .proj-btn.active { border-color: var(--accent); background: rgba(0,87,184,0.18); }
+  .proj-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  #qa-variant-section { margin-top: 13px; }
+  .variant-label { font-size: 10px; font-family: 'DM Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .variant-select { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'Syne', sans-serif; font-size: 13px; padding: 9px 12px; outline: none; cursor: pointer; transition: border-color 0.15s; }
+  .variant-select:focus { border-color: var(--accent); }
+  .upload-zone { border: 1.5px dashed var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface); margin-bottom: 9px; position: relative; }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: rgba(0,87,184,0.06); }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 20px; margin-bottom: 5px; }
+  .upload-text { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .upload-text strong { color: var(--teal); }
+  .img-preview-wrap { position: relative; margin-bottom: 9px; display: none; }
+  .img-preview-wrap.visible { display: block; }
+  .img-preview { width: 100%; max-height: 120px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  .btn-remove-img { position: absolute; top: 6px; right: 6px; background: rgba(8,12,22,0.85); border: 1px solid var(--border); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--red); font-size: 13px; line-height: 1; }
+  .btn-extract { width: 100%; padding: 9px; background: transparent; border: 1px solid var(--teal); border-radius: var(--radius-sm); color: var(--teal); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-bottom: 9px; display: none; }
+  .btn-extract.visible { display: block; }
+  .btn-extract:hover { background: rgba(0,201,167,0.09); }
+  .btn-extract:disabled { opacity: 0.5; cursor: not-allowed; }
+  .divider { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .divider span { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--dim); letter-spacing: 0.1em; }
+  textarea { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1.7; padding: 11px; resize: vertical; min-height: 170px; outline: none; transition: border-color 0.15s; }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--dim); }
+  .btn-generate { width: 100%; padding: 15px; background: var(--accent); border: none; border-radius: var(--radius); color: #fff; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 16px; box-shadow: 0 4px 20px rgba(0,87,184,0.3); }
+  .btn-generate:hover { background: #0066d6; box-shadow: 0 6px 28px rgba(0,87,184,0.5); transform: translateY(-1px); }
+  .btn-generate:active { transform: translateY(0); }
+  .btn-generate:disabled { background: var(--card); color: var(--muted); cursor: not-allowed; box-shadow: none; transform: none; }
+  .loading-bar { height: 2px; background: var(--border); border-radius: 2px; margin-top: 10px; overflow: hidden; display: none; }
+  .loading-bar.active { display: block; }
+  .loading-bar::after { content: ''; display: block; height: 100%; width: 40%; background: linear-gradient(90deg, var(--accent), var(--teal)); border-radius: 2px; animation: slide 1.2s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
+  .output-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: none; }
+  .output-section.visible { display: block; }
+  .output-header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .output-title { font-size: 11px; font-family: 'DM Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+  .output-title .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--teal); animation: blink 2s infinite; }
+  @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.25; } }
+  .btn-copy { background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 11px; cursor: pointer; transition: all 0.15s; letter-spacing: 0.05em; }
+  .btn-copy:hover { border-color: var(--teal); color: var(--teal); }
+  .btn-copy.copied { border-color: var(--teal); color: var(--teal); background: rgba(0,201,167,0.1); }
+  .output-table-wrap { overflow-x: auto; padding: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { font-family: 'DM Mono', monospace; font-size: 12px; padding: 8px 12px; border-bottom: 1px solid rgba(26,40,64,0.5); line-height: 1.4; color: var(--text); }
+  tr.pbi-row td { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: var(--gold); padding-top: 15px; background: rgba(247,201,72,0.025); }
+  tr.task-row td { padding-left: 24px; color: #7a8eac; }
+  tr:last-child td { border-bottom: none; }
+  .status-msg { font-family: 'DM Mono', monospace; font-size: 12px; padding: 9px 12px; border-radius: var(--radius-sm); margin-top: 9px; display: none; }
+  .status-msg.error { display: block; background: rgba(255,77,109,0.08); border: 1px solid rgba(255,77,109,0.25); color: var(--red); }
+  .status-msg.info  { display: block; background: rgba(0,87,184,0.08); border: 1px solid rgba(0,87,184,0.25); color: #6ba3f5; }
+  .ai-chip { display: inline-flex; align-items: center; gap: 5px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--teal); letter-spacing: 0.06em; opacity: 0.6; margin-top: 10px; }
+
+  /* DAILY PAGE */
+  .daily-page { padding: 40px 40px 80px; max-width: 1080px; }
+  .daily-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .daily-col-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); padding: 0 16px 8px; }
+  .participant-item { cursor: pointer; }
+  .participant-item:hover { background: rgba(255,255,255,0.035); }
+  .participant-item.done { opacity: 0.45; background: rgba(0,201,167,0.04); }
+  .participant-item.done .p-name { text-decoration: line-through; color: var(--muted); }
+  .done-list { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .done-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .done-header-title { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--teal); }
+  .done-count-badge { font-family: 'DM Mono', monospace; font-size: 9px; padding: 3px 7px; border-radius: 100px; background: rgba(0,201,167,0.12); color: var(--teal); border: 1px solid rgba(0,201,167,0.2); }
+  .done-body { min-height: 80px; }
+  .done-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); animation: slideInRight 0.3s both; }
+  .done-item:last-child { border-bottom: none; }
+  @keyframes slideInRight { from { opacity:0; transform:translateX(14px); } to { opacity:1; transform:translateX(0); } }
+  .done-avatar { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; background: rgba(0,201,167,0.1); color: var(--teal); border: 1px solid rgba(0,201,167,0.2); }
+  .done-name { font-size: 12px; font-weight: 600; color: var(--muted); flex: 1; }
+  .done-check { font-size: 13px; color: var(--teal); }
+  .done-empty { padding: 36px 20px; text-align: center; color: var(--dim); font-family: 'DM Mono', monospace; font-size: 11px; line-height: 1.6; }
+  @media (max-width: 780px) { .daily-columns { grid-template-columns: 1fr; } }
+  .daily-tabs-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .daily-tab-btn { background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); padding: 15px; cursor: pointer; transition: all 0.22s; text-align: left; position: relative; overflow: hidden; }
+  .daily-tab-btn::after { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 0.22s; }
+  .daily-tab-btn.dt-d1::after { background: var(--cyan-dim); }
+  .daily-tab-btn.dt-d2::after { background: var(--purple-dim); }
+  .daily-tab-btn:hover { transform: translateY(-2px); }
+  .daily-tab-btn.dt-d1.active { border-color: var(--cyan); box-shadow: 0 0 22px var(--cyan-glow); }
+  .daily-tab-btn.dt-d1.active::after { opacity: 1; }
+  .daily-tab-btn.dt-d2.active { border-color: var(--purple); box-shadow: 0 0 22px var(--purple-glow); }
+  .daily-tab-btn.dt-d2.active::after { opacity: 1; }
+  .dt-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 3px; }
+  .dt-d1 .dt-label { color: var(--cyan); }
+  .dt-d2 .dt-label { color: #a78bfa; }
+  .dt-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .dt-count { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .roll-btn { width: 100%; padding: 15px; border: none; border-radius: var(--radius); font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 16px; }
+  .roll-btn.d1 { background: var(--cyan); color: #080c16; box-shadow: 0 4px 18px var(--cyan-glow); }
+  .roll-btn.d2 { background: var(--purple); color: #fff; box-shadow: 0 4px 18px var(--purple-glow); }
+  .roll-btn:hover { transform: translateY(-2px); filter: brightness(1.08); }
+  .roll-btn:active { transform: scale(0.98); }
+  .dice-icon { font-size: 18px; transition: transform 0.3s; }
+  .roll-btn:hover .dice-icon { transform: rotate(180deg); }
+  .list-container { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .list-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .list-header-title { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  .run-badge { font-family: 'DM Mono', monospace; font-size: 9px; padding: 3px 7px; border-radius: 100px; background: var(--border); color: var(--muted); }
+  .participant-item { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--border); transition: all 0.3s; animation: slideIn 0.4s both; }
+  .participant-item:last-child { border-bottom: none; }
+  .participant-item:hover { background: rgba(255,255,255,0.012); }
+  @keyframes slideIn { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
+  .pos-num { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; width: 24px; text-align: right; flex-shrink: 0; color: var(--muted); }
+  .pos-first { color: var(--gold); font-weight: 700; }
+  .p-avatar { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; letter-spacing: -0.5px; }
+  .p-avatar.d1 { background: var(--cyan-dim); color: var(--cyan); border: 1px solid rgba(0,212,255,0.18); }
+  .p-avatar.d2 { background: var(--purple-dim); color: #a78bfa; border: 1px solid rgba(124,58,237,0.18); }
+  .p-name { font-size: 13px; font-weight: 600; flex: 1; }
+  .name-last { color: var(--muted); }
+  .p-tag { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1px; padding: 2px 6px; border-radius: 5px; text-transform: uppercase; flex-shrink: 0; }
+  .tag-first { background: rgba(247,201,72,0.1); color: var(--gold); border: 1px solid rgba(247,201,72,0.2); }
+  .tag-last  { background: rgba(74,90,122,0.1); color: var(--muted); border: 1px solid rgba(74,90,122,0.2); }
+  .list-empty { padding: 44px 20px; text-align: center; }
+  .list-empty-icon { font-size: 34px; margin-bottom: 10px; opacity: 0.4; }
+  .list-empty-text { color: var(--muted); font-size: 13px; line-height: 1.6; }
+  @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(720deg); } }
+  .spinning { animation: spin 0.5s ease-out; }
+
+  /* ADMIN */
+  .admin-page { padding: 40px 40px 80px; max-width: 1080px; }
+  .admin-tabs { display: flex; gap: 8px; margin-bottom: 22px; flex-wrap: wrap; }
+  .admin-tab-btn { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 15px; cursor: pointer; color: var(--muted); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; transition: all 0.15s; }
+  .admin-tab-btn:hover { border-color: var(--border2); color: var(--text); }
+  .admin-tab-btn.active { border-color: var(--gold); background: rgba(247,201,72,0.08); color: var(--gold); }
+  .admin-section { display: none; }
+  .admin-section.active { display: block; }
+  .admin-card-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .admin-card-desc { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+  .crud-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .crud-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; padding: 9px 12px; outline: none; transition: border-color 0.15s; }
+  .crud-input:focus { border-color: var(--accent); }
+  .crud-btn-add { background: var(--accent); border: none; border-radius: var(--radius-sm); color: #fff; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; padding: 9px 16px; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+  .crud-btn-add:hover { background: #0066d6; }
+  .crud-list { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 22px; }
+  .crud-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .crud-item:last-child { border-bottom: none; }
+  .crud-item-name { flex: 1; min-width: 140px; font-size: 13px; font-weight: 600; }
+  .crud-checkbox { width: 15px; height: 15px; cursor: pointer; accent-color: var(--teal); }
+  .crud-label-small { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+  .crud-btn-del { background: transparent; border: 1px solid var(--border); border-radius: 7px; color: var(--red); width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; flex-shrink: 0; transition: all 0.15s; }
+  .crud-btn-del:hover { border-color: var(--red); background: rgba(255,77,109,0.08); }
+  .crud-empty { padding: 26px; text-align: center; color: var(--dim); font-family: 'DM Mono', monospace; font-size: 11px; }
+  .range-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .range-input { width: 64px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; padding: 8px 10px; outline: none; text-align: center; }
+  .range-input:focus { border-color: var(--accent); }
+  .admin-daily-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 780px) { .admin-daily-cols { grid-template-columns: 1fr; } .admin-page { padding: 20px 16px 60px; } }
+  .task-project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 8px; margin-bottom: 16px; }
+  .task-select-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .task-textarea { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1.7; padding: 11px; resize: vertical; min-height: 140px; outline: none; }
+  .task-textarea:focus { border-color: var(--accent); }
+  .btn-secondary { background: transparent; border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; padding: 10px 16px; cursor: pointer; transition: all 0.15s; }
+  .btn-secondary:hover { border-color: var(--accent); background: rgba(0,87,184,0.08); }
+  .backup-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .backup-note { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); line-height: 1.7; margin-top: 12px; }
+
+  /* CALC PAGE */
+  .calc-page { padding: 40px 40px 80px; max-width: 720px; }
+  .calc-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .calc-section-title { font-size: 10px; font-family: 'DM Mono', monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+  .calc-section-title::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #34d399; display: block; }
+  .calc-row { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
+  .calc-field { flex: 1; min-width: 140px; }
+  .calc-field label { display: block; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+  .calc-field input[type="date"] { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); padding: 9px 12px; font-family: 'DM Mono', monospace; font-size: 12px; outline: none; transition: border-color 0.15s; }
+  .calc-field input[type="date"]:focus { border-color: var(--accent); }
+  .calc-off-entry { display: flex; gap: 10px; align-items: end; margin-bottom: 10px; flex-wrap: wrap; }
+  .calc-btn-add { background: rgba(52,211,153,0.08); border: 1px solid #34d399; border-radius: var(--radius-sm); color: #34d399; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; padding: 9px 16px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .calc-btn-add:hover { background: #34d399; color: #080c16; }
+  .calc-btn-calc { width: 100%; padding: 15px; background: #34d399; border: none; border-radius: var(--radius); color: #080c16; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 20px rgba(52,211,153,0.3); margin-bottom: 16px; }
+  .calc-btn-calc:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .calc-btn-clear { background: transparent; border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--muted); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; padding: 10px 16px; cursor: pointer; transition: all 0.15s; }
+  .calc-btn-clear:hover { border-color: var(--accent); color: var(--text); }
+  .calc-result-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; text-align: center; margin-bottom: 16px; }
+  .calc-result-number { font-size: 3.2rem; font-weight: 800; color: #34d399; line-height: 1; }
+  .calc-result-label { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .calc-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 16px; }
+  .calc-stat { background: var(--surface); border-radius: var(--radius-sm); padding: 14px; text-align: center; }
+  .calc-stat-num { font-size: 1.5rem; font-weight: 800; }
+  .calc-stat-num.s-calendar { color: var(--accent); }
+  .calc-stat-num.s-weekends { color: var(--gold); }
+  .calc-stat-num.s-holidays { color: var(--red); }
+  .calc-stat-num.s-off { color: var(--muted); }
+  .calc-stat-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .calc-holidays-toggle { background: transparent; border: none; color: #34d399; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; padding: 8px 0; }
+  .calc-holidays-toggle:hover { text-decoration: underline; }
+  .calc-holidays-list { margin-top: 10px; display: none; }
+  .calc-holidays-list.open { display: block; }
+  .calc-holiday-item { display: flex; justify-content: space-between; padding: 7px 12px; font-family: 'DM Mono', monospace; font-size: 11px; border-radius: 6px; }
+  .calc-holiday-item:nth-child(odd) { background: var(--surface); }
+  .calc-holiday-item .ch-date { color: var(--muted); min-width: 120px; }
+  .calc-holiday-item .ch-name { color: var(--text); }
+  .calc-holiday-item.ch-in-range { border-left: 3px solid var(--red); }
+  .calc-holiday-item.ch-in-range .ch-name { color: var(--red); }
+  .calc-tag { display: inline-block; font-family: 'DM Mono', monospace; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px; letter-spacing: 0.04em; }
+  .calc-tag-weekend { background: rgba(247,201,72,0.1); color: var(--gold); }
+  .calc-tag-workday { background: rgba(255,77,109,0.1); color: var(--red); }
+  .calc-year-header { padding: 10px 12px 4px; font-size: 11px; font-weight: 700; color: #34d399; }
+  @media (max-width: 780px) { .calc-page { padding: 20px 16px 60px; } .calc-row { flex-direction: column; } .calc-field { min-width: 100%; } .calc-off-entry { flex-direction: column; } }
+
+  /* DATA BANNER */
+  .data-banner { display: none; align-items: center; gap: 14px; background: rgba(247,201,72,0.08); border-bottom: 1px solid rgba(247,201,72,0.25); padding: 10px 20px; position: relative; z-index: 60; flex-wrap: wrap; }
+  .data-banner.visible { display: flex; }
+  .data-banner-text { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--gold); flex: 1; min-width: 220px; }
+  .data-banner-btn { background: var(--gold); border: none; border-radius: var(--radius-sm); color: #1a1300; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+  .data-banner-btn:hover { filter: brightness(1.08); }
+  .data-banner-dismiss { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 2px 6px; }
+
+  /* MOBILE */
+  .mobile-topbar { display: none; position: sticky; top: 0; z-index: 100; background: rgba(8,12,22,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 16px; height: 52px; align-items: center; justify-content: space-between; }
+  .mobile-logo { font-size: 14px; font-weight: 800; }
+  .mobile-nav-btns { display: flex; gap: 5px; }
+  .mobile-nav-btn { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; transition: all 0.15s; }
+  .mobile-nav-btn.active { color: var(--text); border-color: var(--border2); }
+
+  @media (max-width: 780px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+    .mobile-topbar { display: flex !important; }
+    .home-page { padding: 32px 20px 60px; }
+    .qa-page, .daily-page { padding: 20px 16px 60px; }
+  }
+  /* AUTH (v3) */
+  [hidden] { display: none !important; }
+  body.auth-locked .layout, body.auth-locked .mobile-topbar, body.auth-locked .data-banner { display: none !important; }
+  .auth-screen { display: none; min-height: 100vh; align-items: center; justify-content: center; padding: 24px 16px; position: relative; z-index: 1; }
+  body.auth-locked .auth-screen { display: flex; }
+  .auth-card { width: 100%; max-width: 380px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 32px 28px; }
+  .auth-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .auth-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin: 3px 0 24px; }
+  .auth-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .auth-field label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .auth-btn { width: 100%; padding: 11px 16px; margin-top: 6px; }
+  .auth-btn:disabled { opacity: 0.6; cursor: wait; }
+  .auth-msg { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
+  .sidebar-user { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .sidebar-user-name { font-size: 12px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+  .sidebar-user-role { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--teal); margin: 2px 0 8px; }
+  .sidebar-logout { background: transparent; border: 1px solid var(--border); border-radius: 7px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 5px 9px; cursor: pointer; transition: all 0.15s; }
+  .sidebar-logout:hover { color: var(--red); border-color: rgba(255,77,109,0.4); }
+  .mobile-logout-btn { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; }
+  .status-msg.ok { display: block; background: rgba(0,201,167,0.08); border: 1px solid rgba(0,201,167,0.25); color: var(--teal); }
+  .user-email { display: block; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+  .user-role-select { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 8px; }
+  .user-role-select:disabled, .crud-checkbox:disabled { opacity: 0.5; cursor: not-allowed; }
+  /* Sin esto, en móvil el contenido ensanchaba .main y aparecía scroll horizontal (venía de v2). */
+  .main { min-width: 0; }
+  @media (max-width: 780px) {
+    .mobile-topbar { gap: 8px; height: auto; min-height: 52px; padding: 8px 16px; }
+    .mobile-nav-btns { flex-wrap: wrap; justify-content: flex-end; }
+  }
+</style>
+</head>
+<body class="auth-locked">
+
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-card">
+    <div class="brand-icon">⚡</div>
+    <div class="auth-title">QA BCR Suite</div>
+    <div class="auth-sub">Banco de Costa Rica</div>
+    <div class="auth-msg" id="auth-loading">Verificando sesión...</div>
+    <form id="auth-form" hidden onsubmit="onLoginSubmit(event)">
+      <div class="auth-field">
+        <label for="auth-email">Correo</label>
+        <input class="crud-input" id="auth-email" type="email" autocomplete="username" required>
+      </div>
+      <div class="auth-field">
+        <label for="auth-password">Contraseña</label>
+        <input class="crud-input" id="auth-password" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="crud-btn-add auth-btn" id="auth-submit" type="submit">Iniciar sesión</button>
+      <div class="status-msg" id="auth-error" role="alert"></div>
+    </form>
+    <div id="auth-blocked" hidden>
+      <div class="status-msg error" id="auth-blocked-text" role="alert"></div>
+      <button class="btn-secondary auth-btn" id="auth-blocked-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+  </div>
+</div>
+
+<div class="mobile-topbar">
+  <span class="mobile-logo">⚡ QA BCR</span>
+  <div class="mobile-nav-btns">
+    <button class="mobile-nav-btn active" onclick="showPage('home')">Home</button>
+    <button class="mobile-nav-btn" onclick="showPage('qa')">QA</button>
+    <button class="mobile-nav-btn" onclick="showPage('daily')">Daily</button>
+    <button class="mobile-nav-btn" onclick="showPage('admin')" id="mnav-admin">Admin</button>
+    <button class="mobile-nav-btn" onclick="showPage('calc')">Calc</button>
+    <button class="mobile-logout-btn" id="mobile-logout" onclick="logout()" title="Cerrar sesión">Salir</button>
+  </div>
+</div>
+
+<div class="data-banner" id="data-banner">
+  <span class="data-banner-text" id="data-banner-text">📂 No se encontró <strong>qa-bcr-suite-data.json</strong> junto a este archivo. Cargá tu último respaldo para asegurarte de ver la información más reciente.</span>
+  <button class="data-banner-btn" id="data-banner-btn" onclick="document.getElementById('import-file-startup').click()">Cargar archivo</button>
+  <input type="file" id="import-file-startup" accept="application/json" style="display:none" onchange="importData(event)">
+  <button class="data-banner-dismiss" onclick="document.getElementById('data-banner').classList.remove('visible')" title="Cerrar">✕</button>
+</div>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-name">QA BCR Suite</div>
+      <div class="brand-sub">Banco de Costa Rica</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Menú</div>
+      <div class="nav-item item-home active" onclick="showPage('home')" id="nav-home">
+        <div class="nav-icon">🏠</div><span>Inicio</span><div class="nav-pip"></div>
+      </div>
+      <div class="nav-item item-qa" onclick="showPage('qa')" id="nav-qa">
+        <div class="nav-icon">⚙️</div><span>QA Generator</span><div class="nav-pip"></div>
+      </div>
+      <div class="nav-item item-daily" onclick="showPage('daily')" id="nav-daily">
+        <div class="nav-icon">🎲</div><span>Daily Scrum</span><div class="nav-pip"></div>
+      </div>
+      <div class="nav-item item-admin" onclick="showPage('admin')" id="nav-admin">
+        <div class="nav-icon">🛠️</div><span>Administración</span><div class="nav-pip"></div>
+      </div>
+      <div class="nav-item item-calc" onclick="showPage('calc')" id="nav-calc">
+        <div class="nav-icon">📅</div><span>Días Hábiles</span><div class="nav-pip"></div>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-name" id="sidebar-user-name"></div>
+        <div class="sidebar-user-role" id="sidebar-user-role"></div>
+        <button class="sidebar-logout" onclick="logout()">Cerrar sesión</button>
+      </div>
+      <div class="sidebar-footer-text">QA BCR Suite v3.0<br>IA · Powered by Claude</div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- HOME -->
+    <div class="page active" id="page-home">
+    <div class="home-page">
+      <div class="home-eyebrow">// QA BCR Suite · v3.0</div>
+      <h1 class="home-title">Herramientas<br>para el equipo<br><span class="hl-teal">QA</span> <span style="color:var(--dim)">·</span> <span class="hl-cyan">BCR</span></h1>
+      <p class="home-desc">Generación de tareas QA asistida por IA y<br>ordenamiento aleatorio de dailys — todo en un lugar.</p>
+      <div class="home-cards">
+        <div class="home-card card-qa" onclick="showPage('qa')">
+          <div class="home-card-icon">⚙️</div>
+          <div class="home-card-title">QA Task Generator</div>
+          <div class="home-card-desc">Generá tareas QA para Azure DevOps a partir de PBIs, HUs o RTs. Soporta templates por proyecto y extracción desde imágenes con IA.</div>
+          <div class="home-card-arrow">Abrir herramienta <span>→</span></div>
+        </div>
+        <div class="home-card card-daily" onclick="showPage('daily')">
+          <div class="home-card-icon">🎲</div>
+          <div class="home-card-title">Daily Scrum Order</div>
+          <div class="home-card-desc">Generá el orden aleatorio de participación para el Daily 1 y Daily 2, con reglas de rotación y re-roll ilimitado.</div>
+          <div class="home-card-arrow">Abrir herramienta <span>→</span></div>
+        </div>
+        <div class="home-card card-daily" onclick="showPage('calc')" style="border-color:rgba(52,211,153,0.15)">
+          <div class="home-card-icon" style="background:rgba(52,211,153,0.12);border-color:rgba(52,211,153,0.2)">📅</div>
+          <div class="home-card-title" style="color:#34d399">Días Hábiles</div>
+          <div class="home-card-desc">Calculá días hábiles entre dos fechas, restando fines de semana, feriados de Costa Rica y días off personalizados.</div>
+          <div class="home-card-arrow" style="color:#34d399">Abrir herramienta <span>→</span></div>
+        </div>
+      </div>
+      <div class="home-version">BCR · Equipo QA · Azure DevOps</div>
+    </div>
+    </div>
+
+    <!-- QA GENERATOR -->
+    <div class="page" id="page-qa">
+    <div class="qa-page">
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="page-back" onclick="showPage('home')">←</div>
+          <div>
+            <div class="page-title">QA Task Generator</div>
+            <div class="page-subtitle">// Banco de Costa Rica · Azure DevOps</div>
+          </div>
+        </div>
+        <span class="ai-badge">IA Powered</span>
+      </div>
+      <div class="main-grid">
+        <div class="card">
+          <div class="card-label">Tipo de Proyecto</div>
+          <div class="project-grid" id="project-grid"></div>
+          <div id="qa-variant-section" style="display:none">
+            <div class="variant-label" style="margin-top:13px">Variante</div>
+            <select class="variant-select" id="variant-select"><option value="">Seleccionar variante...</option></select>
+          </div>
+          <div class="ai-chip">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+            Generación asistida por Claude AI
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-label">Cargar imagen (opcional)</div>
+          <div class="img-preview-wrap" id="img-preview-wrap">
+            <img id="img-preview" class="img-preview" src="" alt="preview"/>
+            <button class="btn-remove-img" onclick="removeImage()">×</button>
+          </div>
+          <div class="upload-zone" id="upload-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+            <input type="file" id="img-input" accept="image/*" onchange="onFileSelected(event)"/>
+            <div class="upload-icon">🖼️</div>
+            <div class="upload-text"><strong>Arrastrá o hacé click</strong> para subir<br>una captura de Azure DevOps o Excel</div>
+          </div>
+          <button class="btn-extract" id="btn-extract" onclick="extractFromImage()">🤖 Extraer PBIs de la imagen</button>
+          <div class="divider"><span>O escribí manualmente</span></div>
+          <div class="card-label">Lista de PBIs / HUs / RTs</div>
+          <textarea id="pbi-input" placeholder="12345 - Implementar login con MFA&#10;12346 - Validación de formulario de pago&#10;12347 - Integración con sistema legado"></textarea>
+          <div id="status-msg" class="status-msg"></div>
+        </div>
+      </div>
+      <button class="btn-generate" id="btn-gen" onclick="generate()" disabled>⚡ Generar Tareas QA</button>
+      <div class="loading-bar" id="loading-bar"></div>
+      <div class="output-section" id="output-section" style="margin-top:18px">
+        <div class="output-header">
+          <div class="output-title"><span class="dot"></span>Tareas QA generadas</div>
+          <button class="btn-copy" id="btn-copy" onclick="copyTable()">COPIAR</button>
+        </div>
+        <div class="output-table-wrap">
+          <table id="output-table">
+            <thead><tr><th>Tarea</th></tr></thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- DAILY SCRUM -->
+    <div class="page" id="page-daily">
+    <div class="daily-page">
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="page-back" onclick="showPage('home')">←</div>
+          <div>
+            <div class="page-title">Daily Scrum Order</div>
+            <div class="page-subtitle">// randomized · rule-aware · re-rollable</div>
+          </div>
+        </div>
+      </div>
+      <div class="daily-tabs-selector">
+        <button class="daily-tab-btn dt-d1 active" id="dtab1" onclick="selectDaily(1)">
+          <div class="dt-label" id="dtlabel1">🟢 Seleccionado</div>
+          <div class="dt-title">Daily 1</div>
+          <div class="dt-count">10 participantes</div>
+        </button>
+        <button class="daily-tab-btn dt-d2" id="dtab2" onclick="selectDaily(2)">
+          <div class="dt-label" id="dtlabel2">🔵 Daily</div>
+          <div class="dt-title">Daily 2</div>
+          <div class="dt-count">12 participantes</div>
+        </button>
+      </div>
+      <button class="roll-btn d1" id="rollBtn" onclick="roll()">
+        <span class="dice-icon" id="diceIcon">🎲</span>
+        <span id="rollLabel">Generar Orden — Daily 1</span>
+      </button>
+      <div class="daily-columns">
+        <div>
+          <div class="daily-col-label">📋 Pendientes</div>
+          <div class="list-container">
+            <div class="list-header">
+              <span class="list-header-title">Orden de participación</span>
+              <span class="run-badge" id="runBadge">—</span>
+            </div>
+            <div id="listBody">
+              <div class="list-empty">
+                <div class="list-empty-icon">🎯</div>
+                <div class="list-empty-text">Seleccioná un daily y presioná<br><strong>Generar Orden</strong> para comenzar</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="daily-col-label">✅ Ya participaron</div>
+          <div class="done-list">
+            <div class="done-header">
+              <span class="done-header-title">Completados</span>
+              <span class="done-count-badge" id="doneCount">0</span>
+            </div>
+            <div class="done-body" id="doneBody">
+              <div class="done-empty">Hacé clic en un participante<br>para marcarlo como listo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div class="page" id="page-admin">
+    <div class="admin-page">
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="page-back" onclick="showPage('home')">←</div>
+          <div>
+            <div class="page-title">Administración</div>
+            <div class="page-subtitle">// personas · reglas · tareas · respaldo</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-tabs">
+        <button class="admin-tab-btn active" id="atab-people" onclick="selectAdminTab('people')">👥 Personas</button>
+        <button class="admin-tab-btn" id="atab-rules" onclick="selectAdminTab('rules')">🥇 Regla de primeros</button>
+        <button class="admin-tab-btn" id="atab-tasks" onclick="selectAdminTab('tasks')">🗂️ Tareas / Proyectos</button>
+        <button class="admin-tab-btn" id="atab-backup" onclick="selectAdminTab('backup')">💾 Respaldo</button>
+        <button class="admin-tab-btn" id="atab-users" onclick="selectAdminTab('users')" hidden>👤 Usuarios</button>
+      </div>
+
+      <!-- PERSONAS -->
+      <div class="admin-section active" id="asec-people">
+        <div class="admin-daily-cols">
+          <div>
+            <div class="admin-card-title">Daily 1</div>
+            <div class="admin-card-desc">Agregar o quitar personas de la lista de Daily 1.</div>
+            <div class="crud-row">
+              <input class="crud-input" id="newp-daily1" placeholder="Nombre completo..." onkeydown="if(event.key==='Enter')addPerson('daily1')">
+              <button class="crud-btn-add" onclick="addPerson('daily1')">+ Agregar</button>
+            </div>
+            <div class="crud-list" id="list-people-daily1"></div>
+          </div>
+          <div>
+            <div class="admin-card-title">Daily 2</div>
+            <div class="admin-card-desc">Agregar o quitar personas de la lista de Daily 2.</div>
+            <div class="crud-row">
+              <input class="crud-input" id="newp-daily2" placeholder="Nombre completo..." onkeydown="if(event.key==='Enter')addPerson('daily2')">
+              <button class="crud-btn-add" onclick="addPerson('daily2')">+ Agregar</button>
+            </div>
+            <div class="crud-list" id="list-people-daily2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REGLAS -->
+      <div class="admin-section" id="asec-rules">
+        <div class="admin-daily-cols">
+          <div>
+            <div class="admin-card-title">Regla de primeros — Daily 1</div>
+            <div class="admin-card-desc">Marcá quiénes deben salir dentro del bloque inicial, definí el rango (tamaño del bloque) y quién queda fijo al final.</div>
+            <div class="range-row">
+              <span class="crud-label-small">Rango del bloque inicial</span>
+              <input type="number" min="1" class="range-input" id="range-daily1" onchange="setRange('daily1',this.value)">
+            </div>
+            <div class="crud-list" id="list-rules-daily1"></div>
+          </div>
+          <div>
+            <div class="admin-card-title">Regla de primeros — Daily 2</div>
+            <div class="admin-card-desc">Marcá quiénes deben salir dentro del bloque inicial, definí el rango (tamaño del bloque) y quién queda fijo al final.</div>
+            <div class="range-row">
+              <span class="crud-label-small">Rango del bloque inicial</span>
+              <input type="number" min="1" class="range-input" id="range-daily2" onchange="setRange('daily2',this.value)">
+            </div>
+            <div class="crud-list" id="list-rules-daily2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAREAS -->
+      <div class="admin-section" id="asec-tasks">
+        <div class="admin-card-title">Proyectos</div>
+        <div class="admin-card-desc">Agregá un proyecto nuevo o eliminá uno existente. Cada proyecto puede tener variantes (opcional).</div>
+        <div class="crud-row">
+          <input class="crud-input" id="new-project" placeholder="Nombre del proyecto (ej. NUEVO_PROYECTO)...">
+          <button class="crud-btn-add" onclick="addProject()">+ Agregar proyecto</button>
+        </div>
+        <div class="task-project-grid" id="task-project-list"></div>
+
+        <div id="task-editor-wrap" style="display:none">
+          <div class="task-select-row">
+            <select class="variant-select" id="task-variant-select" style="max-width:260px" onchange="renderTaskEditor()"></select>
+            <div class="crud-row" style="flex:1;margin-bottom:0">
+              <input class="crud-input" id="new-variant" placeholder="Nombre de variante nueva (opcional)...">
+              <button class="crud-btn-add" onclick="addVariant()">+ Variante</button>
+            </div>
+            <button class="crud-btn-del" style="width:auto;padding:0 12px" onclick="removeVariant()" title="Eliminar variante seleccionada">🗑 Variante</button>
+          </div>
+          <div class="admin-card-desc">Una tarea por línea. Usá <code>${'{'}n{'}'}</code> donde debe ir el número del PBI/HU.</div>
+          <textarea class="task-textarea" id="task-textarea"></textarea>
+          <div class="backup-btns">
+            <button class="btn-secondary" onclick="saveTaskEditor()">💾 Guardar plantilla</button>
+            <button class="crud-btn-del" style="width:auto;padding:0 14px" onclick="removeProject()">🗑 Eliminar proyecto</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BACKUP -->
+      <div class="admin-section" id="asec-backup">
+        <div class="admin-card-title">Respaldo y portabilidad</div>
+        <div class="admin-card-desc">Los datos se guardan automáticamente en este navegador. Para llevarlos a otra PC, exportá el archivo JSON y luego importalo ahí.</div>
+        <div class="backup-btns">
+          <button class="btn-secondary" onclick="linkDataFile()">🔗 Vincular archivo de datos</button>
+          <button class="btn-secondary" onclick="refreshFromLinkedHandle()">🔄 Actualizar desde archivo vinculado</button>
+          <button class="btn-secondary" onclick="saveToLinkedFile()">💾 Guardar en archivo (sobrescribe)</button>
+          <button class="btn-secondary" onclick="exportData()">⬇ Exportar como nuevo JSON</button>
+          <button class="btn-secondary" onclick="document.getElementById('import-file').click()">⬆ Importar datos (JSON)</button>
+          <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importData(event)">
+          <button class="crud-btn-del" style="width:auto;padding:0 14px" onclick="resetData()">↺ Restablecer valores originales</button>
+        </div>
+        <div class="backup-note">"Vincular archivo de datos" te pide elegir <strong>una vez</strong> el archivo qa-bcr-suite-data.json que está junto a este HTML. Después, "Guardar en archivo" te pregunta antes de sobrescribirlo con los datos actuales.<br>Esta función solo funciona en Chrome/Edge, y solo si la página no se abrió con doble clic directo (necesita servirse desde un servidor local o similar). Si no está disponible, usá "Exportar" e importalo manualmente.</div>
+        <div class="backup-note" id="backup-status"></div>
+      </div>
+
+      <!-- USUARIOS (solo ADMIN) -->
+      <div class="admin-section" id="asec-users">
+        <div class="admin-card-title">Usuarios</div>
+        <div class="admin-card-desc">Cambiá el rol o desactivá usuarios. Los usuarios nuevos se crean en Supabase (Authentication → Users → Add user) y entran como QA.</div>
+        <div class="crud-list" id="list-users"></div>
+        <div class="status-msg" id="users-status" role="status"></div>
+      </div>
+    </div>
+    </div>
+
+    <!-- CALC DÍAS HÁBILES -->
+    <div class="page" id="page-calc">
+    <div class="calc-page">
+      <div class="page-header">
+        <div class="page-header-left">
+          <div class="page-back" onclick="showPage('home')">←</div>
+          <div>
+            <div class="page-title">Calculadora de Días Hábiles</div>
+            <div class="page-subtitle">// Costa Rica · Feriados 2026–2028</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="calc-section">
+        <div class="calc-section-title">Rango de trabajo</div>
+        <div class="calc-row">
+          <div class="calc-field"><label>Desde</label><input type="date" id="calcWorkStart" min="2026-01-01" max="2028-12-31"></div>
+          <div class="calc-field"><label>Hasta</label><input type="date" id="calcWorkEnd" min="2026-01-01" max="2028-12-31"></div>
+        </div>
+      </div>
+
+      <div class="calc-section">
+        <div class="calc-section-title">Días off <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></div>
+        <div id="calcOffContainer"></div>
+        <button class="calc-btn-add" onclick="calcAddOff()">+ Agregar rango</button>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <button class="calc-btn-calc" onclick="calcRun()">📅 Calcular días hábiles</button>
+        <button class="calc-btn-clear" onclick="calcClear()">Limpiar</button>
+      </div>
+
+      <div id="calcResults"></div>
+
+      <div class="calc-section">
+        <button class="calc-holidays-toggle" onclick="calcToggleHolidays()">📅 Ver feriados de Costa Rica 2026–2028</button>
+        <div id="calcHolidaysList" class="calc-holidays-list"></div>
+      </div>
+    </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ============ DATA MODEL (persistente: localStorage + export/import JSON) ============ */
+const STORAGE_KEY='qaBcrSuiteDB_v1';
+const PALETTE=['#4f8ef7','#60a5fa','#f7c948','#818cf8','#4ade80','#fbbf24','#f87171','#00d4ff','#7c3aed','#00c9a7'];
+
+const DEFAULT_DB={
+  people:{
+    daily1:["Ángel Eduardo Romero Acuña","Juliana López Marín","Amos","Keysi Quirós Rojas","Aarón Bustos Peralta","Milagro Ceciliano Ortega","Andrey Morales Vargas","Nectali Pérez Góngora","Ana Yanci Vega Navarro","Josebeth Sevilla Sandi","Brayner Steven Rosales Solís"],
+    daily2:["Laura Masis Brenes","Mónica Castro Soto","Jurguen Tames","Gaby DePass","Viviana Mora","Kendall Mesen Gamboa","Mario Mendoza Hernández","Víctor Manuel Salvatierra Mora","Pablo César Guerrero Abarca","Luis Alonso Carrillo Villarreal","Brayner Steven Rosales Solís"]
+  },
+  rules:{
+    daily1:{firstGroup:["Ángel Eduardo Romero Acuña","Juliana López Marín"],range:6,lastFixed:["Brayner Steven Rosales Solís"]},
+    daily2:{firstGroup:["Pablo César Guerrero Abarca"],range:4,lastFixed:["Brayner Steven Rosales Solís"]}
+  },
+  projects:{
+    DATA:{color:'#4f8ef7',variants:[],templates:{'':["QA - {n} - Especificación de Casos de Pruebas.","QA - {n} - Estimación de Casos de Pruebas.","QA - {n} - Pruebas de Smoke.","QA - {n} - Regresión de pruebas.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Re ejecución de pruebas."]}},
+    COMERCIAL:{color:'#60a5fa',variants:['normal','sin especificación','sin estimación y especificación'],templates:{
+      'normal':["QA - {n} - Especificación de casos de pruebas.","QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas (Consultor 1).","QA - {n} - Re ejecución de pruebas.","QA - {n} - Pruebas de regresión."],
+      'sin especificación':["QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas (Consultor 1).","QA - {n} - Re ejecución de pruebas.","QA - {n} - Pruebas de regresión."],
+      'sin estimación y especificación':["QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas (Consultor 1).","QA - {n} - Re ejecución de pruebas.","QA - {n} - Pruebas de regresión."]
+    }},
+    AHORRO:{color:'#f7c948',variants:['sin especificación','con especificación'],templates:{
+      'sin especificación':["QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas (Consultor 1).","QA - {n} - Re ejecución de pruebas.","QA - {n} - Pruebas de regresión."],
+      'con especificación':["QA - {n} - Especificación de casos de pruebas","QA - {n} - Estimación de casos de pruebas","QA - {n} - Creación de Catalogo de pruebas","QA - {n} - Pruebas de Smoke","QA - {n} - Ejecución de casos de pruebas (Consultor 1)","QA - {n} - Re ejecución de pruebas","QA - {n} - Pruebas de regresión"]
+    }},
+    SISTAR:{color:'#818cf8',variants:['normal','sin estimación'],templates:{
+      'normal':["QA - {n} - Estimación de casos de prueba y Especificación de casos de prueba.","QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Regresión de pruebas.","QA - {n} - Re ejecución de pruebas."],
+      'sin estimación':["QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Regresión de pruebas.","QA - {n} - Re ejecución de pruebas."]
+    }},
+    TUCAN:{color:'#4ade80',variants:['normal','ejecución'],templates:{
+      'normal':["QA - {n} - Estimación y Creación de escenarios de prueba","QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Regresión de pruebas.","QA - {n} - Re ejecución de pruebas."],
+      'ejecución':["QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Regresión de pruebas.","QA - {n} - Re ejecución de pruebas."]
+    }},
+    GOBIERNO:{color:'#fbbf24',variants:['ejecución'],templates:{
+      'ejecución':["QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Regresión de pruebas.","QA - {n} - Re ejecución de pruebas."]
+    }},
+    AUTO:{color:'#f87171',variants:[],templates:{'':["AUT- {n} - Análisis del flujo.","AUT- {n} - Análisis de selectores.","AUT- {n} - Creación del script.","AUT- {n} - Preparación de ambientes.","AUT- {n} - Ejecución de casos de pruebas (Consultor 1).","AUT- {n} - Documentación de pruebas."]}}
+  }
+};
+
+function clone(o){return JSON.parse(JSON.stringify(o));}
+function mergeDeep(base,loaded){
+  if(Array.isArray(base))return Array.isArray(loaded)?loaded:base;
+  if(base&&typeof base==='object'){
+    const out={...base};
+    if(loaded&&typeof loaded==='object'){for(const k in loaded){out[k]=mergeDeep(base[k]!==undefined?base[k]:loaded[k],loaded[k]);}for(const k in base){if(!(k in out))out[k]=base[k];}}
+    return out;
+  }
+  return loaded!==undefined?loaded:base;
+}
+function loadDB(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw){return mergeDeep(clone(DEFAULT_DB),JSON.parse(raw));}
+  }catch(e){console.warn('No se pudo leer localStorage',e);}
+  return clone(DEFAULT_DB);
+}
+let DB=loadDB();
+function saveDB(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));}catch(e){console.warn('No se pudo guardar en localStorage',e);}}
+
+/* ============ NAVIGATION ============ */
+function showPage(id) {
+  if(id==='admin'&&!canManageConfig())id='home';
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-btn').forEach((b,i) => { b.classList.remove('active'); if(['home','qa','daily','admin','calc'][i]===id) b.classList.add('active'); });
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('nav-'+id).classList.add('active');
+  if(id==='admin')renderAdmin();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ============ QA GENERATOR ============ */
+let selectedProject=null, selectedVariant=null, currentImageBase64=null, currentImageType=null;
+
+function renderProjectButtons(){
+  const grid=document.getElementById('project-grid');
+  grid.innerHTML=Object.keys(DB.projects).map(key=>`<button class="proj-btn" data-type="${key}" onclick="selectProject(this)"><span class="proj-dot" style="background:${DB.projects[key].color}"></span> ${key}</button>`).join('');
+}
+
+function onDragOver(e){e.preventDefault();document.getElementById('upload-zone').classList.add('drag-over');}
+function onDragLeave(){document.getElementById('upload-zone').classList.remove('drag-over');}
+function onDrop(e){e.preventDefault();document.getElementById('upload-zone').classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))loadImage(f);}
+function onFileSelected(e){const f=e.target.files[0];if(f)loadImage(f);}
+function loadImage(file){const r=new FileReader();r.onload=e=>{const d=e.target.result;currentImageBase64=d.split(',')[1];currentImageType=file.type;document.getElementById('img-preview').src=d;document.getElementById('img-preview-wrap').classList.add('visible');document.getElementById('upload-zone').style.display='none';document.getElementById('btn-extract').classList.add('visible');};r.readAsDataURL(file);}
+function removeImage(){currentImageBase64=null;currentImageType=null;document.getElementById('img-preview').src='';document.getElementById('img-preview-wrap').classList.remove('visible');document.getElementById('upload-zone').style.display='block';document.getElementById('btn-extract').classList.remove('visible');document.getElementById('img-input').value='';}
+
+async function extractFromImage(){
+  if(!currentImageBase64)return;
+  const btn=document.getElementById('btn-extract'),sm=document.getElementById('status-msg');
+  btn.disabled=true;btn.textContent='🔍 Analizando imagen...';sm.className='status-msg info';sm.textContent='La IA está leyendo la imagen...';
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:currentImageType,data:currentImageBase64}},{type:"text",text:"Eres asistente del BCR. Extrae todos los PBIs, HUs o RTs.\nDevuelve SOLO la lista, una por línea: NÚMERO - Descripción\nSin explicaciones ni markdown."}]}]})});
+    if(!res.ok)throw new Error(`API Error: ${res.status}`);
+    const data=await res.json();
+    const extracted=data.content.map(i=>i.text||'').join('').trim();
+    if(extracted){document.getElementById('pbi-input').value=extracted;sm.textContent=`✓ Se extrajeron ${extracted.split('\n').filter(l=>l.trim()).length} elemento(s).`;checkReady();}
+    else{sm.className='status-msg error';sm.textContent='⚠ No se encontraron PBIs en la imagen.';}
+  }catch(err){sm.className='status-msg error';sm.textContent='⚠ Error: '+err.message;}
+  finally{btn.disabled=false;btn.textContent='🤖 Extraer PBIs de la imagen';}
+}
+
+function selectProject(btn){
+  document.querySelectorAll('.proj-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  selectedProject=btn.dataset.type;selectedVariant=null;
+  const vs=document.getElementById('qa-variant-section'),vsel=document.getElementById('variant-select'),variants=DB.projects[selectedProject]?.variants||[];
+  if(variants.length>0){vs.style.display='block';vsel.innerHTML='<option value="">Seleccionar variante...</option>'+variants.map(v=>`<option value="${v}">${v.charAt(0).toUpperCase()+v.slice(1)}</option>`).join('');vsel.onchange=()=>{selectedVariant=vsel.value;checkReady();};}
+  else{vs.style.display='none';selectedVariant=null;}
+  checkReady();
+}
+function checkReady(){document.getElementById('btn-gen').disabled=!(!!selectedProject&&(!(DB.projects[selectedProject]?.variants?.length)||!!selectedVariant)&&!!document.getElementById('pbi-input').value.trim());}
+document.getElementById('pbi-input').addEventListener('input',checkReady);
+function parsePBIs(text){return text.split('\n').map(l=>l.trim()).filter(l=>l).map(line=>({raw:line,num:(line.match(/(\d+)/)||[])[1]||null}));}
+
+async function generate(){
+  const input=document.getElementById('pbi-input').value.trim();if(!input)return;
+  const pbis=parsePBIs(input),btn=document.getElementById('btn-gen'),lb=document.getElementById('loading-bar'),sm=document.getElementById('status-msg'),os=document.getElementById('output-section');
+  sm.className='status-msg';sm.textContent='';btn.disabled=true;lb.classList.add('active');os.classList.remove('visible');
+  try{
+    const variantKey=(DB.projects[selectedProject]?.variants?.length)?selectedVariant:'';
+    const tasks=DB.projects[selectedProject]?.templates?.[variantKey];
+    if(tasks&&tasks.length){const fn=(n)=>tasks.map(t=>t.split('{n}').join(n));renderTable(pbis,fn);}
+    else await generateWithAI(pbis,input);
+    os.classList.add('visible');os.scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(err){sm.className='status-msg error';sm.textContent='⚠ Error: '+err.message;}
+  finally{btn.disabled=false;lb.classList.remove('active');checkReady();}
+}
+function renderTable(pbis,fn){
+  const tbody=document.getElementById('table-body');tbody.innerHTML='';
+  pbis.forEach(({raw,num})=>{
+    const pr=document.createElement('tr');pr.className='pbi-row';pr.innerHTML=`<td>${raw}</td>`;tbody.appendChild(pr);
+    (num?fn(num):fn('####')).forEach(task=>{const tr=document.createElement('tr');tr.className='task-row';tr.innerHTML=`<td>${task}</td>`;tbody.appendChild(tr);});
+  });
+}
+async function generateWithAI(pbis,rawInput){
+  const pd=selectedVariant?`${selectedProject} - variante: ${selectedVariant}`:selectedProject;
+  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:`Eres QA Lead del BCR. Genera tareas QA.\nResponde SOLO con JSON: [{"pbi":"texto","tasks":["tarea1",...]}]\nUsa prefijo QA - #### - o AUT- #### -`,messages:[{role:"user",content:`Proyecto: ${pd}\nPBIs:\n${rawInput}`}]})});
+  if(!res.ok)throw new Error(`API Error: ${res.status}`);
+  const data=await res.json(),parsed=JSON.parse(data.content.map(i=>i.text||'').join('').replace(/```json|```/g,'').trim());
+  const tbody=document.getElementById('table-body');tbody.innerHTML='';
+  parsed.forEach(({pbi,tasks})=>{const pr=document.createElement('tr');pr.className='pbi-row';pr.innerHTML=`<td>${pbi}</td>`;tbody.appendChild(pr);tasks.forEach(task=>{const tr=document.createElement('tr');tr.className='task-row';tr.innerHTML=`<td>${task}</td>`;tbody.appendChild(tr);});});
+}
+function copyTable(){
+  const text=[...document.querySelectorAll('#table-body tr')].map(r=>r.querySelector('td')?.innerText?.trim()).filter(Boolean).join('\n');
+  const btn=document.getElementById('btn-copy');
+  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(()=>showCopied(btn)).catch(()=>fallbackCopy(text,btn));else fallbackCopy(text,btn);
+}
+function fallbackCopy(text,btn){const ta=Object.assign(document.createElement('textarea'),{value:text,style:'position:fixed;top:0;left:0;opacity:0'});document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');showCopied(btn);}catch{btn.textContent='⚠ Error';setTimeout(()=>btn.textContent='COPIAR',2000);}document.body.removeChild(ta);}
+function showCopied(btn){btn.textContent='✓ COPIADO';btn.classList.add('copied');setTimeout(()=>{btn.textContent='COPIAR';btn.classList.remove('copied');},2000);}
+
+/* ============ DAILY SCRUM ============ */
+let activeDaily=1,runCount=0,lastRestEnd={daily1:null,daily2:null};
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function getInitials(name){return name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();}
+function updateDailyCounts(){
+  document.querySelector('#dtab1 .dt-count').textContent=`${DB.people.daily1.length} participantes`;
+  document.querySelector('#dtab2 .dt-count').textContent=`${DB.people.daily2.length} participantes`;
+}
+function selectDaily(num){
+  activeDaily=num;
+  document.querySelectorAll('.daily-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(`dtab${num}`).classList.add('active');
+  document.getElementById('dtlabel1').textContent=num===1?'🟢 Seleccionado':'🟢 Daily';
+  document.getElementById('dtlabel2').textContent=num===2?'🔵 Seleccionado':'🔵 Daily';
+  document.getElementById('rollBtn').className=`roll-btn d${num}`;
+  document.getElementById('rollLabel').textContent=`Generar Orden — Daily ${num}`;
+  runCount=0;document.getElementById('runBadge').textContent='—';
+  document.getElementById('listBody').innerHTML=`<div class="list-empty"><div class="list-empty-icon">🎯</div><div class="list-empty-text">Presioná <strong>Generar Orden</strong><br>para ver el orden del Daily ${num}</div></div>`;
+}
+function generateOrder(dailyKey){
+  const people=DB.people[dailyKey].slice();
+  const rule=DB.rules[dailyKey];
+  const lastFixed=(rule.lastFixed||[]).filter(n=>people.includes(n));
+  const firstGroup=(rule.firstGroup||[]).filter(n=>people.includes(n)&&!lastFixed.includes(n));
+  const remainingPool=people.filter(n=>!firstGroup.includes(n)&&!lastFixed.includes(n));
+  const maxRange=Math.max(firstGroup.length,people.length-lastFixed.length);
+  const range=Math.min(Math.max(rule.range||firstGroup.length||1,firstGroup.length),maxRange);
+  const fillCount=Math.max(0,range-firstGroup.length);
+  const pool=shuffle(remainingPool);
+  const filler=pool.slice(0,fillCount);
+  const rest=pool.slice(fillCount);
+  const frontBlock=shuffle([...firstGroup,...filler]);
+  let restShuffled=shuffle(rest),attempts=0;
+  while(restShuffled.length>1&&restShuffled[restShuffled.length-1]===lastRestEnd[dailyKey]&&attempts++<15)restShuffled=shuffle(rest);
+  lastRestEnd[dailyKey]=restShuffled.length?restShuffled[restShuffled.length-1]:null;
+  return [...frontBlock,...restShuffled,...shuffle(lastFixed)];
+}
+function roll(){
+  runCount++;
+  document.getElementById('doneBody').innerHTML='<div class="done-empty">Hacé clic en un participante<br>para marcarlo como listo</div>';
+  document.getElementById('doneCount').textContent='0';
+  const dice=document.getElementById('diceIcon');dice.classList.remove('spinning');void dice.offsetWidth;dice.classList.add('spinning');
+  const dailyKey=`daily${activeDaily}`,order=generateOrder(dailyKey),color=activeDaily===1?'d1':'d2',n=order.length;
+  document.getElementById('runBadge').textContent=`Run #${runCount}`;
+  document.getElementById('rollLabel').textContent=`Re-roll — Daily ${activeDaily}`;
+  document.getElementById('listBody').innerHTML=order.map((name,i)=>{
+    const pos=i+1,isFirst=pos===1,isLast=pos===n,short=name.split(' ').slice(0,2).join(' ');
+    const tag=isFirst?'<span class="p-tag tag-first">Primero 🥇</span>':isLast?'<span class="p-tag tag-last">Último</span>':'';
+    return `<div class="participant-item" style="animation-delay:${i*40}ms" data-name="${name}" data-short="${short}" data-color="${color}" onclick="toggleDone(this)"><span class="pos-num ${isFirst?'pos-first':''}">${pos}</span><div class="p-avatar ${color}">${getInitials(name)}</div><span class="p-name ${isLast?'name-last':''}">${short}</span>${tag}</div>`;
+  }).join('');
+}
+function toggleDone(el){
+  const name=el.dataset.name, short=el.dataset.short, color=el.dataset.color;
+  const doneBody=document.getElementById('doneBody');
+  const existingEmpty=doneBody.querySelector('.done-empty');
+  if(el.classList.contains('done')){
+    el.classList.remove('done');
+    const doneItem=doneBody.querySelector(`[data-done="${name}"]`);
+    if(doneItem)doneItem.remove();
+  } else {
+    el.classList.add('done');
+    if(existingEmpty)existingEmpty.remove();
+    const div=document.createElement('div');
+    div.className='done-item';
+    div.dataset.done=name;
+    div.innerHTML=`<div class="done-avatar">${getInitials(name)}</div><span class="done-name">${short}</span><span class="done-check">✓</span>`;
+    div.onclick=()=>{ el.classList.remove('done'); div.remove(); updateDoneCount(); };
+    doneBody.appendChild(div);
+  }
+  updateDoneCount();
+}
+function updateDoneCount(){
+  const n=document.querySelectorAll('#doneBody .done-item').length;
+  document.getElementById('doneCount').textContent=n;
+  if(n===0&&!document.querySelector('#doneBody .done-empty')){
+    document.getElementById('doneBody').innerHTML='<div class="done-empty">Hacé clic en un participante<br>para marcarlo como listo</div>';
+  }
+}
+
+/* ============ ADMIN: TABS ============ */
+function selectAdminTab(tab){
+  document.querySelectorAll('.admin-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('atab-'+tab).classList.add('active');
+  document.getElementById('asec-'+tab).classList.add('active');
+  if(tab==='users')renderUsersAdmin();
+}
+function renderAdmin(){renderPeopleAdmin();renderRulesAdmin();renderTaskProjectList();}
+
+/* ============ ADMIN: PERSONAS (CRUD) ============ */
+function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function renderPeopleAdmin(){
+  ['daily1','daily2'].forEach(dk=>{
+    const list=DB.people[dk],box=document.getElementById('list-people-'+dk);
+    box.innerHTML=list.length?list.map(name=>`<div class="crud-item"><span class="crud-item-name">${escapeHtml(name)}</span><button class="crud-btn-del" data-daily="${dk}" data-name="${escapeHtml(name)}" onclick="renamePerson(this.dataset.daily,this.dataset.name)" title="Editar" style="color:var(--cyan);border-color:var(--border)">✏️</button><button class="crud-btn-del" data-daily="${dk}" data-name="${escapeHtml(name)}" onclick="removePerson(this.dataset.daily,this.dataset.name)" title="Eliminar">🗑</button></div>`).join(''):`<div class="crud-empty">Sin personas aún.</div>`;
+  });
+}
+function renamePerson(dk,oldName){
+  const newName=prompt('Editar nombre:',oldName);
+  if(newName===null)return;
+  const trimmed=newName.trim();
+  if(!trimmed||trimmed===oldName)return;
+  if(DB.people[dk].includes(trimmed)){alert('Ya existe una persona con ese nombre en esta lista.');return;}
+  const idx=DB.people[dk].indexOf(oldName);
+  if(idx===-1)return;
+  DB.people[dk][idx]=trimmed;
+  const rule=DB.rules[dk];
+  rule.firstGroup=rule.firstGroup.map(n=>n===oldName?trimmed:n);
+  rule.lastFixed=rule.lastFixed.map(n=>n===oldName?trimmed:n);
+  saveDB();renderPeopleAdmin();renderRulesAdmin();updateDailyCounts();
+}
+function addPerson(dk){
+  const input=document.getElementById('newp-'+dk),name=input.value.trim();
+  if(!name)return;
+  if(DB.people[dk].includes(name)){input.value='';return;}
+  DB.people[dk].push(name);input.value='';
+  saveDB();renderPeopleAdmin();renderRulesAdmin();updateDailyCounts();
+}
+function removePerson(dk,name){
+  if(!confirm(`¿Quitar a "${name}" de ${dk==='daily1'?'Daily 1':'Daily 2'}?`))return;
+  DB.people[dk]=DB.people[dk].filter(n=>n!==name);
+  DB.rules[dk].firstGroup=DB.rules[dk].firstGroup.filter(n=>n!==name);
+  DB.rules[dk].lastFixed=DB.rules[dk].lastFixed.filter(n=>n!==name);
+  saveDB();renderPeopleAdmin();renderRulesAdmin();updateDailyCounts();
+}
+
+/* ============ ADMIN: REGLA DE PRIMEROS (CRUD + rango) ============ */
+function renderRulesAdmin(){
+  ['daily1','daily2'].forEach(dk=>{
+    const rule=DB.rules[dk],people=DB.people[dk];
+    document.getElementById('range-'+dk).value=rule.range;
+    document.getElementById('range-'+dk).max=people.length;
+    const box=document.getElementById('list-rules-'+dk);
+    box.innerHTML=people.length?people.map(name=>{
+      const inFirst=rule.firstGroup.includes(name),inLast=rule.lastFixed.includes(name);
+      return `<div class="crud-item">
+        <span class="crud-item-name">${escapeHtml(name)}</span>
+        <label class="crud-label-small"><input type="checkbox" class="crud-checkbox" data-daily="${dk}" data-name="${escapeHtml(name)}" ${inFirst?'checked':''} onchange="toggleFirstRule(this.dataset.daily,this.dataset.name,this.checked)"> En regla de primeros</label>
+        <label class="crud-label-small"><input type="checkbox" class="crud-checkbox" data-daily="${dk}" data-name="${escapeHtml(name)}" ${inLast?'checked':''} onchange="toggleLastFixed(this.dataset.daily,this.dataset.name,this.checked)"> Fijo al final</label>
+      </div>`;
+    }).join(''):`<div class="crud-empty">Agregá personas primero.</div>`;
+  });
+}
+function toggleFirstRule(dk,name,checked){
+  const rule=DB.rules[dk];
+  rule.firstGroup=rule.firstGroup.filter(n=>n!==name);
+  rule.lastFixed=rule.lastFixed.filter(n=>n!==name);
+  if(checked)rule.firstGroup.push(name);
+  saveDB();renderRulesAdmin();
+}
+function toggleLastFixed(dk,name,checked){
+  const rule=DB.rules[dk];
+  rule.lastFixed=rule.lastFixed.filter(n=>n!==name);
+  rule.firstGroup=rule.firstGroup.filter(n=>n!==name);
+  if(checked)rule.lastFixed.push(name);
+  saveDB();renderRulesAdmin();
+}
+function setRange(dk,value){
+  const n=parseInt(value,10);
+  DB.rules[dk].range=isNaN(n)||n<1?1:n;
+  saveDB();renderRulesAdmin();
+}
+
+/* ============ ADMIN: TAREAS / PROYECTOS (CRUD) ============ */
+let selectedAdminProject=null,selectedAdminVariant='';
+function renderTaskProjectList(){
+  const box=document.getElementById('task-project-list');
+  const keys=Object.keys(DB.projects);
+  box.innerHTML=keys.map(k=>`<button class="proj-btn ${k===selectedAdminProject?'active':''}" onclick="selectAdminProject('${k}')"><span class="proj-dot" style="background:${DB.projects[k].color}"></span> ${k}</button>`).join('');
+  if(selectedAdminProject&&!DB.projects[selectedAdminProject]){selectedAdminProject=null;document.getElementById('task-editor-wrap').style.display='none';}
+}
+function selectAdminProject(key){
+  selectedAdminProject=key;
+  renderTaskProjectList();
+  document.getElementById('task-editor-wrap').style.display='block';
+  const variants=DB.projects[key].variants,vsel=document.getElementById('task-variant-select');
+  vsel.innerHTML=variants.length?variants.map(v=>`<option value="${v}">${v}</option>`).join(''):`<option value="">(sin variante)</option>`;
+  renderTaskEditor();
+}
+function renderTaskEditor(){
+  if(!selectedAdminProject)return;
+  const vsel=document.getElementById('task-variant-select');
+  selectedAdminVariant=vsel.value;
+  const tasks=DB.projects[selectedAdminProject].templates[selectedAdminVariant]||[];
+  document.getElementById('task-textarea').value=tasks.join('\n');
+}
+function saveTaskEditor(){
+  if(!selectedAdminProject)return;
+  const lines=document.getElementById('task-textarea').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  DB.projects[selectedAdminProject].templates[selectedAdminVariant]=lines;
+  saveDB();
+  const btn=event.target;const old=btn.textContent;btn.textContent='✓ Guardado';setTimeout(()=>btn.textContent=old,1500);
+  renderProjectButtons();
+}
+function addProject(){
+  const input=document.getElementById('new-project'),name=input.value.trim().toUpperCase();
+  if(!name||DB.projects[name])return;
+  const usedColors=Object.values(DB.projects).map(p=>p.color),color=PALETTE.find(c=>!usedColors.includes(c))||PALETTE[Object.keys(DB.projects).length%PALETTE.length];
+  DB.projects[name]={color,variants:[],templates:{'':[]}};
+  input.value='';
+  saveDB();renderProjectButtons();renderTaskProjectList();selectAdminProject(name);
+}
+function removeProject(){
+  if(!selectedAdminProject)return;
+  if(!confirm(`¿Eliminar el proyecto "${selectedAdminProject}" y todas sus plantillas?`))return;
+  delete DB.projects[selectedAdminProject];
+  selectedAdminProject=null;
+  document.getElementById('task-editor-wrap').style.display='none';
+  saveDB();renderProjectButtons();renderTaskProjectList();
+}
+function addVariant(){
+  if(!selectedAdminProject)return;
+  const input=document.getElementById('new-variant'),name=input.value.trim();
+  if(!name)return;
+  const proj=DB.projects[selectedAdminProject];
+  if(!proj.variants.includes(name)){proj.variants.push(name);proj.templates[name]=[];}
+  input.value='';
+  saveDB();
+  const vsel=document.getElementById('task-variant-select');
+  vsel.innerHTML=proj.variants.map(v=>`<option value="${v}">${v}</option>`).join('');
+  vsel.value=name;
+  renderTaskEditor();
+}
+function removeVariant(){
+  if(!selectedAdminProject)return;
+  const proj=DB.projects[selectedAdminProject],vsel=document.getElementById('task-variant-select'),variant=vsel.value;
+  if(!variant){alert('Este proyecto no tiene variante seleccionada para eliminar.');return;}
+  if(!confirm(`¿Eliminar la variante "${variant}"?`))return;
+  proj.variants=proj.variants.filter(v=>v!==variant);
+  delete proj.templates[variant];
+  if(proj.variants.length===0&&!proj.templates[''])proj.templates['']=[];
+  saveDB();
+  vsel.innerHTML=proj.variants.length?proj.variants.map(v=>`<option value="${v}">${v}</option>`).join(''):`<option value="">(sin variante)</option>`;
+  renderTaskEditor();
+}
+
+/* ============ ADMIN: GUARDADO DIRECTO EN ARCHIVO (File System Access API) ============ */
+let linkedFileHandle=null;
+function idbOpen(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open('qaBcrSuiteFS',1);
+    req.onupgradeneeded=()=>{req.result.createObjectStore('handles');};
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function getHandleFromIDB(){
+  if(!('indexedDB' in window))return null;
+  try{
+    const db=await idbOpen();
+    return await new Promise(resolve=>{
+      const tx=db.transaction('handles','readonly'),getReq=tx.objectStore('handles').get('dataFile');
+      getReq.onsuccess=()=>resolve(getReq.result||null);
+      getReq.onerror=()=>resolve(null);
+    });
+  }catch(e){return null;}
+}
+async function setHandleInIDB(handle){
+  if(!('indexedDB' in window))return;
+  try{
+    const db=await idbOpen();
+    await new Promise(resolve=>{
+      const tx=db.transaction('handles','readwrite');
+      tx.objectStore('handles').put(handle,'dataFile');
+      tx.oncomplete=resolve;tx.onerror=resolve;
+    });
+  }catch(e){/* ignore */}
+}
+function fsApiAvailable(){return 'showOpenFilePicker' in window;}
+async function linkDataFile(){
+  if(!fsApiAvailable()){
+    document.getElementById('backup-status').textContent='⚠ Tu navegador no soporta guardado directo a archivo (necesitás Chrome o Edge, y que la página no esté abierta con doble clic directo). Usá "Exportar" / "Importar" como alternativa.';
+    return;
+  }
+  try{
+    const [handle]=await window.showOpenFilePicker({types:[{description:'JSON',accept:{'application/json':['.json']}}],multiple:false});
+    linkedFileHandle=handle;
+    await setHandleInIDB(handle);
+    document.getElementById('backup-status').textContent=`✓ Archivo vinculado: ${handle.name}. Ahora podés usar "Guardar en archivo (sobrescribe)".`;
+  }catch(e){if(e.name!=='AbortError')document.getElementById('backup-status').textContent='⚠ No se pudo vincular el archivo.';}
+}
+async function ensureHandlePermission(handle){
+  const opts={mode:'readwrite'};
+  if((await handle.queryPermission(opts))==='granted')return true;
+  if((await handle.requestPermission(opts))==='granted')return true;
+  return false;
+}
+async function saveToLinkedFile(){
+  if(!fsApiAvailable()){
+    document.getElementById('backup-status').textContent='⚠ Tu navegador no soporta esta función. Usá "Exportar" y reemplazá el archivo manualmente.';
+    return;
+  }
+  if(!linkedFileHandle)linkedFileHandle=await getHandleFromIDB();
+  if(!linkedFileHandle){await linkDataFile();if(!linkedFileHandle)return;}
+  const ok=await ensureHandlePermission(linkedFileHandle);
+  if(!ok){document.getElementById('backup-status').textContent='⚠ No se otorgó permiso para escribir el archivo.';return;}
+  if(!confirm(`¿Sobrescribir "${linkedFileHandle.name}" con los datos actuales? Esta acción reemplaza el contenido del archivo.`))return;
+  try{
+    const writable=await linkedFileHandle.createWritable();
+    await writable.write(JSON.stringify(DB,null,2));
+    await writable.close();
+    document.getElementById('backup-status').textContent=`✓ Guardado en ${linkedFileHandle.name}.`;
+  }catch(e){document.getElementById('backup-status').textContent='⚠ Error al guardar: '+e.message;}
+}
+
+async function readHandleIntoDB(handle){
+  try{
+    const file=await handle.getFile();
+    const text=await file.text();
+    const loaded=JSON.parse(text);
+    DB=mergeDeep(clone(DEFAULT_DB),loaded);
+    saveDB();
+    renderProjectButtons();renderAdmin();updateDailyCounts();selectDaily(activeDaily);
+    document.getElementById('data-banner').classList.remove('visible');
+    return true;
+  }catch(e){return false;}
+}
+async function refreshFromLinkedHandle(){
+  if(!fsApiAvailable()){
+    document.getElementById('backup-status').textContent='⚠ Tu navegador no soporta esta función. Usá "Importar datos" y seleccioná el archivo actualizado.';
+    return;
+  }
+  if(!linkedFileHandle)linkedFileHandle=await getHandleFromIDB();
+  if(!linkedFileHandle){
+    document.getElementById('backup-status').textContent='⚠ No hay ningún archivo vinculado todavía. Usá "Vincular archivo de datos" primero.';
+    return;
+  }
+  try{
+    if((await linkedFileHandle.queryPermission({mode:'read'}))!=='granted'){
+      if((await linkedFileHandle.requestPermission({mode:'read'}))!=='granted'){
+        document.getElementById('backup-status').textContent='⚠ No se otorgó permiso de lectura sobre el archivo.';
+        return;
+      }
+    }
+    const ok=await readHandleIntoDB(linkedFileHandle);
+    document.getElementById('backup-status').textContent=ok?`✓ Datos actualizados desde ${linkedFileHandle.name}.`:'⚠ No se pudo leer el archivo (¿sigue existiendo en esa ruta?).';
+  }catch(e){document.getElementById('backup-status').textContent='⚠ Error: '+e.message;}
+}
+
+/* ============ ADMIN: RESPALDO (export/import/reset) ============ */
+function exportData(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='qa-bcr-suite-data.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  document.getElementById('backup-status').textContent='✓ Datos exportados como qa-bcr-suite-data.json';
+}
+function importData(event){
+  const file=event.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const loaded=JSON.parse(e.target.result);
+      DB=mergeDeep(clone(DEFAULT_DB),loaded);
+      saveDB();renderProjectButtons();renderAdmin();updateDailyCounts();selectDaily(activeDaily);
+      document.getElementById('backup-status').textContent='✓ Datos importados correctamente.';
+      document.getElementById('data-banner').classList.remove('visible');
+    }catch(err){document.getElementById('backup-status').textContent='⚠ El archivo no es un JSON válido.';}
+  };
+  reader.readAsText(file);
+  event.target.value='';
+}
+function resetData(){
+  if(!confirm('Esto va a restablecer personas, reglas y tareas a los valores originales. ¿Continuar?'))return;
+  DB=clone(DEFAULT_DB);
+  saveDB();renderProjectButtons();renderAdmin();updateDailyCounts();selectDaily(activeDaily);
+  document.getElementById('backup-status').textContent='✓ Datos restablecidos a los valores originales.';
+}
+
+/* ============ CALC DÍAS HÁBILES ============ */
+const HOLIDAYS_CR=[
+  {date:'2026-01-01',name:'Año Nuevo'},{date:'2026-04-02',name:'Jueves Santo'},{date:'2026-04-03',name:'Viernes Santo'},{date:'2026-04-11',name:'Día de Juan Santamaría'},{date:'2026-05-01',name:'Día del Trabajo'},{date:'2026-07-25',name:'Anexión de Guanacaste'},{date:'2026-08-02',name:'Virgen de los Ángeles'},{date:'2026-08-15',name:'Día de la Madre'},{date:'2026-08-31',name:'Día de la Persona Negra'},{date:'2026-09-15',name:'Día de la Independencia'},{date:'2026-12-01',name:'Abolición del Ejército'},{date:'2026-12-25',name:'Navidad'},
+  {date:'2027-01-01',name:'Año Nuevo'},{date:'2027-03-25',name:'Jueves Santo'},{date:'2027-03-26',name:'Viernes Santo'},{date:'2027-04-11',name:'Día de Juan Santamaría'},{date:'2027-05-01',name:'Día del Trabajo'},{date:'2027-07-25',name:'Anexión de Guanacaste'},{date:'2027-08-02',name:'Virgen de los Ángeles'},{date:'2027-08-15',name:'Día de la Madre'},{date:'2027-08-31',name:'Día de la Persona Negra'},{date:'2027-09-15',name:'Día de la Independencia'},{date:'2027-12-01',name:'Abolición del Ejército'},{date:'2027-12-25',name:'Navidad'},
+  {date:'2028-01-01',name:'Año Nuevo'},{date:'2028-04-11',name:'Día de Juan Santamaría'},{date:'2028-04-13',name:'Jueves Santo'},{date:'2028-04-14',name:'Viernes Santo'},{date:'2028-05-01',name:'Día del Trabajo'},{date:'2028-07-25',name:'Anexión de Guanacaste'},{date:'2028-08-02',name:'Virgen de los Ángeles'},{date:'2028-08-15',name:'Día de la Madre'},{date:'2028-08-31',name:'Día de la Persona Negra'},{date:'2028-09-15',name:'Día de la Independencia'},{date:'2028-12-01',name:'Abolición del Ejército'},{date:'2028-12-25',name:'Navidad'}
+];
+const calcHolidaySet=new Set(HOLIDAYS_CR.map(h=>h.date));
+let calcOffCounter=0;
+
+function calcAddOff(){
+  calcOffCounter++;
+  const id=calcOffCounter,c=document.getElementById('calcOffContainer'),d=document.createElement('div');
+  d.className='calc-off-entry';d.id='calcOff-'+id;
+  d.innerHTML=`<div class="calc-field"><label>Desde</label><input type="date" id="calcOffS-${id}" min="2026-01-01" max="2028-12-31"></div><div class="calc-field"><label>Hasta</label><input type="date" id="calcOffE-${id}" min="2026-01-01" max="2028-12-31"></div><button class="crud-btn-del" onclick="document.getElementById('calcOff-${id}').remove()">✕</button>`;
+  c.appendChild(d);
+}
+
+function calcParseDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+function calcToISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function calcFmtDate(d){const days=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'],months=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];return days[d.getDay()]+' '+d.getDate()+' '+months[d.getMonth()]+' '+d.getFullYear();}
+
+function calcGetOffDays(){
+  const off=new Set();
+  document.querySelectorAll('[id^="calcOff-"]').forEach(entry=>{
+    const id=entry.id.replace('calcOff-',''),sEl=document.getElementById('calcOffS-'+id),eEl=document.getElementById('calcOffE-'+id);
+    if(!sEl||!eEl||!sEl.value||!eEl.value)return;
+    const s=calcParseDate(sEl.value),e=calcParseDate(eEl.value),cur=new Date(s);
+    while(cur<=e){off.add(calcToISO(cur));cur.setDate(cur.getDate()+1);}
+  });
+  return off;
+}
+
+function calcRun(){
+  const sv=document.getElementById('calcWorkStart').value,ev=document.getElementById('calcWorkEnd').value;
+  if(!sv||!ev){document.getElementById('calcResults').innerHTML='<div style="text-align:center;color:var(--muted);padding:30px;font-family:DM Mono,monospace;font-size:12px">Seleccioná el rango de trabajo.</div>';return;}
+  const start=calcParseDate(sv),end=calcParseDate(ev);
+  if(start>end){document.getElementById('calcResults').innerHTML='<div style="text-align:center;color:var(--red);padding:30px;font-family:DM Mono,monospace;font-size:12px">La fecha de inicio debe ser anterior a la fecha final.</div>';return;}
+  const offDays=calcGetOffDays();
+  let totalCal=0,weekends=0,holidaysIn=0,offIn=0,workDays=0;const hitsArr=[];
+  const cur=new Date(start);
+  while(cur<=end){
+    totalCal++;const iso=calcToISO(cur),wk=cur.getDay()===0||cur.getDay()===6,hol=calcHolidaySet.has(iso),off=offDays.has(iso);
+    if(wk){weekends++;}
+    else if(off){offIn++;if(hol)hitsArr.push({...HOLIDAYS_CR.find(h=>h.date===iso),note:'off'});}
+    else if(hol){holidaysIn++;hitsArr.push({...HOLIDAYS_CR.find(h=>h.date===iso),note:'holiday'});}
+    else{workDays++;}
+    cur.setDate(cur.getDate()+1);
+  }
+  let html=`<div class="calc-result-card"><div class="calc-result-number">${workDays}</div><div class="calc-result-label">días hábiles de trabajo</div><div class="calc-breakdown"><div class="calc-stat"><div class="calc-stat-num s-calendar">${totalCal}</div><div class="calc-stat-label">Días calendario</div></div><div class="calc-stat"><div class="calc-stat-num s-weekends">${weekends}</div><div class="calc-stat-label">Fines de semana</div></div><div class="calc-stat"><div class="calc-stat-num s-holidays">${holidaysIn}</div><div class="calc-stat-label">Feriados</div></div><div class="calc-stat"><div class="calc-stat-num s-off">${offIn}</div><div class="calc-stat-label">Días off</div></div></div></div>`;
+  if(hitsArr.length){
+    html+='<div class="calc-section"><div class="calc-section-title">Feriados en el rango</div>';
+    hitsArr.forEach(h=>{const d=calcParseDate(h.date);const tag=h.note==='off'?'<span class="calc-tag" style="background:rgba(247,201,72,0.1);color:var(--gold)">DÍA OFF</span>':'<span class="calc-tag calc-tag-workday">RESTADO</span>';html+=`<div class="calc-holiday-item ch-in-range"><span class="ch-date">${calcFmtDate(d)}</span><span class="ch-name">${h.name} ${tag}</span></div>`;});
+    html+='</div>';
+  }
+  document.getElementById('calcResults').innerHTML=html;
+}
+
+function calcClear(){
+  document.getElementById('calcWorkStart').value='';document.getElementById('calcWorkEnd').value='';
+  document.getElementById('calcOffContainer').innerHTML='';document.getElementById('calcResults').innerHTML='';calcOffCounter=0;
+}
+
+function calcToggleHolidays(){
+  const list=document.getElementById('calcHolidaysList');list.classList.toggle('open');if(list.innerHTML)return;
+  let html='',cy='';
+  HOLIDAYS_CR.forEach(h=>{const d=calcParseDate(h.date);const y=d.getFullYear().toString();if(y!==cy){cy=y;html+=`<div class="calc-year-header">${y}</div>`;}const wk=d.getDay()===0||d.getDay()===6;const tag=wk?`<span class="calc-tag calc-tag-weekend">${d.getDay()===0?'DOM':'SÁB'}</span>`:'';html+=`<div class="calc-holiday-item"><span class="ch-date">${calcFmtDate(d)}</span><span class="ch-name">${h.name} ${tag}</span></div>`;});
+  list.innerHTML=html;
+}
+
+/* ============ AUTH (Supabase) ============ */
+// Valores de Supabase → Project Settings → API.
+// La anon (publishable) key puede estar en el frontend: la seguridad la da el RLS.
+// NUNCA poner aquí la service_role (secret) key.
+const SUPABASE_URL='';
+const SUPABASE_ANON_KEY='';
+
+const ROLE_LABELS={ADMIN:'Admin',QA_LEAD:'QA Lead',QA:'QA'};
+let supabaseClient=null, currentUser=null;
+
+function canManageConfig(){return !!currentUser&&(currentUser.role==='ADMIN'||currentUser.role==='QA_LEAD');}
+function isAdmin(){return !!currentUser&&currentUser.role==='ADMIN';}
+
+function showAuth(state,message){
+  document.body.classList.add('auth-locked');
+  document.getElementById('auth-loading').hidden=state!=='loading';
+  document.getElementById('auth-form').hidden=state!=='login';
+  document.getElementById('auth-blocked').hidden=state!=='blocked';
+  if(state==='login'){
+    const err=document.getElementById('auth-error');
+    err.className=message?'status-msg error':'status-msg';
+    err.textContent=message||'';
+    document.getElementById(message?'auth-password':'auth-email').focus();
+  }
+  if(state==='blocked'){
+    document.getElementById('auth-blocked-text').textContent=message;
+    document.getElementById('auth-blocked-logout').hidden=!supabaseClient;
+  }
+}
+
+function showApp(){
+  document.body.classList.remove('auth-locked');
+  renderUserInfo();
+  applyPermissions();
+}
+
+async function initAuth(){
+  if(!SUPABASE_URL||!SUPABASE_ANON_KEY){showAuth('blocked','Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY en este archivo.');return;}
+  if(!window.supabase){showAuth('blocked','No se pudo cargar la librería de Supabase. Revisá la conexión y recargá la página.');return;}
+  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  // Solo UI aquí: supabase-js no permite llamar a otros métodos de auth dentro de este callback.
+  supabaseClient.auth.onAuthStateChange(event=>{
+    if(event==='SIGNED_OUT'){currentUser=null;showAuth('login');}
+  });
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  if(!session){showAuth('login');return;}
+  await enterWithSession();
+}
+
+async function loadCurrentProfile(){
+  const {data:{user},error:userError}=await supabaseClient.auth.getUser();
+  if(userError)throw userError;
+  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,email,role,active').eq('id',user.id).maybeSingle();
+  if(error)throw error;
+  return data;
+}
+
+async function enterWithSession(){
+  showAuth('loading');
+  try{
+    currentUser=await loadCurrentProfile();
+  }catch(e){
+    console.error('No se pudo cargar el perfil',e);
+    currentUser=null;
+    if(e&&(e.status===401||e.status===403||e.name==='AuthSessionMissingError')){
+      // Sesión vencida o usuario eliminado: se descarta la sesión guardada.
+      await supabaseClient.auth.signOut({scope:'local'});
+      showAuth('login','Tu sesión expiró. Iniciá sesión de nuevo.');
+    }else{
+      showAuth('blocked','No se pudo cargar tu perfil. Revisá la conexión y recargá la página.');
+    }
+    return;
+  }
+  if(!currentUser){showAuth('blocked','Tu usuario no tiene perfil en QA BCR Suite. Pedile a un administrador que lo revise.');return;}
+  if(!currentUser.active){showAuth('blocked','Tu usuario está desactivado. Pedile a un administrador que lo reactive.');return;}
+  showApp();
+}
+
+function loginErrorMessage(error){
+  if(error.code==='invalid_credentials'||/invalid login credentials/i.test(error.message||''))return 'Correo o contraseña incorrectos.';
+  if(error.code==='email_not_confirmed')return 'El correo no está confirmado. Pedile a un administrador que lo confirme en Supabase.';
+  if(error.status===429)return 'Demasiados intentos. Esperá un momento e intentá de nuevo.';
+  if(error.name==='AuthRetryableFetchError'||!error.status)return 'No se pudo conectar con el servidor. Revisá la conexión.';
+  return 'No se pudo iniciar sesión: '+error.message;
+}
+
+async function onLoginSubmit(event){
+  event.preventDefault();
+  const btn=document.getElementById('auth-submit');
+  const email=document.getElementById('auth-email').value.trim();
+  const password=document.getElementById('auth-password').value;
+  btn.disabled=true;btn.textContent='Ingresando...';
+  let error=null;
+  try{({error}=await supabaseClient.auth.signInWithPassword({email,password}));}
+  catch(e){error=e;}
+  btn.disabled=false;btn.textContent='Iniciar sesión';
+  if(error){showAuth('login',loginErrorMessage(error));return;}
+  document.getElementById('auth-password').value='';
+  await enterWithSession();
+}
+
+async function logout(){
+  if(supabaseClient){
+    try{const {error}=await supabaseClient.auth.signOut();if(error)throw error;}
+    catch(e){await supabaseClient.auth.signOut({scope:'local'});}
+  }
+  location.reload();
+}
+
+function renderUserInfo(){
+  const name=currentUser.full_name||currentUser.email||'';
+  document.getElementById('sidebar-user-name').textContent=name;
+  document.getElementById('sidebar-user-role').textContent=ROLE_LABELS[currentUser.role]||currentUser.role;
+  document.getElementById('mobile-logout').title='Cerrar sesión ('+name+')';
+}
+
+// Mejora la UI; la protección real está en el RLS de Supabase.
+function applyPermissions(){
+  const lead=canManageConfig();
+  document.getElementById('nav-admin').hidden=!lead;
+  document.getElementById('mnav-admin').hidden=!lead;
+  document.getElementById('atab-users').hidden=!isAdmin();
+  if(!isAdmin()&&document.getElementById('asec-users').classList.contains('active'))selectAdminTab('people');
+  if(!lead&&document.getElementById('page-admin').classList.contains('active'))showPage('home');
+}
+
+/* ============ ADMIN: USUARIOS ============ */
+async function renderUsersAdmin(){
+  const box=document.getElementById('list-users');
+  if(!isAdmin()){box.innerHTML='';return;}
+  box.innerHTML='<div class="crud-empty">Cargando usuarios...</div>';
+  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,email,role,active').order('full_name');
+  if(error){box.innerHTML='<div class="crud-empty">⚠ No se pudieron cargar los usuarios.</div>';return;}
+  box.innerHTML=data.length?data.map(u=>{
+    const self=u.id===currentUser.id;
+    const lock=self?' disabled title="No podés cambiar tu propio usuario"':'';
+    const options=Object.keys(ROLE_LABELS).map(r=>`<option value="${r}"${r===u.role?' selected':''}>${ROLE_LABELS[r]}</option>`).join('');
+    return `<div class="crud-item">
+      <span class="crud-item-name">${escapeHtml(u.full_name)}${self?' (vos)':''}<span class="user-email">${escapeHtml(u.email||'')}</span></span>
+      <select class="user-role-select" aria-label="Rol de ${escapeHtml(u.full_name)}" data-id="${u.id}"${lock} onchange="updateUser(this.dataset.id,{role:this.value},this)">${options}</select>
+      <label class="crud-label-small"><input type="checkbox" class="crud-checkbox" data-id="${u.id}"${u.active?' checked':''}${lock} onchange="updateUser(this.dataset.id,{active:this.checked},this)"> Activo</label>
+    </div>`;
+  }).join(''):'<div class="crud-empty">No hay usuarios.</div>';
+}
+
+async function updateUser(id,changes,input){
+  const st=document.getElementById('users-status');
+  st.className='status-msg info';st.textContent='Guardando...';
+  input.disabled=true;
+  const {data,error}=await supabaseClient.from('profiles').update(changes).eq('id',id).select('id');
+  input.disabled=false;
+  if(error||!data||!data.length){
+    // Supabase rechazó el cambio: se vuelve a mostrar lo que hay en la base.
+    st.className='status-msg error';
+    st.textContent='⚠ No se pudo guardar.'+(error?' '+error.message:' No tenés permiso para este cambio.');
+    await renderUsersAdmin();
+    return;
+  }
+  st.className='status-msg ok';st.textContent='✓ Guardado';
+}
+
+/* ============ INIT ============ */
+renderProjectButtons();
+updateDailyCounts();
+renderAdmin();
+
+(async function initLoad(){
+  // 1. Intento silencioso vía fetch (funciona si se sirve por http/servidor local)
+  try{
+    const res=await fetch('./qa-bcr-suite-data.json',{cache:'no-store'});
+    if(res.ok){
+      const loaded=await res.json();
+      DB=mergeDeep(clone(DEFAULT_DB),loaded);
+      saveDB();
+      renderProjectButtons();renderAdmin();updateDailyCounts();selectDaily(activeDaily);
+      return;
+    }
+  }catch(e){/* bloqueado bajo file:// o no encontrado */}
+
+  // 2. Si hay un archivo vinculado previamente, ofrecer actualizar con un clic (sin re-seleccionar)
+  const banner=document.getElementById('data-banner'),text=document.getElementById('data-banner-text'),btn=document.getElementById('data-banner-btn');
+  const handle=await getHandleFromIDB();
+  if(handle && fsApiAvailable()){
+    linkedFileHandle=handle;
+    try{
+      if((await handle.queryPermission({mode:'read'}))==='granted'){
+        const ok=await readHandleIntoDB(handle);
+        if(ok)return;
+      }
+    }catch(e){/* ignore */}
+    text.innerHTML=`📂 Hay un archivo vinculado (<strong>${escapeHtml(handle.name)}</strong>). Actualizá para traer los últimos cambios.`;
+    btn.textContent='🔄 Actualizar desde archivo vinculado';
+    btn.onclick=refreshFromLinkedHandle;
+  } else {
+    text.innerHTML='📂 No se encontró <strong>qa-bcr-suite-data.json</strong> junto a este archivo. Cargá tu último respaldo para asegurarte de ver la información más reciente.';
+    btn.textContent='Cargar archivo';
+    btn.onclick=()=>document.getElementById('import-file-startup').click();
+  }
+  banner.classList.add('visible');
+})();
+
+initAuth();
+</script>
+</body>
+</html>

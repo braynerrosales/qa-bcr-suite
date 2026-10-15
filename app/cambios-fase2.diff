@@ -1,0 +1,325 @@
+--- fase2/original.html	2026-10-15 22:01:24.341934596 +0000
++++ fase2/qa-bcr-suite.html	2026-10-15 22:06:45.333207855 +0000
+@@ -4,6 +4,7 @@
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>QA BCR Suite</title>
++<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+ <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+ <style>
+   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+@@ -341,9 +342,63 @@
+     .home-page { padding: 32px 20px 60px; }
+     .qa-page, .daily-page { padding: 20px 16px 60px; }
+   }
++  /* AUTH (v3) */
++  [hidden] { display: none !important; }
++  body.auth-locked .layout, body.auth-locked .mobile-topbar, body.auth-locked .data-banner { display: none !important; }
++  .auth-screen { display: none; min-height: 100vh; align-items: center; justify-content: center; padding: 24px 16px; position: relative; z-index: 1; }
++  body.auth-locked .auth-screen { display: flex; }
++  .auth-card { width: 100%; max-width: 380px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 32px 28px; }
++  .auth-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
++  .auth-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin: 3px 0 24px; }
++  .auth-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
++  .auth-field label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
++  .auth-btn { width: 100%; padding: 11px 16px; margin-top: 6px; }
++  .auth-btn:disabled { opacity: 0.6; cursor: wait; }
++  .auth-msg { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
++  .sidebar-user { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
++  .sidebar-user-name { font-size: 12px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
++  .sidebar-user-role { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--teal); margin: 2px 0 8px; }
++  .sidebar-logout { background: transparent; border: 1px solid var(--border); border-radius: 7px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 5px 9px; cursor: pointer; transition: all 0.15s; }
++  .sidebar-logout:hover { color: var(--red); border-color: rgba(255,77,109,0.4); }
++  .mobile-logout-btn { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; }
++  .status-msg.ok { display: block; background: rgba(0,201,167,0.08); border: 1px solid rgba(0,201,167,0.25); color: var(--teal); }
++  .user-email { display: block; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 400; color: var(--muted); margin-top: 2px; }
++  .user-role-select { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 8px; }
++  .user-role-select:disabled, .crud-checkbox:disabled { opacity: 0.5; cursor: not-allowed; }
++  /* Sin esto, en móvil el contenido ensanchaba .main y aparecía scroll horizontal (venía de v2). */
++  .main { min-width: 0; }
++  @media (max-width: 780px) {
++    .mobile-topbar { gap: 8px; height: auto; min-height: 52px; padding: 8px 16px; }
++    .mobile-nav-btns { flex-wrap: wrap; justify-content: flex-end; }
++  }
+ </style>
+ </head>
+-<body>
++<body class="auth-locked">
++
++<div class="auth-screen" id="auth-screen">
++  <div class="auth-card">
++    <div class="brand-icon">⚡</div>
++    <div class="auth-title">QA BCR Suite</div>
++    <div class="auth-sub">Banco de Costa Rica</div>
++    <div class="auth-msg" id="auth-loading">Verificando sesión...</div>
++    <form id="auth-form" hidden onsubmit="onLoginSubmit(event)">
++      <div class="auth-field">
++        <label for="auth-email">Correo</label>
++        <input class="crud-input" id="auth-email" type="email" autocomplete="username" required>
++      </div>
++      <div class="auth-field">
++        <label for="auth-password">Contraseña</label>
++        <input class="crud-input" id="auth-password" type="password" autocomplete="current-password" required>
++      </div>
++      <button class="crud-btn-add auth-btn" id="auth-submit" type="submit">Iniciar sesión</button>
++      <div class="status-msg" id="auth-error" role="alert"></div>
++    </form>
++    <div id="auth-blocked" hidden>
++      <div class="status-msg error" id="auth-blocked-text" role="alert"></div>
++      <button class="btn-secondary auth-btn" id="auth-blocked-logout" onclick="logout()">Cerrar sesión</button>
++    </div>
++  </div>
++</div>
+ 
+ <div class="mobile-topbar">
+   <span class="mobile-logo">⚡ QA BCR</span>
+@@ -351,8 +406,9 @@
+     <button class="mobile-nav-btn active" onclick="showPage('home')">Home</button>
+     <button class="mobile-nav-btn" onclick="showPage('qa')">QA</button>
+     <button class="mobile-nav-btn" onclick="showPage('daily')">Daily</button>
+-    <button class="mobile-nav-btn" onclick="showPage('admin')">Admin</button>
++    <button class="mobile-nav-btn" onclick="showPage('admin')" id="mnav-admin">Admin</button>
+     <button class="mobile-nav-btn" onclick="showPage('calc')">Calc</button>
++    <button class="mobile-logout-btn" id="mobile-logout" onclick="logout()" title="Cerrar sesión">Salir</button>
+   </div>
+ </div>
+ 
+@@ -390,7 +446,12 @@
+       </div>
+     </nav>
+     <div class="sidebar-footer">
+-      <div class="sidebar-footer-text">QA BCR Suite v2.0<br>IA · Powered by Claude</div>
++      <div class="sidebar-user">
++        <div class="sidebar-user-name" id="sidebar-user-name"></div>
++        <div class="sidebar-user-role" id="sidebar-user-role"></div>
++        <button class="sidebar-logout" onclick="logout()">Cerrar sesión</button>
++      </div>
++      <div class="sidebar-footer-text">QA BCR Suite v3.0<br>IA · Powered by Claude</div>
+     </div>
+   </aside>
+ 
+@@ -399,7 +460,7 @@
+     <!-- HOME -->
+     <div class="page active" id="page-home">
+     <div class="home-page">
+-      <div class="home-eyebrow">// QA BCR Suite · v2.0</div>
++      <div class="home-eyebrow">// QA BCR Suite · v3.0</div>
+       <h1 class="home-title">Herramientas<br>para el equipo<br><span class="hl-teal">QA</span> <span style="color:var(--dim)">·</span> <span class="hl-cyan">BCR</span></h1>
+       <p class="home-desc">Generación de tareas QA asistida por IA y<br>ordenamiento aleatorio de dailys — todo en un lugar.</p>
+       <div class="home-cards">
+@@ -565,6 +626,7 @@
+         <button class="admin-tab-btn" id="atab-rules" onclick="selectAdminTab('rules')">🥇 Regla de primeros</button>
+         <button class="admin-tab-btn" id="atab-tasks" onclick="selectAdminTab('tasks')">🗂️ Tareas / Proyectos</button>
+         <button class="admin-tab-btn" id="atab-backup" onclick="selectAdminTab('backup')">💾 Respaldo</button>
++        <button class="admin-tab-btn" id="atab-users" onclick="selectAdminTab('users')" hidden>👤 Usuarios</button>
+       </div>
+ 
+       <!-- PERSONAS -->
+@@ -659,6 +721,14 @@
+         <div class="backup-note">"Vincular archivo de datos" te pide elegir <strong>una vez</strong> el archivo qa-bcr-suite-data.json que está junto a este HTML. Después, "Guardar en archivo" te pregunta antes de sobrescribirlo con los datos actuales.<br>Esta función solo funciona en Chrome/Edge, y solo si la página no se abrió con doble clic directo (necesita servirse desde un servidor local o similar). Si no está disponible, usá "Exportar" e importalo manualmente.</div>
+         <div class="backup-note" id="backup-status"></div>
+       </div>
++
++      <!-- USUARIOS (solo ADMIN) -->
++      <div class="admin-section" id="asec-users">
++        <div class="admin-card-title">Usuarios</div>
++        <div class="admin-card-desc">Cambiá el rol o desactivá usuarios. Los usuarios nuevos se crean en Supabase (Authentication → Users → Add user) y entran como QA.</div>
++        <div class="crud-list" id="list-users"></div>
++        <div class="status-msg" id="users-status" role="status"></div>
++      </div>
+     </div>
+     </div>
+ 
+@@ -768,6 +838,7 @@
+ 
+ /* ============ NAVIGATION ============ */
+ function showPage(id) {
++  if(id==='admin'&&!canManageConfig())id='home';
+   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+   document.querySelectorAll('.mobile-nav-btn').forEach((b,i) => { b.classList.remove('active'); if(['home','qa','daily','admin','calc'][i]===id) b.classList.add('active'); });
+@@ -940,6 +1011,7 @@
+   document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));
+   document.getElementById('atab-'+tab).classList.add('active');
+   document.getElementById('asec-'+tab).classList.add('active');
++  if(tab==='users')renderUsersAdmin();
+ }
+ function renderAdmin(){renderPeopleAdmin();renderRulesAdmin();renderTaskProjectList();}
+ 
+@@ -1291,6 +1363,167 @@
+   list.innerHTML=html;
+ }
+ 
++/* ============ AUTH (Supabase) ============ */
++// Valores de Supabase → Project Settings → API.
++// La anon (publishable) key puede estar en el frontend: la seguridad la da el RLS.
++// NUNCA poner aquí la service_role (secret) key.
++const SUPABASE_URL='';
++const SUPABASE_ANON_KEY='';
++
++const ROLE_LABELS={ADMIN:'Admin',QA_LEAD:'QA Lead',QA:'QA'};
++let supabaseClient=null, currentUser=null;
++
++function canManageConfig(){return !!currentUser&&(currentUser.role==='ADMIN'||currentUser.role==='QA_LEAD');}
++function isAdmin(){return !!currentUser&&currentUser.role==='ADMIN';}
++
++function showAuth(state,message){
++  document.body.classList.add('auth-locked');
++  document.getElementById('auth-loading').hidden=state!=='loading';
++  document.getElementById('auth-form').hidden=state!=='login';
++  document.getElementById('auth-blocked').hidden=state!=='blocked';
++  if(state==='login'){
++    const err=document.getElementById('auth-error');
++    err.className=message?'status-msg error':'status-msg';
++    err.textContent=message||'';
++    document.getElementById(message?'auth-password':'auth-email').focus();
++  }
++  if(state==='blocked'){
++    document.getElementById('auth-blocked-text').textContent=message;
++    document.getElementById('auth-blocked-logout').hidden=!supabaseClient;
++  }
++}
++
++function showApp(){
++  document.body.classList.remove('auth-locked');
++  renderUserInfo();
++  applyPermissions();
++}
++
++async function initAuth(){
++  if(!SUPABASE_URL||!SUPABASE_ANON_KEY){showAuth('blocked','Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY en este archivo.');return;}
++  if(!window.supabase){showAuth('blocked','No se pudo cargar la librería de Supabase. Revisá la conexión y recargá la página.');return;}
++  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
++  // Solo UI aquí: supabase-js no permite llamar a otros métodos de auth dentro de este callback.
++  supabaseClient.auth.onAuthStateChange(event=>{
++    if(event==='SIGNED_OUT'){currentUser=null;showAuth('login');}
++  });
++  const {data:{session}}=await supabaseClient.auth.getSession();
++  if(!session){showAuth('login');return;}
++  await enterWithSession();
++}
++
++async function loadCurrentProfile(){
++  const {data:{user},error:userError}=await supabaseClient.auth.getUser();
++  if(userError)throw userError;
++  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,email,role,active').eq('id',user.id).maybeSingle();
++  if(error)throw error;
++  return data;
++}
++
++async function enterWithSession(){
++  showAuth('loading');
++  try{
++    currentUser=await loadCurrentProfile();
++  }catch(e){
++    console.error('No se pudo cargar el perfil',e);
++    currentUser=null;
++    if(e&&(e.status===401||e.status===403||e.name==='AuthSessionMissingError')){
++      // Sesión vencida o usuario eliminado: se descarta la sesión guardada.
++      await supabaseClient.auth.signOut({scope:'local'});
++      showAuth('login','Tu sesión expiró. Iniciá sesión de nuevo.');
++    }else{
++      showAuth('blocked','No se pudo cargar tu perfil. Revisá la conexión y recargá la página.');
++    }
++    return;
++  }
++  if(!currentUser){showAuth('blocked','Tu usuario no tiene perfil en QA BCR Suite. Pedile a un administrador que lo revise.');return;}
++  if(!currentUser.active){showAuth('blocked','Tu usuario está desactivado. Pedile a un administrador que lo reactive.');return;}
++  showApp();
++}
++
++function loginErrorMessage(error){
++  if(error.code==='invalid_credentials'||/invalid login credentials/i.test(error.message||''))return 'Correo o contraseña incorrectos.';
++  if(error.code==='email_not_confirmed')return 'El correo no está confirmado. Pedile a un administrador que lo confirme en Supabase.';
++  if(error.status===429)return 'Demasiados intentos. Esperá un momento e intentá de nuevo.';
++  if(error.name==='AuthRetryableFetchError'||!error.status)return 'No se pudo conectar con el servidor. Revisá la conexión.';
++  return 'No se pudo iniciar sesión: '+error.message;
++}
++
++async function onLoginSubmit(event){
++  event.preventDefault();
++  const btn=document.getElementById('auth-submit');
++  const email=document.getElementById('auth-email').value.trim();
++  const password=document.getElementById('auth-password').value;
++  btn.disabled=true;btn.textContent='Ingresando...';
++  let error=null;
++  try{({error}=await supabaseClient.auth.signInWithPassword({email,password}));}
++  catch(e){error=e;}
++  btn.disabled=false;btn.textContent='Iniciar sesión';
++  if(error){showAuth('login',loginErrorMessage(error));return;}
++  document.getElementById('auth-password').value='';
++  await enterWithSession();
++}
++
++async function logout(){
++  if(supabaseClient){
++    try{const {error}=await supabaseClient.auth.signOut();if(error)throw error;}
++    catch(e){await supabaseClient.auth.signOut({scope:'local'});}
++  }
++  location.reload();
++}
++
++function renderUserInfo(){
++  const name=currentUser.full_name||currentUser.email||'';
++  document.getElementById('sidebar-user-name').textContent=name;
++  document.getElementById('sidebar-user-role').textContent=ROLE_LABELS[currentUser.role]||currentUser.role;
++  document.getElementById('mobile-logout').title='Cerrar sesión ('+name+')';
++}
++
++// Mejora la UI; la protección real está en el RLS de Supabase.
++function applyPermissions(){
++  const lead=canManageConfig();
++  document.getElementById('nav-admin').hidden=!lead;
++  document.getElementById('mnav-admin').hidden=!lead;
++  document.getElementById('atab-users').hidden=!isAdmin();
++  if(!isAdmin()&&document.getElementById('asec-users').classList.contains('active'))selectAdminTab('people');
++  if(!lead&&document.getElementById('page-admin').classList.contains('active'))showPage('home');
++}
++
++/* ============ ADMIN: USUARIOS ============ */
++async function renderUsersAdmin(){
++  const box=document.getElementById('list-users');
++  if(!isAdmin()){box.innerHTML='';return;}
++  box.innerHTML='<div class="crud-empty">Cargando usuarios...</div>';
++  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,email,role,active').order('full_name');
++  if(error){box.innerHTML='<div class="crud-empty">⚠ No se pudieron cargar los usuarios.</div>';return;}
++  box.innerHTML=data.length?data.map(u=>{
++    const self=u.id===currentUser.id;
++    const lock=self?' disabled title="No podés cambiar tu propio usuario"':'';
++    const options=Object.keys(ROLE_LABELS).map(r=>`<option value="${r}"${r===u.role?' selected':''}>${ROLE_LABELS[r]}</option>`).join('');
++    return `<div class="crud-item">
++      <span class="crud-item-name">${escapeHtml(u.full_name)}${self?' (vos)':''}<span class="user-email">${escapeHtml(u.email||'')}</span></span>
++      <select class="user-role-select" aria-label="Rol de ${escapeHtml(u.full_name)}" data-id="${u.id}"${lock} onchange="updateUser(this.dataset.id,{role:this.value},this)">${options}</select>
++      <label class="crud-label-small"><input type="checkbox" class="crud-checkbox" data-id="${u.id}"${u.active?' checked':''}${lock} onchange="updateUser(this.dataset.id,{active:this.checked},this)"> Activo</label>
++    </div>`;
++  }).join(''):'<div class="crud-empty">No hay usuarios.</div>';
++}
++
++async function updateUser(id,changes,input){
++  const st=document.getElementById('users-status');
++  st.className='status-msg info';st.textContent='Guardando...';
++  input.disabled=true;
++  const {data,error}=await supabaseClient.from('profiles').update(changes).eq('id',id).select('id');
++  input.disabled=false;
++  if(error||!data||!data.length){
++    // Supabase rechazó el cambio: se vuelve a mostrar lo que hay en la base.
++    st.className='status-msg error';
++    st.textContent='⚠ No se pudo guardar.'+(error?' '+error.message:' No tenés permiso para este cambio.');
++    await renderUsersAdmin();
++    return;
++  }
++  st.className='status-msg ok';st.textContent='✓ Guardado';
++}
++
+ /* ============ INIT ============ */
+ renderProjectButtons();
+ updateDailyCounts();
+@@ -1330,6 +1563,8 @@
+   }
+   banner.classList.add('visible');
+ })();
++
++initAuth();
+ </script>
+ </body>
+ </html>

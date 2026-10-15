@@ -1,0 +1,6 @@
+out/
+local-test/out/
+local-test/*.json
+tests/shot-*.png
+package/
+node_modules/
