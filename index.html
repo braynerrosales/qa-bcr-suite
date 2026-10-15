@@ -1433,7 +1433,8 @@ async function enterWithSession(){
       await supabaseClient.auth.signOut({scope:'local'});
       showAuth('login','Tu sesión expiró. Iniciá sesión de nuevo.');
     }else{
-      showAuth('blocked','No se pudo cargar tu perfil. Revisá la conexión y recargá la página.');
+      const detail=e&&(e.code||e.message)?` (${[e.code,e.message].filter(Boolean).join(': ')})`:'';
+      showAuth('blocked','No se pudo cargar tu perfil. Revisá la conexión y recargá la página.'+detail);
     }
     return;
   }
