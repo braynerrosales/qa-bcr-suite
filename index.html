@@ -191,6 +191,16 @@
   .done-avatar { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; background: rgba(0,201,167,0.1); color: var(--teal); border: 1px solid rgba(0,201,167,0.2); }
   .done-name { font-size: 12px; font-weight: 600; color: var(--muted); flex: 1; }
   .done-check { font-size: 13px; color: var(--teal); }
+  .participant-item.absent { opacity: 0.5; background: rgba(255,77,109,0.04); }
+  .participant-item.absent .p-name { text-decoration: line-through; color: var(--muted); }
+  .participant-item.absent { cursor: default; }
+  .p-absent-btn { margin-left: auto; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; padding: 4px 7px; cursor: pointer; flex-shrink: 0; transition: all 0.15s; }
+  .p-absent-btn:hover, .participant-item.absent .p-absent-btn { color: var(--red); border-color: rgba(255,77,109,0.4); }
+  .absent-list { margin-top: 14px; }
+  .absent-list .done-header-title { color: var(--red); }
+  .absent-list .done-count-badge { background: rgba(255,77,109,0.1); color: var(--red); border-color: rgba(255,77,109,0.25); }
+  .absent-list .done-avatar { background: rgba(255,77,109,0.08); color: var(--red); border-color: rgba(255,77,109,0.2); }
+  .absent-list .done-item { cursor: pointer; }
   .done-empty { padding: 36px 20px; text-align: center; color: var(--dim); font-family: 'DM Mono', monospace; font-size: 11px; line-height: 1.6; }
   @media (max-width: 780px) { .daily-columns { grid-template-columns: 1fr; } }
   .daily-tabs-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
@@ -330,7 +340,7 @@
   .data-banner-dismiss { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 2px 6px; }
 
   /* MOBILE */
-  .mobile-topbar { display: none; position: sticky; top: 0; z-index: 100; background: rgba(8,12,22,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 16px; height: 52px; align-items: center; justify-content: space-between; }
+  .mobile-topbar { display: none; position: sticky; top: 0; z-index: 100; background: rgba(8,12,22,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 8px 16px; min-height: 52px; gap: 10px; align-items: center; justify-content: space-between; }
   .mobile-logo { font-size: 14px; font-weight: 800; }
   .mobile-nav-btns { display: flex; gap: 5px; }
   .mobile-nav-btn { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; transition: all 0.15s; }
@@ -367,6 +377,17 @@
   .mobile-logout-btn { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; }
   .status-msg.ok { display: block; background: rgba(0,201,167,0.08); border: 1px solid rgba(0,201,167,0.25); color: var(--teal); }
   .user-email { display: block; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+  .user-create { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .user-create .crud-input, .user-create select { width: 100%; min-width: 0; }
+  .user-create-pw { display: flex; gap: 8px; }
+  .user-create-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+  .user-create select { padding: 9px 12px; font-size: 12px; }
+  @media (max-width: 640px) { .user-create { grid-template-columns: 1fr; } }
+  .pw-dialog { background: var(--card); color: var(--text); border: 1px solid var(--border2); border-radius: var(--radius); padding: 22px; width: min(360px, calc(100vw - 32px)); }
+  .pw-dialog::backdrop { background: rgba(0,0,0,0.6); }
+  .pw-dialog form { display: flex; flex-direction: column; gap: 10px; }
+  .pw-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .sidebar-user-actions { display: flex; gap: 6px; flex-wrap: wrap; }
   .user-role-select { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 8px; }
   .user-role-select:disabled, .crud-checkbox:disabled { opacity: 0.5; cursor: not-allowed; }
   /* Sin esto, en móvil el contenido ensanchaba .main y aparecía scroll horizontal (venía de v2). */
@@ -412,9 +433,23 @@
     <button class="mobile-nav-btn" onclick="showPage('daily')">Daily</button>
     <button class="mobile-nav-btn" onclick="showPage('admin')" id="mnav-admin">Admin</button>
     <button class="mobile-nav-btn" onclick="showPage('calc')">Calc</button>
+    <button class="mobile-logout-btn" id="mobile-password" onclick="openPasswordDialog()" title="Cambiar contraseña">Clave</button>
     <button class="mobile-logout-btn" id="mobile-logout" onclick="logout()" title="Cerrar sesión">Salir</button>
   </div>
 </div>
+
+<dialog class="pw-dialog" id="pw-dialog" aria-labelledby="pw-title">
+  <form onsubmit="changePassword(event)">
+    <div class="admin-card-title" id="pw-title">Cambiar contraseña</div>
+    <input class="crud-input" id="pw-new" type="password" placeholder="Nueva contraseña (mín. 10)" required minlength="10" maxlength="72" autocomplete="new-password" aria-label="Nueva contraseña">
+    <input class="crud-input" id="pw-confirm" type="password" placeholder="Repetir contraseña" required minlength="10" maxlength="72" autocomplete="new-password" aria-label="Repetir contraseña">
+    <div class="status-msg" id="pw-status" role="status"></div>
+    <div class="pw-dialog-actions">
+      <button type="button" class="btn-secondary" onclick="document.getElementById('pw-dialog').close()">Cancelar</button>
+      <button type="submit" class="crud-btn-add" id="pw-submit">Guardar</button>
+    </div>
+  </form>
+</dialog>
 
 <div class="data-banner" id="data-banner" role="status">
   <span class="data-banner-text" id="data-banner-text"></span>
@@ -452,7 +487,10 @@
       <div class="sidebar-user">
         <div class="sidebar-user-name" id="sidebar-user-name"></div>
         <div class="sidebar-user-role" id="sidebar-user-role"></div>
-        <button class="sidebar-logout" onclick="logout()">Cerrar sesión</button>
+        <div class="sidebar-user-actions">
+          <button class="sidebar-logout" onclick="openPasswordDialog()">Cambiar contraseña</button>
+          <button class="sidebar-logout" onclick="logout()">Cerrar sesión</button>
+        </div>
       </div>
       <div class="sidebar-footer-text">QA BCR Suite v3.0<br>IA · Powered by Claude</div>
     </div>
@@ -606,6 +644,15 @@
               <div class="done-empty">Hacé clic en un participante<br>para marcarlo como listo</div>
             </div>
           </div>
+          <div class="done-list absent-list">
+            <div class="done-header">
+              <span class="done-header-title">No asistieron</span>
+              <span class="done-count-badge" id="absentCount">0</span>
+            </div>
+            <div class="done-body" id="absentBody">
+              <div class="done-empty">Usá <strong>No asistió</strong> en la lista<br>para registrar ausencias</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -723,7 +770,18 @@
       <!-- USUARIOS (solo ADMIN) -->
       <div class="admin-section" id="asec-users">
         <div class="admin-card-title">Usuarios</div>
-        <div class="admin-card-desc">Cambiá el rol o desactivá usuarios. Los usuarios nuevos se crean en Supabase (Authentication → Users → Add user) y entran como QA.</div>
+        <div class="admin-card-desc">Creá el usuario con una contraseña temporal y compartila por un canal privado: la persona la cambia desde "Cambiar contraseña". Abajo podés cambiar roles o desactivar usuarios.</div>
+        <form class="user-create" id="user-create-form" onsubmit="createUser(event)" autocomplete="off">
+          <input class="crud-input" id="nu-name" placeholder="Nombre completo" required maxlength="120" aria-label="Nombre completo">
+          <input class="crud-input" id="nu-email" type="email" placeholder="Correo" required maxlength="254" aria-label="Correo">
+          <select class="user-role-select" id="nu-role" aria-label="Rol"><option value="QA">QA</option><option value="QA_LEAD">QA Lead</option><option value="ADMIN">Admin</option></select>
+          <div class="user-create-pw">
+            <input class="crud-input" id="nu-password" placeholder="Contraseña temporal (mín. 10)" required minlength="10" maxlength="72" autocomplete="new-password" aria-label="Contraseña temporal">
+            <button type="button" class="btn-secondary" onclick="generatePassword()">Generar</button>
+          </div>
+          <div class="user-create-actions"><button type="submit" class="crud-btn-add" id="nu-submit">+ Crear usuario</button></div>
+        </form>
+        <div class="status-msg" id="user-create-status" role="status"></div>
         <div class="crud-list" id="list-users"></div>
         <div class="status-msg" id="users-status" role="status"></div>
       </div>
@@ -1045,6 +1103,7 @@ function roll(){
   runCount++;
   document.getElementById('doneBody').innerHTML='<div class="done-empty">Hacé clic en un participante<br>para marcarlo como listo</div>';
   document.getElementById('doneCount').textContent='0';
+  clearAbsent();
   const dice=document.getElementById('diceIcon');dice.classList.remove('spinning');void dice.offsetWidth;dice.classList.add('spinning');
   const dailyKey=`daily${activeDaily}`,order=generateOrder(dailyKey),color=activeDaily===1?'d1':'d2',n=order.length;
   document.getElementById('runBadge').textContent=`Run #${runCount}`;
@@ -1052,10 +1111,11 @@ function roll(){
   document.getElementById('listBody').innerHTML=order.map((name,i)=>{
     const pos=i+1,isFirst=pos===1,isLast=pos===n,short=name.split(' ').slice(0,2).join(' ');
     const tag=isFirst?'<span class="p-tag tag-first">Primero 🥇</span>':isLast?'<span class="p-tag tag-last">Último</span>':'';
-    return `<div class="participant-item" style="animation-delay:${i*40}ms" data-name="${escapeHtml(name)}" data-short="${escapeHtml(short)}" data-color="${color}" onclick="toggleDone(this)"><span class="pos-num ${isFirst?'pos-first':''}">${pos}</span><div class="p-avatar ${color}">${escapeHtml(getInitials(name))}</div><span class="p-name ${isLast?'name-last':''}">${escapeHtml(short)}</span>${tag}</div>`;
+    return `<div class="participant-item" style="animation-delay:${i*40}ms" data-name="${escapeHtml(name)}" data-short="${escapeHtml(short)}" data-color="${color}" onclick="toggleDone(this)"><span class="pos-num ${isFirst?'pos-first':''}">${pos}</span><div class="p-avatar ${color}">${escapeHtml(getInitials(name))}</div><span class="p-name ${isLast?'name-last':''}">${escapeHtml(short)}</span>${tag}<button type="button" class="p-absent-btn" onclick="event.stopPropagation();toggleAbsent(this.closest('.participant-item'))">No asistió</button></div>`;
   }).join('');
 }
 function toggleDone(el){
+  if(el.classList.contains('absent'))return;
   const name=el.dataset.name, short=el.dataset.short, color=el.dataset.color;
   const doneBody=document.getElementById('doneBody');
   const existingEmpty=doneBody.querySelector('.done-empty');
@@ -1081,6 +1141,30 @@ function updateDoneCount(){
   if(n===0&&!document.querySelector('#doneBody .done-empty')){
     document.getElementById('doneBody').innerHTML='<div class="done-empty">Hacé clic en un participante<br>para marcarlo como listo</div>';
   }
+}
+
+const ABSENT_EMPTY='<div class="done-empty">Usá <strong>No asistió</strong> en la lista<br>para registrar ausencias</div>';
+function clearAbsent(){document.getElementById('absentBody').innerHTML=ABSENT_EMPTY;document.getElementById('absentCount').textContent='0';}
+// Ausente: no cuenta como completado y pasa a "No asistieron". Se deshace con el mismo botón o tocando su fila en la lista de ausentes.
+function toggleAbsent(el){
+  const name=el.dataset.name, short=el.dataset.short;
+  const body=document.getElementById('absentBody'), btn=el.querySelector('.p-absent-btn');
+  if(el.classList.contains('absent')){
+    el.classList.remove('absent');btn.textContent='No asistió';
+    body.querySelector(`[data-absent="${CSS.escape(name)}"]`)?.remove();
+  }else{
+    if(el.classList.contains('done'))toggleDone(el);
+    el.classList.add('absent');btn.textContent='Asistió';
+    body.querySelector('.done-empty')?.remove();
+    const div=document.createElement('div');
+    div.className='done-item';div.dataset.absent=name;div.title='Deshacer ausencia';
+    div.innerHTML=`<div class="done-avatar">${escapeHtml(getInitials(name))}</div><span class="done-name">${escapeHtml(short)}</span><span class="done-check">✕</span>`;
+    div.onclick=()=>toggleAbsent(el);
+    body.appendChild(div);
+  }
+  const n=body.querySelectorAll('.done-item').length;
+  document.getElementById('absentCount').textContent=n;
+  if(!n)body.innerHTML=ABSENT_EMPTY;
 }
 
 /* ============ ADMIN: TABS ============ */
@@ -1499,6 +1583,65 @@ async function updateUser(id,changes,input){
     return;
   }
   st.className='status-msg ok';st.textContent='✓ Guardado';
+}
+
+function generatePassword(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*';
+  const bytes=crypto.getRandomValues(new Uint32Array(14));
+  document.getElementById('nu-password').value=[...bytes].map(b=>chars[b%chars.length]).join('');
+}
+
+// Crear usuarios necesita la clave secreta de Supabase: lo hace la Edge Function
+// admin-create-user (supabase/functions), que además comprueba que quien llama sea ADMIN.
+async function createUser(event){
+  event.preventDefault();
+  const st=document.getElementById('user-create-status'),btn=document.getElementById('nu-submit');
+  if(!isAdmin()){st.className='status-msg error';st.textContent='⚠ Solo un ADMIN puede crear usuarios.';return;}
+  const body={
+    full_name:document.getElementById('nu-name').value.trim(),
+    email:document.getElementById('nu-email').value.trim(),
+    role:document.getElementById('nu-role').value,
+    password:document.getElementById('nu-password').value
+  };
+  st.className='status-msg info';st.textContent='Creando usuario...';btn.disabled=true;
+  const {data,error}=await supabaseClient.functions.invoke('admin-create-user',{body});
+  btn.disabled=false;
+  if(error){
+    let msg=error.message;
+    const res=error.context;
+    if(res&&typeof res.json==='function'){
+      if(res.status===404)msg='La función admin-create-user no está publicada en Supabase (ver README).';
+      else{try{msg=(await res.json()).error||msg;}catch(e){}}
+    }
+    st.className='status-msg error';st.textContent='⚠ '+msg;
+    return;
+  }
+  document.getElementById('user-create-form').reset();
+  st.className='status-msg ok';
+  st.textContent=`✓ Usuario creado: ${data.email} (${ROLE_LABELS[data.role]||data.role}). Compartile la contraseña temporal por un canal privado; no se vuelve a mostrar.`;
+  await renderUsersAdmin();
+}
+
+function openPasswordDialog(){
+  const d=document.getElementById('pw-dialog');
+  d.querySelector('form').reset();
+  document.getElementById('pw-status').className='status-msg';document.getElementById('pw-status').textContent='';
+  d.showModal();
+}
+async function changePassword(event){
+  event.preventDefault();
+  const pw=document.getElementById('pw-new').value,st=document.getElementById('pw-status'),btn=document.getElementById('pw-submit');
+  if(pw!==document.getElementById('pw-confirm').value){st.className='status-msg error';st.textContent='Las contraseñas no coinciden.';return;}
+  btn.disabled=true;st.className='status-msg info';st.textContent='Guardando...';
+  const {error}=await supabaseClient.auth.updateUser({password:pw});
+  btn.disabled=false;
+  if(error){
+    st.className='status-msg error';
+    st.textContent=error.code==='same_password'?'La contraseña nueva debe ser distinta de la actual.':error.code==='weak_password'?'La contraseña es demasiado débil.':'No se pudo cambiar: '+error.message;
+    return;
+  }
+  st.className='status-msg ok';st.textContent='✓ Contraseña actualizada.';
+  setTimeout(()=>document.getElementById('pw-dialog').close(),1200);
 }
 
 /* ============ INIT ============ */

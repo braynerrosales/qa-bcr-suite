@@ -35,6 +35,8 @@ let rejectNextPatch = false;
 const patches = [];
 
 // ── Datos simulados (Fase 3): tablas en memoria con la forma de Supabase ──
+let functionMissing = false; // la Edge Function no está publicada
+const created = [];           // cuerpos enviados a admin-create-user
 let failConfig = false;      // get_app_config responde 500
 let failNextWrite = null;    // código de error para la próxima escritura
 let tables;
@@ -151,6 +153,11 @@ async function setup(context) {
     if (url.pathname === '/auth/v1/user') {
       const e = byId(subOf(req));
       if (!e) return json(401, { code: 401, error_code: 'bad_jwt', msg: 'invalid JWT' });
+      if (req.method() === 'PUT') {
+        const { password } = req.postDataJSON();
+        if (password === e[1].password) return json(422, { code: 422, error_code: 'same_password', msg: 'New password should be different from the old password.' });
+        e[1].password = password;
+      }
       return json(200, { id: e[1].id, aud: 'authenticated', role: 'authenticated', email: e[0] });
     }
     if (url.pathname === '/auth/v1/logout') return r.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } });
@@ -172,6 +179,19 @@ async function setup(context) {
         Object.assign(target, body);
         return json(200, [{ id: idEq }]);
       }
+    }
+    if (url.pathname === '/functions/v1/admin-create-user') {
+      // Igual que supabase/functions/admin-create-user: solo ADMIN activo.
+      if (functionMissing) return json(404, { code: 'NOT_FOUND', message: 'Requested function was not found' });
+      const me = byId(subOf(req))?.[1];
+      if (!me) return json(401, { error: 'La sesión no es válida. Iniciá sesión de nuevo.' });
+      if (me.role !== 'ADMIN' || !me.active) return json(403, { error: 'Solo un ADMIN puede crear usuarios.' });
+      const b = req.postDataJSON();
+      created.push(b);
+      if (users[b.email]) return json(409, { error: 'Ya existe un usuario con ese correo.' });
+      const id = 'a0000000-0000-4000-8000-0000000000' + String(10 + created.length);
+      users[b.email] = { id, password: b.password, full_name: b.full_name, role: b.role, active: true };
+      return json(200, { id, email: b.email, full_name: b.full_name, role: b.role });
     }
     if (url.pathname === '/rest/v1/rpc/get_app_config') {
       if (failConfig) return json(500, { code: 'XX000', message: 'falla simulada' });
@@ -259,7 +279,7 @@ async function login(page, email, password = 'pw') {
   assert.equal(await page.textContent('#sidebar-user-role'), 'QA');
   ok('recargar: la sesión se mantiene');
 
-  await page.click('.sidebar-logout');
+  await page.click('.sidebar-user-actions button:has-text("Cerrar sesión")');
   await page.waitForSelector('#auth-form:not([hidden])');
   assert.equal(await page.isVisible('.layout'), false);
   ok('cerrar sesión: vuelve al login');
@@ -410,7 +430,7 @@ const lastWrite = () => writes[writes.length - 1];
 
   const cache = await page.evaluate(() => JSON.parse(localStorage.getItem('qaBcrSuiteCache_v3')));
   assert.equal(cache.userId, users['qa@bcr.test'].id);
-  await page.click('.sidebar-logout');
+  await page.click('.sidebar-user-actions button:has-text("Cerrar sesión")');
   await page.waitForSelector('#auth-form:not([hidden])');
   assert.equal(await page.evaluate(() => localStorage.getItem('qaBcrSuiteCache_v3')), null);
   ok('la copia local es del usuario y se borra al cerrar sesión');
@@ -576,6 +596,128 @@ resetData(true);
   await context.close();
 }
 resetData();
+
+// 16. ADMIN crea usuarios con la Edge Function; el usuario nuevo entra y cambia su contraseña
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'admin@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#nav-admin');
+  await page.click('#atab-users');
+  await page.waitForSelector('#list-users .user-role-select');
+  const before = await page.locator('#list-users .crud-item').count();
+
+  await page.fill('#nu-name', 'Nora Nueva');
+  await page.fill('#nu-email', 'nora@bcr.test');
+  await page.selectOption('#nu-role', 'QA_LEAD');
+  await page.click('#user-create-form button:has-text("Generar")');
+  const temp = await page.inputValue('#nu-password');
+  assert.ok(temp.length === 14, temp);
+  await page.click('#nu-submit');
+  await page.waitForSelector('#user-create-status.ok');
+  assert.match(await page.textContent('#user-create-status'), /nora@bcr\.test \(QA Lead\)/);
+  assert.deepEqual(created.at(-1), { full_name: 'Nora Nueva', email: 'nora@bcr.test', role: 'QA_LEAD', password: temp });
+  await until(page, (n) => document.querySelectorAll('#list-users .crud-item').length === n + 1, before);
+  assert.equal(await page.inputValue('#nu-password'), '');
+  ok('ADMIN: crea un usuario con rol y contraseña temporal; aparece en la lista');
+
+  await page.fill('#nu-name', 'Otra');
+  await page.fill('#nu-email', 'nora@bcr.test');
+  await page.fill('#nu-password', 'temporal-123');
+  await page.click('#nu-submit');
+  await page.waitForSelector('#user-create-status.error');
+  assert.equal(await page.textContent('#user-create-status'), '⚠ Ya existe un usuario con ese correo.');
+  ok('correo repetido: muestra el error de la función');
+
+  functionMissing = true;
+  await page.fill('#nu-email', 'otra@bcr.test');
+  await page.click('#nu-submit');
+  await page.waitForFunction(() => /no está publicada/.test(document.getElementById('user-create-status').textContent));
+  functionMissing = false;
+  ok('función sin publicar: lo explica');
+  await page.screenshot({ path: DIR + 'tests/shot-crear-usuario.png', fullPage: true });
+  await context.close();
+
+  const c2 = await newPage();
+  await c2.page.goto('http://app.test/index.html');
+  await login(c2.page, 'nora@bcr.test', temp);
+  await c2.page.waitForSelector('.layout', { state: 'visible' });
+  assert.equal(await c2.page.textContent('#sidebar-user-role'), 'QA Lead');
+  await c2.page.click('.sidebar-user-actions button:has-text("Cambiar contraseña")');
+  await c2.page.fill('#pw-new', 'nueva-clave-segura');
+  await c2.page.fill('#pw-confirm', 'otra-cosa-distinta');
+  await c2.page.click('#pw-submit');
+  assert.equal(await c2.page.textContent('#pw-status'), 'Las contraseñas no coinciden.');
+  await c2.page.fill('#pw-confirm', 'nueva-clave-segura');
+  await c2.page.click('#pw-submit');
+  await c2.page.waitForSelector('#pw-status.ok');
+  assert.equal(users['nora@bcr.test'].password, 'nueva-clave-segura');
+  await c2.page.waitForSelector('#pw-dialog', { state: 'hidden' });
+  ok('el usuario nuevo entra con la temporal y cambia su contraseña');
+  await c2.context.close();
+}
+
+// 17. QA_LEAD no puede crear usuarios (la función lo rechaza aunque se llame a mano)
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'lead@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  const status = await page.evaluate(async () => {
+    const { error } = await supabaseClient.functions.invoke('admin-create-user', { body: { email: 'x@bcr.test', full_name: 'X', role: 'ADMIN', password: 'temporal-123' } });
+    return error?.context?.status;
+  });
+  assert.equal(status, 403);
+  assert.ok(!users['x@bcr.test']);
+  ok('QA_LEAD: la función responde 403');
+  await context.close();
+}
+
+// 18. Daily: "No asistió"
+{
+  const { context, page } = await newPage({ width: 375, height: 760 });
+  await page.goto('http://app.test/index.html');
+  await login(page, 'qa@bcr.test');
+  await page.waitForSelector('.mobile-topbar', { state: 'visible' });
+  await page.evaluate(() => showPage('daily'));
+  await page.click('#rollBtn');
+  await page.waitForSelector('#listBody .participant-item');
+  const first = page.locator('#listBody .participant-item').first();
+  const second = page.locator('#listBody .participant-item').nth(1);
+  await second.click();
+  assert.equal(await page.textContent('#doneCount'), '1');
+  await second.locator('.p-absent-btn').click();
+  assert.equal(await page.textContent('#doneCount'), '0');
+  assert.equal(await page.textContent('#absentCount'), '1');
+  assert.equal(await second.locator('.p-absent-btn').textContent(), 'Asistió');
+  await second.click();
+  assert.equal(await page.textContent('#doneCount'), '0');
+  ok('No asistió: saca a la persona de completados y no se puede marcar como lista');
+
+  await first.locator('.p-absent-btn').click();
+  assert.equal(await page.textContent('#absentCount'), '2');
+  assert.equal(await page.locator('#absentBody img').count(), 0);
+  await page.locator('#absentBody .done-item').first().click();
+  assert.equal(await page.textContent('#absentCount'), '1');
+  assert.equal(await second.locator('.p-absent-btn').textContent(), 'No asistió');
+  await first.locator('.p-absent-btn').click();
+  assert.equal(await page.textContent('#absentCount'), '0');
+  assert.match(await page.textContent('#absentBody'), /registrar ausencias/);
+  await first.locator('.p-absent-btn').click();
+  await page.click('#rollBtn');
+  assert.equal(await page.textContent('#absentCount'), '0');
+  ok('ausencias: se deshacen desde la fila o la lista, y se limpian al generar otro orden');
+
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert.ok(overflow <= 0, 'scroll horizontal en Daily móvil: ' + overflow);
+  await page.locator('#listBody .participant-item').first().locator('.p-absent-btn').click();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: DIR + 'tests/shot-daily-movil.png' });
+  ok('Daily en móvil con el botón No asistió: sin scroll horizontal');
+  await context.close();
+}
 
 await browser.close();
 assert.deepEqual(errors, [], 'errores de JS en la página: ' + errors.join(' | '));

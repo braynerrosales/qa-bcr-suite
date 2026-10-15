@@ -151,6 +151,24 @@ La app ya no usa `qa-bcr-suite-data.json` ni el archivo vinculado: personas, reg
 
 **Pruebas**: `tests/test-auth.mjs` simula las tablas y las dos RPC en memoria y cubre la carga, cada tipo de guardado, rechazos, permisos de QA, otro usuario viendo los cambios, sin conexión con y sin copia, base vacía y escapado de nombres. Las mismas sentencias se probaron contra Postgres con las migraciones y el RLS reales.
 
+## Usuarios desde la app (Edge Function `admin-create-user`)
+
+Crear usuarios necesita la clave secreta de Supabase, que nunca puede ir en la página. Lo hace la función `supabase/functions/admin-create-user/index.ts`: comprueba que quien llama sea un **ADMIN activo**, crea el usuario confirmado con la contraseña temporal y le asigna el rol. Responde solo a `https://braynerrosales.github.io` (CORS).
+
+**Publicarla** (desde el navegador, sin instalar nada):
+
+1. *Supabase → Edge Functions → Deploy a new function → Via Editor*.
+2. Nombre: `admin-create-user` (exacto). Pegar el contenido de `index.ts` y *Deploy function*.
+3. En la función → *Details*: desactivar **Verify JWT** y guardar. La función valida la sesión ella misma; con la verificación legacy activada, las sesiones de los proyectos nuevos se rechazan antes de llegar al código.
+
+No hace falta configurar secretos: Supabase pone `SUPABASE_URL` y la clave secreta en el entorno de la función.
+
+En la app: *Administración → Usuarios* → nombre, correo, rol y contraseña temporal (*Generar* crea una de 14 caracteres). La persona entra con esa contraseña y la cambia en *Cambiar contraseña* (sidebar) o *Clave* (móvil). Si la función no está publicada, la app lo dice.
+
+## Daily: «No asistió»
+
+Cada persona del orden tiene un botón **No asistió**: la saca de completados, la tacha y la pasa a la lista *No asistieron*. Se deshace con el mismo botón (*Asistió*) o tocando su fila en esa lista, y se limpia al generar otro orden. Por ahora no se guarda en Supabase (igual que los completados); va con el historial del Daily.
+
 ## Siguiente: Fase 4
 
 Edge Function para Claude: la clave de Anthropic queda en Supabase, se registra el uso en `ai_usage_log` y se quita `api.anthropic.com` de la página y de la CSP. Después, guardar el historial del Daily y del QA Generator.
