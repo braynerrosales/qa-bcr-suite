@@ -169,6 +169,10 @@ En la app: *Administración → Usuarios* → nombre, correo, rol y contraseña 
 
 Cada persona del orden tiene un botón **No asistió**: la saca de completados, la tacha y la pasa a la lista *No asistieron*. Se deshace con el mismo botón (*Asistió*) o tocando su fila en esa lista, y se limpia al generar otro orden. Por ahora no se guarda en Supabase (igual que los completados); va con el historial del Daily.
 
+## Diseño
+
+Hoja de trabajo clara con la tinta azul del banco y un solo acento: el amarillo de resaltador marca lo actual (la sección abierta y quién habla primero en el Daily). Tipografía Public Sans; IBM Plex Mono solo para los PBIs y las tareas, que se copian tal cual a Azure DevOps. Modo oscuro automático según el sistema, foco visible con teclado y sin animaciones si el sistema pide reducir movimiento.
+
 ## Siguiente: Fase 4
 
 Edge Function para Claude: la clave de Anthropic queda en Supabase, se registra el uso en `ai_usage_log` y se quita `api.anthropic.com` de la página y de la CSP. Después, guardar el historial del Daily y del QA Generator.

@@ -7,394 +7,354 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://aprerrmqsnkeakrjcoxf.supabase.co wss://aprerrmqsnkeakrjcoxf.supabase.co https://api.anthropic.com; object-src 'none'; base-uri 'none'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+  /* QA BCR Suite — hoja de trabajo del equipo QA.
+     Papel frío, tinta azul institucional y un solo acento: el resaltador
+     amarillo marca "lo actual" (página activa, quién habla primero). */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #080c16;
-    --surface: #0f1623;
-    --card: #131d2e;
-    --card2: #172035;
-    --border: #1a2840;
-    --border2: #223050;
-    --accent: #0057b8;
-    --cyan: #00d4ff;
-    --cyan-glow: rgba(0,212,255,0.18);
-    --cyan-dim: rgba(0,212,255,0.07);
-    --purple: #7c3aed;
-    --purple-glow: rgba(124,58,237,0.18);
-    --purple-dim: rgba(124,58,237,0.07);
-    --gold: #f7c948;
-    --teal: #00c9a7;
-    --red: #ff4d6d;
-    --text: #dde5f5;
-    --muted: #4a5a7a;
-    --dim: #263550;
-    --sidebar-w: 220px;
-    --radius: 14px;
-    --radius-sm: 9px;
+    color-scheme: light;
+    --paper: #f1f4f8;
+    --sheet: #ffffff;
+    --sheet-2: #f7f9fb;
+    --ink: #13233f;
+    --ink-2: #4e5e77;
+    --ink-3: #7c8aa0;
+    --rule: #d9dfe8;
+    --rule-2: #c3ccd9;
+    --bcr: #0a4fa3;
+    --bcr-strong: #083f83;
+    --bcr-ink: #ffffff;
+    --mark: #ffd84d;
+    --mark-ink: #2a2100;
+    --ok: #17805a;
+    --bad: #c23a4b;
+    --sidebar-bg: #0a3d7e;
+    --sidebar-ink: #e9f0fa;
+    --sidebar-ink-2: #a9bfdd;
+    --sidebar-w: 232px;
+    --r-sheet: 10px;
+    --r-ctl: 6px;
+    --font: 'Public Sans', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --paper: #0d1625;
+      --sheet: #142034;
+      --sheet-2: #18263d;
+      --ink: #e6ecf5;
+      --ink-2: #a3b1c6;
+      --ink-3: #7686a0;
+      --rule: #24344d;
+      --rule-2: #31445f;
+      --bcr: #5d9bea;
+      --bcr-strong: #7aaef0;
+      --bcr-ink: #07152b;
+      --mark: #f2c94c;
+      --mark-ink: #221a00;
+      --ok: #4cc38a;
+      --bad: #f07386;
+      --sidebar-bg: #0a1830;
+      --sidebar-ink: #e6ecf5;
+      --sidebar-ink-2: #8a9cb8;
+    }
   }
 
-  body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
-  body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(0,87,184,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0,87,184,0.025) 1px, transparent 1px); background-size: 48px 48px; pointer-events: none; z-index: 0; }
+  body { font-family: var(--font); font-size: 15px; line-height: 1.5; background: var(--paper); color: var(--ink); min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--bcr); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  strong { font-weight: 700; }
 
-  .layout { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+  .layout { display: flex; min-height: 100vh; }
 
-  /* SIDEBAR */
-  .sidebar { width: var(--sidebar-w); background: rgba(15,22,35,0.98); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; backdrop-filter: blur(12px); }
-  .sidebar-brand { padding: 24px 20px 20px; border-bottom: 1px solid var(--border); }
-  .brand-icon { width: 38px; height: 38px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 0 20px rgba(0,87,184,0.5); margin-bottom: 10px; }
-  .brand-name { font-size: 15px; font-weight: 800; letter-spacing: -0.3px; line-height: 1.1; }
-  .brand-sub { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.05em; margin-top: 3px; }
-  .sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
-  .nav-section-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); padding: 0 8px; margin: 10px 0 6px; }
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; transition: all 0.18s; color: var(--muted); font-size: 13px; font-weight: 600; position: relative; }
-  .nav-item:hover { background: var(--card); color: var(--text); border-color: var(--border); }
-  .nav-item.active { background: var(--card2); color: var(--text); border-color: var(--border2); }
-  .nav-item.active.item-qa    { color: var(--teal); border-color: rgba(0,201,167,0.25); background: rgba(0,201,167,0.06); }
-  .nav-item.active.item-daily { color: var(--cyan); border-color: rgba(0,212,255,0.25); background: var(--cyan-dim); }
-  .nav-item.active.item-admin { color: var(--gold); border-color: rgba(247,201,72,0.25); background: rgba(247,201,72,0.06); }
-  .nav-item.active.item-calc  { color: #34d399; border-color: rgba(52,211,153,0.25); background: rgba(52,211,153,0.06); }
-  .nav-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; background: var(--surface); }
-  .nav-item.active .nav-icon { background: var(--card); }
-  .nav-pip { width: 5px; height: 5px; border-radius: 50%; position: absolute; right: 12px; opacity: 0; transition: opacity 0.18s; }
-  .nav-item.active .nav-pip { opacity: 1; }
-  .item-home  .nav-pip { background: var(--gold); }
-  .item-qa    .nav-pip { background: var(--teal); }
-  .item-daily .nav-pip { background: var(--cyan); }
-  .item-admin .nav-pip { background: var(--gold); }
-  .item-calc  .nav-pip { background: #34d399; }
-  .sidebar-footer { padding: 14px 20px; border-top: 1px solid var(--border); }
-  .sidebar-footer-text { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--dim); line-height: 1.5; }
+  /* ── Sidebar ─────────────────────────────── */
+  .sidebar { width: var(--sidebar-w); background: var(--sidebar-bg); color: var(--sidebar-ink); display: flex; flex-direction: column; position: fixed; inset: 0 auto 0 0; z-index: 50; }
+  .sidebar-brand { padding: 26px 22px 22px; display: flex; align-items: center; gap: 12px; }
+  .brand-icon { width: 40px; height: 40px; border-radius: 8px; background: var(--sidebar-ink); color: var(--sidebar-bg); display: grid; place-items: center; font-weight: 800; font-size: 15px; letter-spacing: -0.5px; flex-shrink: 0; }
+  .brand-name { font-size: 16px; font-weight: 700; line-height: 1.15; }
+  .brand-sub { font-size: 12px; color: var(--sidebar-ink-2); }
+  .sidebar-nav { flex: 1; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
+  .nav-item { display: block; width: 100%; text-align: left; background: transparent; border: 0; border-radius: var(--r-ctl); padding: 10px 12px 10px 16px; color: var(--sidebar-ink-2); font-size: 14px; font-weight: 500; position: relative; }
+  .nav-item:hover { color: var(--sidebar-ink); background: rgba(255,255,255,0.06); }
+  .nav-item.active { color: var(--sidebar-ink); font-weight: 700; background: rgba(255,255,255,0.1); }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 4px; border-radius: 2px; background: var(--mark); }
+  .nav-item:focus-visible { outline-color: var(--mark); }
+  .sidebar-footer { padding: 16px 22px 20px; border-top: 1px solid rgba(255,255,255,0.12); }
+  .sidebar-user { margin-bottom: 12px; }
+  .sidebar-user-name { font-size: 14px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+  .sidebar-user-role { font-size: 12px; color: var(--sidebar-ink-2); margin: 1px 0 10px; }
+  .sidebar-user-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .sidebar-logout { background: transparent; border: 1px solid rgba(255,255,255,0.25); border-radius: var(--r-ctl); color: var(--sidebar-ink); font-size: 12px; padding: 5px 10px; }
+  .sidebar-logout:hover { background: rgba(255,255,255,0.1); }
+  .sidebar-logout:focus-visible { outline-color: var(--mark); }
+  .sidebar-footer-text { font-size: 11px; color: var(--sidebar-ink-2); }
 
-  /* MAIN */
-  .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; position: relative; }
+  /* ── Estructura de página ────────────────── */
+  .main { margin-left: var(--sidebar-w); flex: 1; min-width: 0; min-height: 100vh; }
   .page { display: none; }
   .page.active { display: block; }
+  .qa-page, .daily-page, .admin-page, .calc-page { padding: 44px 48px 88px; max-width: 1040px; }
+  .calc-page { max-width: 760px; }
+  .page-header { margin-bottom: 28px; }
+  .page-header-left { display: flex; align-items: flex-start; gap: 14px; }
+  .page-back { width: 34px; height: 34px; margin-top: 2px; border-radius: var(--r-ctl); background: var(--sheet); border: 1px solid var(--rule); display: grid; place-items: center; font-size: 16px; color: var(--ink-2); flex-shrink: 0; }
+  .page-back:hover { color: var(--ink); border-color: var(--rule-2); }
+  .page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.6px; line-height: 1.15; }
+  .page-subtitle { font-size: 14px; color: var(--ink-2); margin-top: 4px; max-width: 62ch; }
 
-  /* HOME */
-  .home-page { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 60px 52px 80px; }
-  .home-eyebrow { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
-  .home-title { font-size: clamp(34px, 5vw, 54px); font-weight: 800; letter-spacing: -1.5px; line-height: 1.05; margin-bottom: 14px; }
-  .home-title .hl-teal { color: var(--teal); }
-  .home-title .hl-cyan { color: var(--cyan); }
-  .home-desc { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--muted); line-height: 1.7; max-width: 460px; margin-bottom: 48px; }
-  .home-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; max-width: 900px; }
-  .home-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 28px; cursor: pointer; transition: all 0.25s; position: relative; overflow: hidden; }
-  .home-card::before { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 0.25s; border-radius: 18px; }
-  .home-card.card-qa::before   { background: radial-gradient(ellipse at top left, rgba(0,201,167,0.09), transparent 65%); }
-  .home-card.card-daily::before { background: radial-gradient(ellipse at top left, rgba(0,212,255,0.09), transparent 65%); }
-  .home-card:hover { transform: translateY(-4px); border-color: var(--border2); }
-  .home-card:hover::before { opacity: 1; }
-  .home-card.card-qa:hover   { box-shadow: 0 12px 40px rgba(0,201,167,0.1); }
-  .home-card.card-daily:hover { box-shadow: 0 12px 40px rgba(0,212,255,0.1); }
-  .home-card-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 18px; position: relative; z-index: 1; }
-  .card-qa   .home-card-icon { background: rgba(0,201,167,0.12); border: 1px solid rgba(0,201,167,0.2); }
-  .card-daily .home-card-icon { background: var(--cyan-dim); border: 1px solid rgba(0,212,255,0.2); }
-  .home-card-title { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; margin-bottom: 8px; position: relative; z-index: 1; }
-  .card-qa   .home-card-title { color: var(--teal); }
-  .card-daily .home-card-title { color: var(--cyan); }
-  .home-card-desc { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); line-height: 1.65; position: relative; z-index: 1; margin-bottom: 20px; }
-  .home-card-arrow { display: flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; font-size: 11px; position: relative; z-index: 1; transition: gap 0.2s; }
-  .card-qa   .home-card-arrow { color: var(--teal); }
-  .card-daily .home-card-arrow { color: var(--cyan); }
-  .home-card:hover .home-card-arrow { gap: 10px; }
-  .home-version { margin-top: 52px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--dim); }
+  /* ── Inicio ──────────────────────────────── */
+  .home-page { padding: 72px 48px 88px; max-width: 880px; }
+  .home-greeting { font-size: 16px; color: var(--ink-2); margin-bottom: 6px; }
+  .home-title { font-size: clamp(34px, 5vw, 52px); font-weight: 800; letter-spacing: -1.4px; line-height: 1.05; margin-bottom: 40px; }
+  .home-tools { border-top: 2px solid var(--ink); }
+  .home-tool { display: grid; grid-template-columns: minmax(180px, 260px) 1fr auto; gap: 8px 28px; align-items: baseline; width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--rule); padding: 22px 4px; }
+  .home-tool:hover .home-tool-name { color: var(--bcr); text-decoration: underline; text-underline-offset: 4px; }
+  .home-tool-name { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .home-tool-desc { color: var(--ink-2); font-size: 15px; max-width: 54ch; }
+  .home-tool-go { color: var(--bcr); font-size: 20px; }
 
-  /* QA PAGE */
-  .qa-page { padding: 40px 40px 80px; max-width: 980px; }
-  .page-header { margin-bottom: 28px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-  .page-header-left { display: flex; align-items: center; gap: 13px; }
-  .page-back { width: 34px; height: 34px; border-radius: 9px; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; transition: all 0.15s; flex-shrink: 0; }
-  .page-back:hover { background: var(--card2); border-color: var(--border2); }
-  .page-title { font-size: clamp(18px, 3vw, 24px); font-weight: 800; letter-spacing: -0.4px; }
-  .page-subtitle { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 4px; }
-  .ai-badge { font-family: 'DM Mono', monospace; font-size: 11px; padding: 4px 10px; border-radius: 20px; background: rgba(0,201,167,0.1); border: 1px solid rgba(0,201,167,0.3); color: var(--teal); white-space: nowrap; flex-shrink: 0; }
-  .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
-  .card-label { font-size: 10px; font-family: 'DM Mono', monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 7px; }
-  .card-label::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); display: block; }
-  .project-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .proj-btn { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; cursor: pointer; color: var(--text); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600; text-align: left; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
-  .proj-btn:hover { border-color: var(--accent); background: rgba(0,87,184,0.1); }
-  .proj-btn.active { border-color: var(--accent); background: rgba(0,87,184,0.18); }
-  .proj-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  #qa-variant-section { margin-top: 13px; }
-  .variant-label { font-size: 10px; font-family: 'DM Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
-  .variant-select { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'Syne', sans-serif; font-size: 13px; padding: 9px 12px; outline: none; cursor: pointer; transition: border-color 0.15s; }
-  .variant-select:focus { border-color: var(--accent); }
-  .upload-zone { border: 1.5px dashed var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface); margin-bottom: 9px; position: relative; }
-  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: rgba(0,87,184,0.06); }
+  /* ── Hojas y controles comunes ───────────── */
+  .card, .output-section, .list-container, .done-list, .crud-list, .calc-section, .calc-result-card { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); }
+  .card { padding: 22px; }
+  .card-label, .variant-label, .calc-section-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+  .crud-input, .variant-select, .range-input, .user-role-select, textarea, .task-textarea, .calc-field input[type="date"] { background: var(--sheet); border: 1px solid var(--rule-2); border-radius: var(--r-ctl); color: var(--ink); font-size: 14px; padding: 9px 12px; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+  .crud-input:focus, .variant-select:focus, .range-input:focus, .user-role-select:focus, textarea:focus, .task-textarea:focus, .calc-field input[type="date"]:focus { border-color: var(--bcr); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bcr) 18%, transparent); }
+  ::placeholder { color: var(--ink-3); }
+  .btn-primary, .crud-btn-add, .btn-generate, .roll-btn, .calc-btn-calc { background: var(--bcr); color: var(--bcr-ink); border: 0; border-radius: var(--r-ctl); font-weight: 700; font-size: 14px; padding: 10px 18px; white-space: nowrap; transition: background 0.15s; }
+  .crud-btn-add:hover, .btn-generate:hover, .roll-btn:hover, .calc-btn-calc:hover { background: var(--bcr-strong); }
+  .btn-secondary, .calc-btn-clear, .calc-btn-add, .btn-copy, .btn-extract { background: var(--sheet); color: var(--ink); border: 1px solid var(--rule-2); border-radius: var(--r-ctl); font-weight: 600; font-size: 14px; padding: 9px 16px; white-space: nowrap; }
+  .btn-secondary:hover, .calc-btn-clear:hover, .calc-btn-add:hover, .btn-copy:hover, .btn-extract:hover { border-color: var(--bcr); color: var(--bcr); }
+  .crud-btn-del { background: transparent; border: 1px solid var(--rule-2); border-radius: var(--r-ctl); color: var(--bad); font-size: 13px; font-weight: 600; padding: 5px 10px; flex-shrink: 0; }
+  .crud-btn-del:hover { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, transparent); }
+  .crud-btn-edit { color: var(--bcr); }
+  .crud-btn-edit:hover { border-color: var(--bcr); background: color-mix(in srgb, var(--bcr) 8%, transparent); }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
+  .status-msg { font-size: 14px; padding: 9px 12px; border-radius: var(--r-ctl); margin-top: 10px; display: none; border-left: 3px solid; }
+  .status-msg.error { display: block; color: var(--bad); border-color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, var(--sheet)); }
+  .status-msg.info { display: block; color: var(--bcr); border-color: var(--bcr); background: color-mix(in srgb, var(--bcr) 7%, var(--sheet)); }
+  .status-msg.ok { display: block; color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, var(--sheet)); }
+
+  /* ── Generar tareas ──────────────────────── */
+  .main-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 16px; margin-bottom: 16px; }
+  .project-grid, .task-project-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .task-project-grid { margin-bottom: 18px; }
+  .proj-btn { background: var(--sheet); border: 1px solid var(--rule-2); border-radius: 999px; padding: 6px 14px 6px 10px; color: var(--ink); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+  .proj-btn:hover { border-color: var(--bcr); }
+  .proj-btn.active { background: var(--bcr); border-color: var(--bcr); color: var(--bcr-ink); }
+  .proj-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 2px var(--sheet); }
+  .proj-btn.active .proj-dot { box-shadow: 0 0 0 2px var(--bcr-ink); }
+  #qa-variant-section { margin-top: 18px; }
+  .variant-select { width: 100%; }
+  .ai-chip { margin-top: 18px; font-size: 13px; color: var(--ink-3); }
+  .upload-zone { border: 1.5px dashed var(--rule-2); border-radius: var(--r-ctl); padding: 16px; text-align: center; background: var(--sheet-2); margin-bottom: 10px; position: relative; cursor: pointer; }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--bcr); }
   .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-  .upload-icon { font-size: 20px; margin-bottom: 5px; }
-  .upload-text { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
-  .upload-text strong { color: var(--teal); }
-  .img-preview-wrap { position: relative; margin-bottom: 9px; display: none; }
+  .upload-text { font-size: 13px; color: var(--ink-2); }
+  .upload-text strong { color: var(--bcr); }
+  .img-preview-wrap { position: relative; margin-bottom: 10px; display: none; }
   .img-preview-wrap.visible { display: block; }
-  .img-preview { width: 100%; max-height: 120px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); }
-  .btn-remove-img { position: absolute; top: 6px; right: 6px; background: rgba(8,12,22,0.85); border: 1px solid var(--border); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--red); font-size: 13px; line-height: 1; }
-  .btn-extract { width: 100%; padding: 9px; background: transparent; border: 1px solid var(--teal); border-radius: var(--radius-sm); color: var(--teal); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-bottom: 9px; display: none; }
+  .img-preview { width: 100%; max-height: 140px; object-fit: cover; border-radius: var(--r-ctl); border: 1px solid var(--rule); }
+  .btn-remove-img { position: absolute; top: 6px; right: 6px; background: var(--sheet); border: 1px solid var(--rule-2); border-radius: 50%; width: 26px; height: 26px; display: grid; place-items: center; color: var(--bad); font-size: 15px; line-height: 1; }
+  .btn-extract { width: 100%; margin-bottom: 10px; display: none; }
   .btn-extract.visible { display: block; }
-  .btn-extract:hover { background: rgba(0,201,167,0.09); }
-  .btn-extract:disabled { opacity: 0.5; cursor: not-allowed; }
-  .divider { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
-  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-  .divider span { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--dim); letter-spacing: 0.1em; }
-  textarea { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1.7; padding: 11px; resize: vertical; min-height: 170px; outline: none; transition: border-color 0.15s; }
-  textarea:focus { border-color: var(--accent); }
-  textarea::placeholder { color: var(--dim); }
-  .btn-generate { width: 100%; padding: 15px; background: var(--accent); border: none; border-radius: var(--radius); color: #fff; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 16px; box-shadow: 0 4px 20px rgba(0,87,184,0.3); }
-  .btn-generate:hover { background: #0066d6; box-shadow: 0 6px 28px rgba(0,87,184,0.5); transform: translateY(-1px); }
-  .btn-generate:active { transform: translateY(0); }
-  .btn-generate:disabled { background: var(--card); color: var(--muted); cursor: not-allowed; box-shadow: none; transform: none; }
-  .loading-bar { height: 2px; background: var(--border); border-radius: 2px; margin-top: 10px; overflow: hidden; display: none; }
+  .divider { display: flex; align-items: center; gap: 10px; margin: 12px 0; color: var(--ink-3); font-size: 12px; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--rule); }
+  textarea, .task-textarea { width: 100%; font-family: var(--mono); font-size: 13px; line-height: 1.7; resize: vertical; min-height: 170px; }
+  .task-textarea { min-height: 150px; }
+  .btn-generate { width: 100%; padding: 14px; font-size: 15px; }
+  .loading-bar { height: 3px; background: var(--rule); border-radius: 2px; margin-top: 10px; overflow: hidden; display: none; }
   .loading-bar.active { display: block; }
-  .loading-bar::after { content: ''; display: block; height: 100%; width: 40%; background: linear-gradient(90deg, var(--accent), var(--teal)); border-radius: 2px; animation: slide 1.2s ease-in-out infinite; }
+  .loading-bar::after { content: ''; display: block; height: 100%; width: 40%; background: var(--bcr); animation: slide 1.2s ease-in-out infinite; }
   @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
-  .output-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: none; }
+  .output-section { overflow: hidden; display: none; }
   .output-section.visible { display: block; }
-  .output-header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
-  .output-title { font-size: 11px; font-family: 'DM Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 7px; }
-  .output-title .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--teal); animation: blink 2s infinite; }
-  @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.25; } }
-  .btn-copy { background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 11px; cursor: pointer; transition: all 0.15s; letter-spacing: 0.05em; }
-  .btn-copy:hover { border-color: var(--teal); color: var(--teal); }
-  .btn-copy.copied { border-color: var(--teal); color: var(--teal); background: rgba(0,201,167,0.1); }
-  .output-table-wrap { overflow-x: auto; padding: 16px; }
+  .output-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--rule); }
+  .output-title { font-size: 15px; font-weight: 700; }
+  .btn-copy { padding: 6px 14px; font-size: 13px; }
+  .btn-copy.copied { border-color: var(--ok); color: var(--ok); }
+  .output-table-wrap { overflow-x: auto; padding: 6px 0 10px; }
   table { width: 100%; border-collapse: collapse; }
-  th { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-  td { font-family: 'DM Mono', monospace; font-size: 12px; padding: 8px 12px; border-bottom: 1px solid rgba(26,40,64,0.5); line-height: 1.4; color: var(--text); }
-  tr.pbi-row td { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: var(--gold); padding-top: 15px; background: rgba(247,201,72,0.025); }
-  tr.task-row td { padding-left: 24px; color: #7a8eac; }
-  tr:last-child td { border-bottom: none; }
-  .status-msg { font-family: 'DM Mono', monospace; font-size: 12px; padding: 9px 12px; border-radius: var(--radius-sm); margin-top: 9px; display: none; }
-  .status-msg.error { display: block; background: rgba(255,77,109,0.08); border: 1px solid rgba(255,77,109,0.25); color: var(--red); }
-  .status-msg.info  { display: block; background: rgba(0,87,184,0.08); border: 1px solid rgba(0,87,184,0.25); color: #6ba3f5; }
-  .ai-chip { display: inline-flex; align-items: center; gap: 5px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--teal); letter-spacing: 0.06em; opacity: 0.6; margin-top: 10px; }
+  thead { display: none; }
+  td { font-family: var(--mono); font-size: 13px; padding: 7px 18px; line-height: 1.45; color: var(--ink); }
+  tr.pbi-row td { font-family: var(--font); font-weight: 700; font-size: 14px; padding-top: 16px; border-top: 1px solid var(--rule); }
+  tr.pbi-row:first-child td { border-top: 0; padding-top: 10px; }
+  tr.task-row td { padding-left: 34px; color: var(--ink-2); }
 
-  /* DAILY PAGE */
-  .daily-page { padding: 40px 40px 80px; max-width: 1080px; }
-  .daily-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .daily-col-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); padding: 0 16px 8px; }
-  .participant-item { cursor: pointer; }
-  .participant-item:hover { background: rgba(255,255,255,0.035); }
-  .participant-item.done { opacity: 0.45; background: rgba(0,201,167,0.04); }
-  .participant-item.done .p-name { text-decoration: line-through; color: var(--muted); }
-  .done-list { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .done-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-  .done-header-title { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--teal); }
-  .done-count-badge { font-family: 'DM Mono', monospace; font-size: 9px; padding: 3px 7px; border-radius: 100px; background: rgba(0,201,167,0.12); color: var(--teal); border: 1px solid rgba(0,201,167,0.2); }
-  .done-body { min-height: 80px; }
-  .done-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); animation: slideInRight 0.3s both; }
-  .done-item:last-child { border-bottom: none; }
-  @keyframes slideInRight { from { opacity:0; transform:translateX(14px); } to { opacity:1; transform:translateX(0); } }
-  .done-avatar { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; background: rgba(0,201,167,0.1); color: var(--teal); border: 1px solid rgba(0,201,167,0.2); }
-  .done-name { font-size: 12px; font-weight: 600; color: var(--muted); flex: 1; }
-  .done-check { font-size: 13px; color: var(--teal); }
-  .participant-item.absent { opacity: 0.5; background: rgba(255,77,109,0.04); }
-  .participant-item.absent .p-name { text-decoration: line-through; color: var(--muted); }
-  .participant-item.absent { cursor: default; }
-  .p-absent-btn { margin-left: auto; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; padding: 4px 7px; cursor: pointer; flex-shrink: 0; transition: all 0.15s; }
-  .p-absent-btn:hover, .participant-item.absent .p-absent-btn { color: var(--red); border-color: rgba(255,77,109,0.4); }
-  .absent-list { margin-top: 14px; }
-  .absent-list .done-header-title { color: var(--red); }
-  .absent-list .done-count-badge { background: rgba(255,77,109,0.1); color: var(--red); border-color: rgba(255,77,109,0.25); }
-  .absent-list .done-avatar { background: rgba(255,77,109,0.08); color: var(--red); border-color: rgba(255,77,109,0.2); }
-  .absent-list .done-item { cursor: pointer; }
-  .done-empty { padding: 36px 20px; text-align: center; color: var(--dim); font-family: 'DM Mono', monospace; font-size: 11px; line-height: 1.6; }
-  @media (max-width: 780px) { .daily-columns { grid-template-columns: 1fr; } }
-  .daily-tabs-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-  .daily-tab-btn { background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); padding: 15px; cursor: pointer; transition: all 0.22s; text-align: left; position: relative; overflow: hidden; }
-  .daily-tab-btn::after { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 0.22s; }
-  .daily-tab-btn.dt-d1::after { background: var(--cyan-dim); }
-  .daily-tab-btn.dt-d2::after { background: var(--purple-dim); }
-  .daily-tab-btn:hover { transform: translateY(-2px); }
-  .daily-tab-btn.dt-d1.active { border-color: var(--cyan); box-shadow: 0 0 22px var(--cyan-glow); }
-  .daily-tab-btn.dt-d1.active::after { opacity: 1; }
-  .daily-tab-btn.dt-d2.active { border-color: var(--purple); box-shadow: 0 0 22px var(--purple-glow); }
-  .daily-tab-btn.dt-d2.active::after { opacity: 1; }
-  .dt-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 3px; }
-  .dt-d1 .dt-label { color: var(--cyan); }
-  .dt-d2 .dt-label { color: #a78bfa; }
-  .dt-title { font-size: 15px; font-weight: 700; color: var(--text); }
-  .dt-count { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
-  .roll-btn { width: 100%; padding: 15px; border: none; border-radius: var(--radius); font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 16px; }
-  .roll-btn.d1 { background: var(--cyan); color: #080c16; box-shadow: 0 4px 18px var(--cyan-glow); }
-  .roll-btn.d2 { background: var(--purple); color: #fff; box-shadow: 0 4px 18px var(--purple-glow); }
-  .roll-btn:hover { transform: translateY(-2px); filter: brightness(1.08); }
-  .roll-btn:active { transform: scale(0.98); }
-  .dice-icon { font-size: 18px; transition: transform 0.3s; }
-  .roll-btn:hover .dice-icon { transform: rotate(180deg); }
-  .list-container { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .list-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-  .list-header-title { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
-  .run-badge { font-family: 'DM Mono', monospace; font-size: 9px; padding: 3px 7px; border-radius: 100px; background: var(--border); color: var(--muted); }
-  .participant-item { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--border); transition: all 0.3s; animation: slideIn 0.4s both; }
+  /* ── Daily ───────────────────────────────── */
+  .daily-tabs-selector { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); margin-bottom: 18px; min-width: min(420px, 100%); }
+  .daily-tab-btn { background: transparent; border: 0; border-radius: var(--r-ctl); padding: 10px 16px; text-align: left; color: var(--ink-2); }
+  .daily-tab-btn:hover { color: var(--ink); }
+  .daily-tab-btn.active { background: var(--bcr); color: var(--bcr-ink); }
+  .dt-label { display: none; }
+  .dt-title { font-size: 15px; font-weight: 700; }
+  .dt-count { font-size: 12px; opacity: 0.8; }
+  .roll-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 14px; font-size: 15px; margin-bottom: 20px; }
+  .roll-btn.d2 { background: var(--bcr); }
+  .dice-icon { font-size: 18px; }
+  .daily-columns { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
+  .list-container, .done-list { overflow: hidden; }
+  .list-header, .done-header { padding: 14px 18px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .list-header-title, .done-header-title { font-size: 15px; font-weight: 700; }
+  .run-badge, .done-count-badge { font-size: 13px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .participant-item { display: flex; align-items: center; gap: 14px; padding: 10px 18px 10px 0; border-bottom: 1px solid var(--rule); cursor: pointer; animation: slideIn 0.35s both; }
   .participant-item:last-child { border-bottom: none; }
-  .participant-item:hover { background: rgba(255,255,255,0.012); }
-  @keyframes slideIn { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
-  .pos-num { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; width: 24px; text-align: right; flex-shrink: 0; color: var(--muted); }
-  .pos-first { color: var(--gold); font-weight: 700; }
-  .p-avatar { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; letter-spacing: -0.5px; }
-  .p-avatar.d1 { background: var(--cyan-dim); color: var(--cyan); border: 1px solid rgba(0,212,255,0.18); }
-  .p-avatar.d2 { background: var(--purple-dim); color: #a78bfa; border: 1px solid rgba(124,58,237,0.18); }
-  .p-name { font-size: 13px; font-weight: 600; flex: 1; }
-  .name-last { color: var(--muted); }
-  .p-tag { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1px; padding: 2px 6px; border-radius: 5px; text-transform: uppercase; flex-shrink: 0; }
-  .tag-first { background: rgba(247,201,72,0.1); color: var(--gold); border: 1px solid rgba(247,201,72,0.2); }
-  .tag-last  { background: rgba(74,90,122,0.1); color: var(--muted); border: 1px solid rgba(74,90,122,0.2); }
-  .list-empty { padding: 44px 20px; text-align: center; }
-  .list-empty-icon { font-size: 34px; margin-bottom: 10px; opacity: 0.4; }
-  .list-empty-text { color: var(--muted); font-size: 13px; line-height: 1.6; }
-  @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(720deg); } }
-  .spinning { animation: spin 0.5s ease-out; }
+  .participant-item:hover { background: var(--sheet-2); }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  /* El número de turno es lo que se lee en voz alta: grande y tabular. */
+  .pos-num { width: 64px; flex-shrink: 0; text-align: right; font-size: 30px; font-weight: 800; letter-spacing: -1px; line-height: 1; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .pos-first { color: var(--mark-ink); background: linear-gradient(transparent 18%, var(--mark) 18%, var(--mark) 88%, transparent 88%); padding-right: 6px; width: 64px; }
+  .p-avatar { display: none; }
+  .p-name { font-size: 16px; font-weight: 600; flex: 1; min-width: 0; }
+  .name-last { color: var(--ink-2); }
+  .p-tag { font-size: 12px; font-weight: 600; color: var(--ink-3); flex-shrink: 0; }
+  .tag-first { color: var(--ink); }
+  .p-absent-btn { margin-left: auto; background: transparent; border: 1px solid var(--rule-2); border-radius: var(--r-ctl); color: var(--ink-2); font-size: 12px; font-weight: 600; padding: 4px 9px; flex-shrink: 0; }
+  .p-absent-btn:hover { border-color: var(--bad); color: var(--bad); }
+  .participant-item.done { background: color-mix(in srgb, var(--ok) 6%, var(--sheet)); }
+  .participant-item.done .p-name, .participant-item.absent .p-name { text-decoration: line-through; color: var(--ink-3); }
+  .participant-item.done .pos-num, .participant-item.absent .pos-num { color: var(--rule-2); background: none; }
+  .participant-item.absent { cursor: default; background: color-mix(in srgb, var(--bad) 5%, var(--sheet)); }
+  .participant-item.absent .p-absent-btn { border-color: var(--bad); color: var(--bad); }
+  .done-body { min-height: 64px; }
+  .done-item { display: flex; align-items: center; gap: 10px; padding: 9px 18px; border-bottom: 1px solid var(--rule); font-size: 14px; }
+  .done-item:last-child { border-bottom: none; }
+  .done-avatar { display: none; }
+  .done-name { flex: 1; font-weight: 600; }
+  .done-check { color: var(--ok); font-weight: 700; }
+  .absent-list { margin-top: 16px; }
+  .absent-list .done-check { color: var(--bad); }
+  .absent-list .done-item { cursor: pointer; }
+  .absent-list .done-item:hover { background: var(--sheet-2); }
+  .done-empty, .list-empty, .crud-empty { padding: 26px 20px; text-align: center; color: var(--ink-3); font-size: 14px; }
+  .list-empty { padding: 48px 24px; }
+  .list-empty-text { color: var(--ink-2); }
+  .spinning { animation: none; }
 
-  /* ADMIN */
-  .admin-page { padding: 40px 40px 80px; max-width: 1080px; }
-  .admin-tabs { display: flex; gap: 8px; margin-bottom: 22px; flex-wrap: wrap; }
-  .admin-tab-btn { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 15px; cursor: pointer; color: var(--muted); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; transition: all 0.15s; }
-  .admin-tab-btn:hover { border-color: var(--border2); color: var(--text); }
-  .admin-tab-btn.active { border-color: var(--gold); background: rgba(247,201,72,0.08); color: var(--gold); }
+  /* ── Administración ──────────────────────── */
+  .admin-tabs { display: flex; gap: 22px; margin-bottom: 26px; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+  .admin-tab-btn { background: transparent; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; padding: 8px 0 10px; color: var(--ink-2); font-size: 14px; font-weight: 600; }
+  .admin-tab-btn:hover { color: var(--ink); }
+  .admin-tab-btn.active { color: var(--ink); border-bottom-color: var(--bcr); }
   .admin-section { display: none; }
   .admin-section.active { display: block; }
-  .admin-card-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
-  .admin-card-desc { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
-  .crud-row { display: flex; gap: 8px; margin-bottom: 14px; }
-  .crud-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; padding: 9px 12px; outline: none; transition: border-color 0.15s; }
-  .crud-input:focus { border-color: var(--accent); }
-  .crud-btn-add { background: var(--accent); border: none; border-radius: var(--radius-sm); color: #fff; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; padding: 9px 16px; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
-  .crud-btn-add:hover { background: #0066d6; }
-  .crud-list { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 22px; }
-  .crud-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .admin-card-title { font-size: 17px; font-weight: 700; margin-bottom: 2px; }
+  .admin-card-desc { font-size: 14px; color: var(--ink-2); margin-bottom: 14px; max-width: 70ch; }
+  .admin-daily-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .crud-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .crud-input { flex: 1; min-width: 0; }
+  .crud-list { overflow: hidden; margin-bottom: 22px; }
+  .crud-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
   .crud-item:last-child { border-bottom: none; }
-  .crud-item-name { flex: 1; min-width: 140px; font-size: 13px; font-weight: 600; }
-  .crud-checkbox { width: 15px; height: 15px; cursor: pointer; accent-color: var(--teal); }
-  .crud-label-small { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
-  .crud-btn-del { background: transparent; border: 1px solid var(--border); border-radius: 7px; color: var(--red); width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; flex-shrink: 0; transition: all 0.15s; }
-  .crud-btn-del:hover { border-color: var(--red); background: rgba(255,77,109,0.08); }
-  .crud-empty { padding: 26px; text-align: center; color: var(--dim); font-family: 'DM Mono', monospace; font-size: 11px; }
-  .range-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-  .range-input { width: 64px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; padding: 8px 10px; outline: none; text-align: center; }
-  .range-input:focus { border-color: var(--accent); }
-  .admin-daily-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  @media (max-width: 780px) { .admin-daily-cols { grid-template-columns: 1fr; } .admin-page { padding: 20px 16px 60px; } }
-  .task-project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 8px; margin-bottom: 16px; }
-  .task-select-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-  .task-textarea { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1.7; padding: 11px; resize: vertical; min-height: 140px; outline: none; }
-  .task-textarea:focus { border-color: var(--accent); }
-  .btn-secondary { background: transparent; border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; padding: 10px 16px; cursor: pointer; transition: all 0.15s; }
-  .btn-secondary:hover { border-color: var(--accent); background: rgba(0,87,184,0.08); }
-  .backup-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
-  .backup-note { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); line-height: 1.7; margin-top: 12px; }
+  .crud-item-name { flex: 1; min-width: 140px; font-size: 14px; font-weight: 600; }
+  .crud-checkbox { width: 16px; height: 16px; accent-color: var(--bcr); cursor: pointer; }
+  .crud-label-small { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+  .range-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .range-input { width: 72px; text-align: center; }
+  .task-select-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+  .task-select-row .variant-select { width: auto; min-width: 200px; }
+  .admin-card-desc code { font-family: var(--mono); font-size: 13px; background: var(--sheet-2); border: 1px solid var(--rule); border-radius: 4px; padding: 0 4px; }
+  .backup-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .backup-note { font-size: 14px; color: var(--ink-2); margin-top: 12px; }
+  .user-email { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2); }
+  .user-role-select { padding: 6px 10px; font-size: 13px; }
+  .user-role-select:disabled, .crud-checkbox:disabled { opacity: 0.5; cursor: not-allowed; }
+  .user-create { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; padding: 18px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); }
+  .user-create .crud-input, .user-create select { width: 100%; min-width: 0; }
+  .user-create select { padding: 9px 12px; font-size: 14px; }
+  .user-create-pw { display: flex; gap: 8px; }
+  .user-create-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+  #list-users { margin-top: 22px; }
+  body.saving { cursor: progress; }
+  body.saving .admin-section { pointer-events: none; opacity: 0.65; }
 
-  /* CALC PAGE */
-  .calc-page { padding: 40px 40px 80px; max-width: 720px; }
-  .calc-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
-  .calc-section-title { font-size: 10px; font-family: 'DM Mono', monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
-  .calc-section-title::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #34d399; display: block; }
+  /* ── Días hábiles ────────────────────────── */
+  .calc-section { padding: 22px; margin-bottom: 16px; }
   .calc-row { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
-  .calc-field { flex: 1; min-width: 140px; }
-  .calc-field label { display: block; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
-  .calc-field input[type="date"] { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); padding: 9px 12px; font-family: 'DM Mono', monospace; font-size: 12px; outline: none; transition: border-color 0.15s; }
-  .calc-field input[type="date"]:focus { border-color: var(--accent); }
+  .calc-field { flex: 1; min-width: 150px; }
+  .calc-field label { display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 5px; }
+  .calc-field input[type="date"] { width: 100%; }
   .calc-off-entry { display: flex; gap: 10px; align-items: end; margin-bottom: 10px; flex-wrap: wrap; }
-  .calc-btn-add { background: rgba(52,211,153,0.08); border: 1px solid #34d399; border-radius: var(--radius-sm); color: #34d399; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; padding: 9px 16px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-  .calc-btn-add:hover { background: #34d399; color: #080c16; }
-  .calc-btn-calc { width: 100%; padding: 15px; background: #34d399; border: none; border-radius: var(--radius); color: #080c16; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 20px rgba(52,211,153,0.3); margin-bottom: 16px; }
-  .calc-btn-calc:hover { filter: brightness(1.1); transform: translateY(-1px); }
-  .calc-btn-clear { background: transparent; border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--muted); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; padding: 10px 16px; cursor: pointer; transition: all 0.15s; }
-  .calc-btn-clear:hover { border-color: var(--accent); color: var(--text); }
-  .calc-result-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; text-align: center; margin-bottom: 16px; }
-  .calc-result-number { font-size: 3.2rem; font-weight: 800; color: #34d399; line-height: 1; }
-  .calc-result-label { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 6px; }
-  .calc-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 16px; }
-  .calc-stat { background: var(--surface); border-radius: var(--radius-sm); padding: 14px; text-align: center; }
-  .calc-stat-num { font-size: 1.5rem; font-weight: 800; }
-  .calc-stat-num.s-calendar { color: var(--accent); }
-  .calc-stat-num.s-weekends { color: var(--gold); }
-  .calc-stat-num.s-holidays { color: var(--red); }
-  .calc-stat-num.s-off { color: var(--muted); }
-  .calc-stat-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
-  .calc-holidays-toggle { background: transparent; border: none; color: #34d399; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; padding: 8px 0; }
+  .calc-actions { display: flex; gap: 10px; margin-bottom: 16px; }
+  .calc-btn-calc { flex: 1; padding: 14px; font-size: 15px; }
+  .calc-msg { text-align: center; color: var(--ink-2); padding: 28px; font-size: 14px; }
+  .calc-msg.is-error { color: var(--bad); }
+  .calc-result-card { padding: 26px; margin-bottom: 16px; }
+  .calc-result-number { font-size: 64px; font-weight: 800; letter-spacing: -2px; line-height: 1; color: var(--bcr); font-variant-numeric: tabular-nums; }
+  .calc-result-label { font-size: 15px; color: var(--ink-2); margin-top: 6px; }
+  .calc-breakdown { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 22px; border-top: 1px solid var(--rule); }
+  .calc-stat { padding: 14px 12px 0 0; }
+  .calc-stat-num { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .calc-stat-num.s-holidays { color: var(--bad); }
+  .calc-stat-label { font-size: 13px; color: var(--ink-2); }
+  .calc-holidays-toggle { background: transparent; border: 0; color: var(--bcr); font-size: 14px; font-weight: 600; padding: 4px 0; }
   .calc-holidays-toggle:hover { text-decoration: underline; }
   .calc-holidays-list { margin-top: 10px; display: none; }
   .calc-holidays-list.open { display: block; }
-  .calc-holiday-item { display: flex; justify-content: space-between; padding: 7px 12px; font-family: 'DM Mono', monospace; font-size: 11px; border-radius: 6px; }
-  .calc-holiday-item:nth-child(odd) { background: var(--surface); }
-  .calc-holiday-item .ch-date { color: var(--muted); min-width: 120px; }
-  .calc-holiday-item .ch-name { color: var(--text); }
-  .calc-holiday-item.ch-in-range { border-left: 3px solid var(--red); }
-  .calc-holiday-item.ch-in-range .ch-name { color: var(--red); }
-  .calc-tag { display: inline-block; font-family: 'DM Mono', monospace; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px; letter-spacing: 0.04em; }
-  .calc-tag-weekend { background: rgba(247,201,72,0.1); color: var(--gold); }
-  .calc-tag-workday { background: rgba(255,77,109,0.1); color: var(--red); }
-  .calc-year-header { padding: 10px 12px 4px; font-size: 11px; font-weight: 700; color: #34d399; }
-  @media (max-width: 780px) { .calc-page { padding: 20px 16px 60px; } .calc-row { flex-direction: column; } .calc-field { min-width: 100%; } .calc-off-entry { flex-direction: column; } }
+  .calc-holiday-item { display: flex; gap: 16px; padding: 7px 10px; font-size: 14px; border-bottom: 1px solid var(--rule); }
+  .calc-holiday-item .ch-date { color: var(--ink-2); min-width: 130px; font-variant-numeric: tabular-nums; }
+  .calc-holiday-item.ch-in-range { border-left: 3px solid var(--bad); }
+  .calc-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 4px; margin-left: 6px; }
+  .calc-tag-weekend { background: var(--sheet-2); color: var(--ink-2); border: 1px solid var(--rule); }
+  .calc-tag-workday { background: color-mix(in srgb, var(--bad) 10%, transparent); color: var(--bad); }
+  .calc-tag-off { background: color-mix(in srgb, var(--mark) 45%, transparent); color: var(--mark-ink); }
+  .calc-year-header { padding: 14px 10px 4px; font-size: 15px; font-weight: 700; }
 
-  /* DATA BANNER */
-  .data-banner { display: none; align-items: center; gap: 14px; background: rgba(247,201,72,0.08); border-bottom: 1px solid rgba(247,201,72,0.25); padding: 10px 20px; position: relative; z-index: 60; flex-wrap: wrap; }
+  /* ── Avisos, login y diálogo ─────────────── */
+  .data-banner { display: none; align-items: center; gap: 14px; background: color-mix(in srgb, var(--mark) 30%, var(--sheet)); border-bottom: 1px solid color-mix(in srgb, var(--mark) 70%, var(--rule)); color: var(--ink); padding: 10px 20px; flex-wrap: wrap; position: relative; z-index: 60; }
   .data-banner.visible { display: flex; }
-  .data-banner-text { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--gold); flex: 1; min-width: 220px; }
-  .data-banner-btn { background: var(--gold); border: none; border-radius: var(--radius-sm); color: #1a1300; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
-  .data-banner-btn:hover { filter: brightness(1.08); }
-  .data-banner-dismiss { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 2px 6px; }
+  .data-banner-text { font-size: 14px; flex: 1; min-width: 220px; }
+  .data-banner-btn { background: var(--ink); color: var(--paper); border: 0; border-radius: var(--r-ctl); font-weight: 700; font-size: 13px; padding: 7px 14px; }
+  .data-banner-dismiss { background: transparent; border: 0; color: var(--ink-2); font-size: 16px; padding: 2px 6px; }
+  body.auth-locked .layout, body.auth-locked .mobile-topbar, body.auth-locked .data-banner { display: none !important; }
+  .auth-screen { display: none; min-height: 100vh; align-items: center; justify-content: center; padding: 24px 16px; background: linear-gradient(var(--sidebar-bg) 0 38%, var(--paper) 38%); }
+  body.auth-locked .auth-screen { display: flex; }
+  .auth-card { width: 100%; max-width: 400px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 32px 30px; box-shadow: 0 20px 40px -24px rgba(10,30,60,0.35); }
+  .auth-card .brand-icon { background: var(--bcr); color: var(--bcr-ink); margin-bottom: 16px; }
+  .auth-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+  .auth-sub { font-size: 14px; color: var(--ink-2); margin: 2px 0 24px; }
+  .auth-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .auth-field label { font-size: 13px; font-weight: 600; }
+  .auth-btn { width: 100%; padding: 11px 16px; margin-top: 6px; }
+  .auth-btn:disabled { cursor: wait; }
+  .auth-msg { font-size: 14px; color: var(--ink-2); }
+  .pw-dialog { background: var(--sheet); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 24px; width: min(380px, calc(100vw - 32px)); margin: auto; }
+  .pw-dialog::backdrop { background: rgba(10,20,40,0.5); }
+  .pw-dialog form { display: flex; flex-direction: column; gap: 10px; }
+  .pw-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
 
-  /* MOBILE */
-  .mobile-topbar { display: none; position: sticky; top: 0; z-index: 100; background: rgba(8,12,22,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 8px 16px; min-height: 52px; gap: 10px; align-items: center; justify-content: space-between; }
-  .mobile-logo { font-size: 14px; font-weight: 800; }
-  .mobile-nav-btns { display: flex; gap: 5px; }
-  .mobile-nav-btn { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; transition: all 0.15s; }
-  .mobile-nav-btn.active { color: var(--text); border-color: var(--border2); }
+  /* ── Móvil ───────────────────────────────── */
+  .mobile-topbar { display: none; position: sticky; top: 0; z-index: 100; background: var(--sidebar-bg); color: var(--sidebar-ink); padding: 8px 16px; min-height: 52px; gap: 10px; align-items: center; justify-content: space-between; }
+  .mobile-logo { font-size: 15px; font-weight: 800; white-space: nowrap; }
+  .mobile-nav-btns { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .mobile-nav-btn, .mobile-logout-btn { padding: 6px 9px; border-radius: var(--r-ctl); border: 0; background: transparent; color: var(--sidebar-ink-2); font-size: 13px; font-weight: 600; }
+  .mobile-nav-btn.active { color: var(--sidebar-ink); box-shadow: inset 0 -3px 0 var(--mark); border-radius: 0; }
+  .mobile-logout-btn { border: 1px solid rgba(255,255,255,0.25); }
 
   @media (max-width: 780px) {
-    .main-grid { grid-template-columns: 1fr; }
     .sidebar { display: none; }
     .main { margin-left: 0; }
     .mobile-topbar { display: flex !important; }
-    .home-page { padding: 32px 20px 60px; }
-    .qa-page, .daily-page { padding: 20px 16px 60px; }
+    .home-page { padding: 36px 16px 64px; }
+    .home-title { margin-bottom: 28px; }
+    .home-tool { grid-template-columns: 1fr auto; padding: 18px 2px; }
+    .home-tool-desc { grid-column: 1 / -1; grid-row: 2; }
+    .qa-page, .daily-page, .admin-page, .calc-page { padding: 24px 16px 64px; }
+    .page-title { font-size: 24px; }
+    .main-grid, .daily-columns, .admin-daily-cols, .user-create { grid-template-columns: 1fr; }
+    .daily-tabs-selector { display: grid; }
+    .pos-num, .pos-first { width: 48px; font-size: 24px; }
+    .p-tag { display: none; }
+    .calc-breakdown { grid-template-columns: repeat(2, 1fr); }
+    .calc-row, .calc-off-entry { flex-direction: column; align-items: stretch; }
+    .calc-field { min-width: 100%; }
   }
-  /* AUTH (v3) */
-  [hidden] { display: none !important; }
-  body.saving { cursor: progress; }
-  body.saving .admin-section { pointer-events: none; opacity: .7; }
-  body.auth-locked .layout, body.auth-locked .mobile-topbar, body.auth-locked .data-banner { display: none !important; }
-  .auth-screen { display: none; min-height: 100vh; align-items: center; justify-content: center; padding: 24px 16px; position: relative; z-index: 1; }
-  body.auth-locked .auth-screen { display: flex; }
-  .auth-card { width: 100%; max-width: 380px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 32px 28px; }
-  .auth-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-  .auth-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin: 3px 0 24px; }
-  .auth-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-  .auth-field label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
-  .auth-btn { width: 100%; padding: 11px 16px; margin-top: 6px; }
-  .auth-btn:disabled { opacity: 0.6; cursor: wait; }
-  .auth-msg { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
-  .sidebar-user { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
-  .sidebar-user-name { font-size: 12px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
-  .sidebar-user-role { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--teal); margin: 2px 0 8px; }
-  .sidebar-logout { background: transparent; border: 1px solid var(--border); border-radius: 7px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 5px 9px; cursor: pointer; transition: all 0.15s; }
-  .sidebar-logout:hover { color: var(--red); border-color: rgba(255,77,109,0.4); }
-  .mobile-logout-btn { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; }
-  .status-msg.ok { display: block; background: rgba(0,201,167,0.08); border: 1px solid rgba(0,201,167,0.25); color: var(--teal); }
-  .user-email { display: block; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 400; color: var(--muted); margin-top: 2px; }
-  .user-create { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-  .user-create .crud-input, .user-create select { width: 100%; min-width: 0; }
-  .user-create-pw { display: flex; gap: 8px; }
-  .user-create-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
-  .user-create select { padding: 9px 12px; font-size: 12px; }
-  @media (max-width: 640px) { .user-create { grid-template-columns: 1fr; } }
-  .pw-dialog { background: var(--card); color: var(--text); border: 1px solid var(--border2); border-radius: var(--radius); padding: 22px; width: min(360px, calc(100vw - 32px)); }
-  .pw-dialog::backdrop { background: rgba(0,0,0,0.6); }
-  .pw-dialog form { display: flex; flex-direction: column; gap: 10px; }
-  .pw-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
-  .sidebar-user-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-  .user-role-select { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 8px; }
-  .user-role-select:disabled, .crud-checkbox:disabled { opacity: 0.5; cursor: not-allowed; }
-  /* Sin esto, en móvil el contenido ensanchaba .main y aparecía scroll horizontal (venía de v2). */
-  .main { min-width: 0; }
-  @media (max-width: 780px) {
-    .mobile-topbar { gap: 8px; height: auto; min-height: 52px; padding: 8px 16px; }
-    .mobile-nav-btns { flex-wrap: wrap; justify-content: flex-end; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
   }
 </style>
 </head>
@@ -402,9 +362,9 @@
 
 <div class="auth-screen" id="auth-screen">
   <div class="auth-card">
-    <div class="brand-icon">⚡</div>
+    <div class="brand-icon" aria-hidden="true">QA</div>
     <div class="auth-title">QA BCR Suite</div>
-    <div class="auth-sub">Banco de Costa Rica</div>
+    <div class="auth-sub">Equipo QA del Banco de Costa Rica</div>
     <div class="auth-msg" id="auth-loading">Verificando sesión...</div>
     <form id="auth-form" hidden onsubmit="onLoginSubmit(event)">
       <div class="auth-field">
@@ -426,13 +386,13 @@
 </div>
 
 <div class="mobile-topbar">
-  <span class="mobile-logo">⚡ QA BCR</span>
+  <span class="mobile-logo">QA BCR</span>
   <div class="mobile-nav-btns">
-    <button class="mobile-nav-btn active" onclick="showPage('home')">Home</button>
-    <button class="mobile-nav-btn" onclick="showPage('qa')">QA</button>
+    <button class="mobile-nav-btn active" onclick="showPage('home')">Inicio</button>
+    <button class="mobile-nav-btn" onclick="showPage('qa')">Tareas</button>
     <button class="mobile-nav-btn" onclick="showPage('daily')">Daily</button>
     <button class="mobile-nav-btn" onclick="showPage('admin')" id="mnav-admin">Admin</button>
-    <button class="mobile-nav-btn" onclick="showPage('calc')">Calc</button>
+    <button class="mobile-nav-btn" onclick="showPage('calc')">Días</button>
     <button class="mobile-logout-btn" id="mobile-password" onclick="openPasswordDialog()" title="Cambiar contraseña">Clave</button>
     <button class="mobile-logout-btn" id="mobile-logout" onclick="logout()" title="Cerrar sesión">Salir</button>
   </div>
@@ -461,27 +421,18 @@
 
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="brand-icon">⚡</div>
-      <div class="brand-name">QA BCR Suite</div>
-      <div class="brand-sub">Banco de Costa Rica</div>
+      <div class="brand-icon" aria-hidden="true">QA</div>
+      <div>
+        <div class="brand-name">QA BCR Suite</div>
+        <div class="brand-sub">Banco de Costa Rica</div>
+      </div>
     </div>
-    <nav class="sidebar-nav">
-      <div class="nav-section-label">Menú</div>
-      <div class="nav-item item-home active" onclick="showPage('home')" id="nav-home">
-        <div class="nav-icon">🏠</div><span>Inicio</span><div class="nav-pip"></div>
-      </div>
-      <div class="nav-item item-qa" onclick="showPage('qa')" id="nav-qa">
-        <div class="nav-icon">⚙️</div><span>QA Generator</span><div class="nav-pip"></div>
-      </div>
-      <div class="nav-item item-daily" onclick="showPage('daily')" id="nav-daily">
-        <div class="nav-icon">🎲</div><span>Daily Scrum</span><div class="nav-pip"></div>
-      </div>
-      <div class="nav-item item-admin" onclick="showPage('admin')" id="nav-admin">
-        <div class="nav-icon">🛠️</div><span>Administración</span><div class="nav-pip"></div>
-      </div>
-      <div class="nav-item item-calc" onclick="showPage('calc')" id="nav-calc">
-        <div class="nav-icon">📅</div><span>Días Hábiles</span><div class="nav-pip"></div>
-      </div>
+    <nav class="sidebar-nav" aria-label="Secciones">
+      <button class="nav-item item-home active" onclick="showPage('home')" id="nav-home">Inicio</button>
+      <button class="nav-item item-qa" onclick="showPage('qa')" id="nav-qa">Generar tareas</button>
+      <button class="nav-item item-daily" onclick="showPage('daily')" id="nav-daily">Daily</button>
+      <button class="nav-item item-admin" onclick="showPage('admin')" id="nav-admin">Administración</button>
+      <button class="nav-item item-calc" onclick="showPage('calc')" id="nav-calc">Días hábiles</button>
     </nav>
     <div class="sidebar-footer">
       <div class="sidebar-user">
@@ -492,7 +443,7 @@
           <button class="sidebar-logout" onclick="logout()">Cerrar sesión</button>
         </div>
       </div>
-      <div class="sidebar-footer-text">QA BCR Suite v3.0<br>IA · Powered by Claude</div>
+      <div class="sidebar-footer-text">Versión 3</div>
     </div>
   </aside>
 
@@ -501,30 +452,25 @@
     <!-- HOME -->
     <div class="page active" id="page-home">
     <div class="home-page">
-      <div class="home-eyebrow">// QA BCR Suite · v3.0</div>
-      <h1 class="home-title">Herramientas<br>para el equipo<br><span class="hl-teal">QA</span> <span style="color:var(--dim)">·</span> <span class="hl-cyan">BCR</span></h1>
-      <p class="home-desc">Generación de tareas QA asistida por IA y<br>ordenamiento aleatorio de dailys — todo en un lugar.</p>
-      <div class="home-cards">
-        <div class="home-card card-qa" onclick="showPage('qa')">
-          <div class="home-card-icon">⚙️</div>
-          <div class="home-card-title">QA Task Generator</div>
-          <div class="home-card-desc">Generá tareas QA para Azure DevOps a partir de PBIs, HUs o RTs. Soporta templates por proyecto y extracción desde imágenes con IA.</div>
-          <div class="home-card-arrow">Abrir herramienta <span>→</span></div>
-        </div>
-        <div class="home-card card-daily" onclick="showPage('daily')">
-          <div class="home-card-icon">🎲</div>
-          <div class="home-card-title">Daily Scrum Order</div>
-          <div class="home-card-desc">Generá el orden aleatorio de participación para el Daily 1 y Daily 2, con reglas de rotación y re-roll ilimitado.</div>
-          <div class="home-card-arrow">Abrir herramienta <span>→</span></div>
-        </div>
-        <div class="home-card card-daily" onclick="showPage('calc')" style="border-color:rgba(52,211,153,0.15)">
-          <div class="home-card-icon" style="background:rgba(52,211,153,0.12);border-color:rgba(52,211,153,0.2)">📅</div>
-          <div class="home-card-title" style="color:#34d399">Días Hábiles</div>
-          <div class="home-card-desc">Calculá días hábiles entre dos fechas, restando fines de semana, feriados de Costa Rica y días off personalizados.</div>
-          <div class="home-card-arrow" style="color:#34d399">Abrir herramienta <span>→</span></div>
-        </div>
+      <p class="home-greeting" id="home-greeting">Hola</p>
+      <h1 class="home-title">¿Qué necesitás hoy?</h1>
+      <div class="home-tools">
+        <button class="home-tool" onclick="showPage('qa')">
+          <span class="home-tool-name">Generar tareas QA</span>
+          <span class="home-tool-desc">Convertí PBIs, HUs o RTs en tareas para Azure DevOps con la plantilla de cada proyecto.</span>
+          <span class="home-tool-go" aria-hidden="true">›</span>
+        </button>
+        <button class="home-tool" onclick="showPage('daily')">
+          <span class="home-tool-name">Ordenar el Daily</span>
+          <span class="home-tool-desc">Sorteá quién habla primero en el Daily 1 o el Daily 2, respetando las reglas del equipo.</span>
+          <span class="home-tool-go" aria-hidden="true">›</span>
+        </button>
+        <button class="home-tool" onclick="showPage('calc')">
+          <span class="home-tool-name">Contar días hábiles</span>
+          <span class="home-tool-desc">Restá fines de semana, feriados de Costa Rica y días libres entre dos fechas.</span>
+          <span class="home-tool-go" aria-hidden="true">›</span>
+        </button>
       </div>
-      <div class="home-version">BCR · Equipo QA · Azure DevOps</div>
     </div>
     </div>
 
@@ -533,51 +479,45 @@
     <div class="qa-page">
       <div class="page-header">
         <div class="page-header-left">
-          <div class="page-back" onclick="showPage('home')">←</div>
+          <button class="page-back" onclick="showPage('home')" aria-label="Volver al inicio">←</button>
           <div>
-            <div class="page-title">QA Task Generator</div>
-            <div class="page-subtitle">// Banco de Costa Rica · Azure DevOps</div>
+            <h2 class="page-title">Generar tareas QA</h2>
+            <p class="page-subtitle">Elegí el proyecto, pegá los PBIs y copiá las tareas a Azure DevOps.</p>
           </div>
         </div>
-        <span class="ai-badge">IA Powered</span>
       </div>
       <div class="main-grid">
         <div class="card">
-          <div class="card-label">Tipo de Proyecto</div>
+          <div class="card-label">Proyecto</div>
           <div class="project-grid" id="project-grid"></div>
           <div id="qa-variant-section" style="display:none">
-            <div class="variant-label" style="margin-top:13px">Variante</div>
+            <div class="variant-label">Variante</div>
             <select class="variant-select" id="variant-select"><option value="">Seleccionar variante...</option></select>
           </div>
-          <div class="ai-chip">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
-            Generación asistida por Claude AI
-          </div>
+          <p class="ai-chip">Si el proyecto no tiene plantilla, Claude propone las tareas.</p>
         </div>
         <div class="card">
-          <div class="card-label">Cargar imagen (opcional)</div>
+          <div class="card-label">PBIs, HUs o RTs</div>
           <div class="img-preview-wrap" id="img-preview-wrap">
             <img id="img-preview" class="img-preview" src="" alt="preview"/>
             <button class="btn-remove-img" onclick="removeImage()">×</button>
           </div>
           <div class="upload-zone" id="upload-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
             <input type="file" id="img-input" accept="image/*" onchange="onFileSelected(event)"/>
-            <div class="upload-icon">🖼️</div>
-            <div class="upload-text"><strong>Arrastrá o hacé click</strong> para subir<br>una captura de Azure DevOps o Excel</div>
+            <div class="upload-text"><strong>Subí una captura</strong> de Azure DevOps o Excel y Claude extrae la lista</div>
           </div>
-          <button class="btn-extract" id="btn-extract" onclick="extractFromImage()">🤖 Extraer PBIs de la imagen</button>
-          <div class="divider"><span>O escribí manualmente</span></div>
-          <div class="card-label">Lista de PBIs / HUs / RTs</div>
-          <textarea id="pbi-input" placeholder="12345 - Implementar login con MFA&#10;12346 - Validación de formulario de pago&#10;12347 - Integración con sistema legado"></textarea>
+          <button class="btn-extract" id="btn-extract" onclick="extractFromImage()">Extraer PBIs de la imagen</button>
+          <div class="divider"><span>o escribilos, uno por línea</span></div>
+          <textarea id="pbi-input" aria-label="Lista de PBIs" placeholder="12345 - Implementar login con MFA&#10;12346 - Validación de formulario de pago&#10;12347 - Integración con sistema legado"></textarea>
           <div id="status-msg" class="status-msg"></div>
         </div>
       </div>
-      <button class="btn-generate" id="btn-gen" onclick="generate()" disabled>⚡ Generar Tareas QA</button>
+      <button class="btn-generate" id="btn-gen" onclick="generate()" disabled>Generar tareas</button>
       <div class="loading-bar" id="loading-bar"></div>
       <div class="output-section" id="output-section" style="margin-top:18px">
         <div class="output-header">
-          <div class="output-title"><span class="dot"></span>Tareas QA generadas</div>
-          <button class="btn-copy" id="btn-copy" onclick="copyTable()">COPIAR</button>
+          <h3 class="output-title">Tareas generadas</h3>
+          <button class="btn-copy" id="btn-copy" onclick="copyTable()">Copiar</button>
         </div>
         <div class="output-table-wrap">
           <table id="output-table">
@@ -594,10 +534,10 @@
     <div class="daily-page">
       <div class="page-header">
         <div class="page-header-left">
-          <div class="page-back" onclick="showPage('home')">←</div>
+          <button class="page-back" onclick="showPage('home')" aria-label="Volver al inicio">←</button>
           <div>
-            <div class="page-title">Daily Scrum Order</div>
-            <div class="page-subtitle">// randomized · rule-aware · re-rollable</div>
+            <h2 class="page-title">Orden del Daily</h2>
+            <p class="page-subtitle">Sorteá quién habla primero. Las reglas de cada daily se configuran en Administración.</p>
           </div>
         </div>
       </div>
@@ -615,11 +555,10 @@
       </div>
       <button class="roll-btn d1" id="rollBtn" onclick="roll()">
         <span class="dice-icon" id="diceIcon">🎲</span>
-        <span id="rollLabel">Generar Orden — Daily 1</span>
+        <span id="rollLabel">Sortear el orden del Daily 1</span>
       </button>
       <div class="daily-columns">
         <div>
-          <div class="daily-col-label">📋 Pendientes</div>
           <div class="list-container">
             <div class="list-header">
               <span class="list-header-title">Orden de participación</span>
@@ -627,21 +566,19 @@
             </div>
             <div id="listBody">
               <div class="list-empty">
-                <div class="list-empty-icon">🎯</div>
-                <div class="list-empty-text">Seleccioná un daily y presioná<br><strong>Generar Orden</strong> para comenzar</div>
+                <div class="list-empty-text">Elegí el daily y tocá <strong>Sortear</strong> para ver quién habla primero.</div>
               </div>
             </div>
           </div>
         </div>
         <div>
-          <div class="daily-col-label">✅ Ya participaron</div>
           <div class="done-list">
             <div class="done-header">
-              <span class="done-header-title">Completados</span>
+              <span class="done-header-title">Ya hablaron</span>
               <span class="done-count-badge" id="doneCount">0</span>
             </div>
             <div class="done-body" id="doneBody">
-              <div class="done-empty">Hacé clic en un participante<br>para marcarlo como listo</div>
+              <div class="done-empty">Tocá a una persona en el orden cuando termine de hablar.</div>
             </div>
           </div>
           <div class="done-list absent-list">
@@ -650,7 +587,7 @@
               <span class="done-count-badge" id="absentCount">0</span>
             </div>
             <div class="done-body" id="absentBody">
-              <div class="done-empty">Usá <strong>No asistió</strong> en la lista<br>para registrar ausencias</div>
+              <div class="done-empty">Usá <strong>No asistió</strong> en el orden para registrar ausencias.</div>
             </div>
           </div>
         </div>
@@ -663,20 +600,20 @@
     <div class="admin-page">
       <div class="page-header">
         <div class="page-header-left">
-          <div class="page-back" onclick="showPage('home')">←</div>
+          <button class="page-back" onclick="showPage('home')" aria-label="Volver al inicio">←</button>
           <div>
-            <div class="page-title">Administración</div>
-            <div class="page-subtitle">// personas · reglas · tareas · respaldo</div>
+            <h2 class="page-title">Administración</h2>
+            <p class="page-subtitle">Personas y reglas del Daily, plantillas de tareas, respaldo y usuarios.</p>
           </div>
         </div>
       </div>
 
       <div class="admin-tabs">
-        <button class="admin-tab-btn active" id="atab-people" onclick="selectAdminTab('people')">👥 Personas</button>
-        <button class="admin-tab-btn" id="atab-rules" onclick="selectAdminTab('rules')">🥇 Regla de primeros</button>
-        <button class="admin-tab-btn" id="atab-tasks" onclick="selectAdminTab('tasks')">🗂️ Tareas / Proyectos</button>
-        <button class="admin-tab-btn" id="atab-backup" onclick="selectAdminTab('backup')">💾 Respaldo</button>
-        <button class="admin-tab-btn" id="atab-users" onclick="selectAdminTab('users')" hidden>👤 Usuarios</button>
+        <button class="admin-tab-btn active" id="atab-people" onclick="selectAdminTab('people')">Personas</button>
+        <button class="admin-tab-btn" id="atab-rules" onclick="selectAdminTab('rules')">Reglas del Daily</button>
+        <button class="admin-tab-btn" id="atab-tasks" onclick="selectAdminTab('tasks')">Proyectos y tareas</button>
+        <button class="admin-tab-btn" id="atab-backup" onclick="selectAdminTab('backup')">Respaldo</button>
+        <button class="admin-tab-btn" id="atab-users" onclick="selectAdminTab('users')" hidden>Usuarios</button>
       </div>
 
       <!-- PERSONAS -->
@@ -687,7 +624,7 @@
             <div class="admin-card-desc">Agregar o quitar personas de la lista de Daily 1.</div>
             <div class="crud-row">
               <input class="crud-input" id="newp-daily1" placeholder="Nombre completo..." onkeydown="if(event.key==='Enter')addPerson('daily1')">
-              <button class="crud-btn-add" onclick="addPerson('daily1')">+ Agregar</button>
+              <button class="crud-btn-add" onclick="addPerson('daily1')">Agregar</button>
             </div>
             <div class="crud-list" id="list-people-daily1"></div>
           </div>
@@ -696,7 +633,7 @@
             <div class="admin-card-desc">Agregar o quitar personas de la lista de Daily 2.</div>
             <div class="crud-row">
               <input class="crud-input" id="newp-daily2" placeholder="Nombre completo..." onkeydown="if(event.key==='Enter')addPerson('daily2')">
-              <button class="crud-btn-add" onclick="addPerson('daily2')">+ Agregar</button>
+              <button class="crud-btn-add" onclick="addPerson('daily2')">Agregar</button>
             </div>
             <div class="crud-list" id="list-people-daily2"></div>
           </div>
@@ -733,24 +670,24 @@
         <div class="admin-card-desc">Agregá un proyecto nuevo o eliminá uno existente. Cada proyecto puede tener variantes (opcional).</div>
         <div class="crud-row">
           <input class="crud-input" id="new-project" placeholder="Nombre del proyecto (ej. NUEVO_PROYECTO)...">
-          <button class="crud-btn-add" onclick="addProject()">+ Agregar proyecto</button>
+          <button class="crud-btn-add" onclick="addProject()">Agregar proyecto</button>
         </div>
         <div class="task-project-grid" id="task-project-list"></div>
 
         <div id="task-editor-wrap" style="display:none">
           <div class="task-select-row">
-            <select class="variant-select" id="task-variant-select" style="max-width:260px" onchange="renderTaskEditor()"></select>
-            <div class="crud-row" style="flex:1;margin-bottom:0">
+            <select class="variant-select" id="task-variant-select" aria-label="Variante" onchange="renderTaskEditor()"></select>
+            <div class="crud-row" style="flex:1;min-width:240px;margin-bottom:0">
               <input class="crud-input" id="new-variant" placeholder="Nombre de variante nueva (opcional)...">
-              <button class="crud-btn-add" onclick="addVariant()">+ Variante</button>
+              <button class="crud-btn-add" onclick="addVariant()">Agregar variante</button>
             </div>
-            <button class="crud-btn-del" style="width:auto;padding:0 12px" onclick="removeVariant()" title="Eliminar variante seleccionada">🗑 Variante</button>
+            <button class="crud-btn-del" onclick="removeVariant()" title="Eliminar variante seleccionada">Eliminar variante</button>
           </div>
-          <div class="admin-card-desc">Una tarea por línea. Usá <code>${'{'}n{'}'}</code> donde debe ir el número del PBI/HU.</div>
+          <div class="admin-card-desc">Una tarea por línea. Escribí <code>{n}</code> donde va el número del PBI o HU.</div>
           <textarea class="task-textarea" id="task-textarea"></textarea>
           <div class="backup-btns">
-            <button class="btn-secondary" onclick="saveTaskEditor(this)">💾 Guardar plantilla</button>
-            <button class="crud-btn-del" style="width:auto;padding:0 14px" onclick="removeProject()">🗑 Eliminar proyecto</button>
+            <button class="crud-btn-add" onclick="saveTaskEditor(this)">Guardar plantilla</button>
+            <button class="crud-btn-del" onclick="removeProject()">Eliminar proyecto</button>
           </div>
         </div>
       </div>
@@ -760,8 +697,8 @@
         <div class="admin-card-title">Respaldo</div>
         <div class="admin-card-desc">Los datos se guardan en Supabase y todo el equipo ve los mismos. Podés descargar una copia de la configuración actual (personas, reglas, proyectos y plantillas) como JSON.</div>
         <div class="backup-btns">
-          <button class="btn-secondary" onclick="exportData()">⬇ Exportar configuración (JSON)</button>
-          <button class="btn-secondary" onclick="retryLoadConfig()">🔄 Recargar desde Supabase</button>
+          <button class="btn-secondary" onclick="exportData()">Exportar configuración (JSON)</button>
+          <button class="btn-secondary" onclick="retryLoadConfig()">Recargar desde Supabase</button>
         </div>
         <div class="backup-note">El archivo contiene nombres del equipo: guardalo en un lugar privado.</div>
         <div class="backup-note" id="backup-status"></div>
@@ -779,7 +716,7 @@
             <input class="crud-input" id="nu-password" placeholder="Contraseña temporal (mín. 10)" required minlength="10" maxlength="72" autocomplete="new-password" aria-label="Contraseña temporal">
             <button type="button" class="btn-secondary" onclick="generatePassword()">Generar</button>
           </div>
-          <div class="user-create-actions"><button type="submit" class="crud-btn-add" id="nu-submit">+ Crear usuario</button></div>
+          <div class="user-create-actions"><button type="submit" class="crud-btn-add" id="nu-submit">Crear usuario</button></div>
         </form>
         <div class="status-msg" id="user-create-status" role="status"></div>
         <div class="crud-list" id="list-users"></div>
@@ -793,10 +730,10 @@
     <div class="calc-page">
       <div class="page-header">
         <div class="page-header-left">
-          <div class="page-back" onclick="showPage('home')">←</div>
+          <button class="page-back" onclick="showPage('home')" aria-label="Volver al inicio">←</button>
           <div>
-            <div class="page-title">Calculadora de Días Hábiles</div>
-            <div class="page-subtitle">// Costa Rica · Feriados 2026–2028</div>
+            <h2 class="page-title">Días hábiles</h2>
+            <p class="page-subtitle">Incluye los feriados de Costa Rica de 2026 a 2028.</p>
           </div>
         </div>
       </div>
@@ -810,20 +747,20 @@
       </div>
 
       <div class="calc-section">
-        <div class="calc-section-title">Días off <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></div>
+        <div class="calc-section-title">Días libres (opcional)</div>
         <div id="calcOffContainer"></div>
-        <button class="calc-btn-add" onclick="calcAddOff()">+ Agregar rango</button>
+        <button class="calc-btn-add" onclick="calcAddOff()">Agregar días libres</button>
       </div>
 
-      <div style="display:flex;gap:10px;margin-bottom:16px;">
-        <button class="calc-btn-calc" onclick="calcRun()">📅 Calcular días hábiles</button>
+      <div class="calc-actions">
+        <button class="calc-btn-calc" onclick="calcRun()">Calcular días hábiles</button>
         <button class="calc-btn-clear" onclick="calcClear()">Limpiar</button>
       </div>
 
       <div id="calcResults"></div>
 
       <div class="calc-section">
-        <button class="calc-holidays-toggle" onclick="calcToggleHolidays()">📅 Ver feriados de Costa Rica 2026–2028</button>
+        <button class="calc-holidays-toggle" onclick="calcToggleHolidays()">Ver feriados de Costa Rica 2026–2028</button>
         <div id="calcHolidaysList" class="calc-holidays-list"></div>
       </div>
     </div>
@@ -1059,27 +996,26 @@ function copyTable(){
   const btn=document.getElementById('btn-copy');
   if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(()=>showCopied(btn)).catch(()=>fallbackCopy(text,btn));else fallbackCopy(text,btn);
 }
-function fallbackCopy(text,btn){const ta=Object.assign(document.createElement('textarea'),{value:text,style:'position:fixed;top:0;left:0;opacity:0'});document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');showCopied(btn);}catch{btn.textContent='⚠ Error';setTimeout(()=>btn.textContent='COPIAR',2000);}document.body.removeChild(ta);}
-function showCopied(btn){btn.textContent='✓ COPIADO';btn.classList.add('copied');setTimeout(()=>{btn.textContent='COPIAR';btn.classList.remove('copied');},2000);}
+function fallbackCopy(text,btn){const ta=Object.assign(document.createElement('textarea'),{value:text,style:'position:fixed;top:0;left:0;opacity:0'});document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');showCopied(btn);}catch{btn.textContent='⚠ Error';setTimeout(()=>btn.textContent='Copiar',2000);}document.body.removeChild(ta);}
+function showCopied(btn){btn.textContent='Copiadas';btn.classList.add('copied');setTimeout(()=>{btn.textContent='Copiar';btn.classList.remove('copied');},2000);}
 
 /* ============ DAILY SCRUM ============ */
 let activeDaily=1,runCount=0,lastRestEnd={daily1:null,daily2:null};
 function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function getInitials(name){return name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();}
+function participantsLabel(n){return n===1?'1 participante':`${n} participantes`;}
 function updateDailyCounts(){
-  document.querySelector('#dtab1 .dt-count').textContent=`${DB.people.daily1.length} participantes`;
-  document.querySelector('#dtab2 .dt-count').textContent=`${DB.people.daily2.length} participantes`;
+  document.querySelector('#dtab1 .dt-count').textContent=participantsLabel(DB.people.daily1.length);
+  document.querySelector('#dtab2 .dt-count').textContent=participantsLabel(DB.people.daily2.length);
 }
 function selectDaily(num){
   activeDaily=num;
   document.querySelectorAll('.daily-tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(`dtab${num}`).classList.add('active');
-  document.getElementById('dtlabel1').textContent=num===1?'🟢 Seleccionado':'🟢 Daily';
-  document.getElementById('dtlabel2').textContent=num===2?'🔵 Seleccionado':'🔵 Daily';
   document.getElementById('rollBtn').className=`roll-btn d${num}`;
-  document.getElementById('rollLabel').textContent=`Generar Orden — Daily ${num}`;
+  document.getElementById('rollLabel').textContent=`Sortear el orden del Daily ${num}`;
   runCount=0;document.getElementById('runBadge').textContent='—';
-  document.getElementById('listBody').innerHTML=`<div class="list-empty"><div class="list-empty-icon">🎯</div><div class="list-empty-text">Presioná <strong>Generar Orden</strong><br>para ver el orden del Daily ${num}</div></div>`;
+  document.getElementById('listBody').innerHTML=`<div class="list-empty"><div class="list-empty-text">Tocá <strong>Sortear</strong> para ver quién habla primero en el Daily ${num}.</div></div>`;
 }
 function generateOrder(dailyKey){
   const people=DB.people[dailyKey].slice();
@@ -1101,16 +1037,16 @@ function generateOrder(dailyKey){
 }
 function roll(){
   runCount++;
-  document.getElementById('doneBody').innerHTML='<div class="done-empty">Hacé clic en un participante<br>para marcarlo como listo</div>';
+  document.getElementById('doneBody').innerHTML=DONE_EMPTY;
   document.getElementById('doneCount').textContent='0';
   clearAbsent();
   const dice=document.getElementById('diceIcon');dice.classList.remove('spinning');void dice.offsetWidth;dice.classList.add('spinning');
   const dailyKey=`daily${activeDaily}`,order=generateOrder(dailyKey),color=activeDaily===1?'d1':'d2',n=order.length;
-  document.getElementById('runBadge').textContent=`Run #${runCount}`;
-  document.getElementById('rollLabel').textContent=`Re-roll — Daily ${activeDaily}`;
+  document.getElementById('runBadge').textContent=`Sorteo ${runCount}`;
+  document.getElementById('rollLabel').textContent=`Volver a sortear el Daily ${activeDaily}`;
   document.getElementById('listBody').innerHTML=order.map((name,i)=>{
     const pos=i+1,isFirst=pos===1,isLast=pos===n,short=name.split(' ').slice(0,2).join(' ');
-    const tag=isFirst?'<span class="p-tag tag-first">Primero 🥇</span>':isLast?'<span class="p-tag tag-last">Último</span>':'';
+    const tag=isFirst?'<span class="p-tag tag-first">Empieza</span>':isLast?'<span class="p-tag tag-last">Cierra</span>':'';
     return `<div class="participant-item" style="animation-delay:${i*40}ms" data-name="${escapeHtml(name)}" data-short="${escapeHtml(short)}" data-color="${color}" onclick="toggleDone(this)"><span class="pos-num ${isFirst?'pos-first':''}">${pos}</span><div class="p-avatar ${color}">${escapeHtml(getInitials(name))}</div><span class="p-name ${isLast?'name-last':''}">${escapeHtml(short)}</span>${tag}<button type="button" class="p-absent-btn" onclick="event.stopPropagation();toggleAbsent(this.closest('.participant-item'))">No asistió</button></div>`;
   }).join('');
 }
@@ -1139,11 +1075,12 @@ function updateDoneCount(){
   const n=document.querySelectorAll('#doneBody .done-item').length;
   document.getElementById('doneCount').textContent=n;
   if(n===0&&!document.querySelector('#doneBody .done-empty')){
-    document.getElementById('doneBody').innerHTML='<div class="done-empty">Hacé clic en un participante<br>para marcarlo como listo</div>';
+    document.getElementById('doneBody').innerHTML=DONE_EMPTY;
   }
 }
 
-const ABSENT_EMPTY='<div class="done-empty">Usá <strong>No asistió</strong> en la lista<br>para registrar ausencias</div>';
+const ABSENT_EMPTY='<div class="done-empty">Usá <strong>No asistió</strong> en el orden para registrar ausencias.</div>';
+const DONE_EMPTY='<div class="done-empty">Tocá a una persona en el orden cuando termine de hablar.</div>';
 function clearAbsent(){document.getElementById('absentBody').innerHTML=ABSENT_EMPTY;document.getElementById('absentCount').textContent='0';}
 // Ausente: no cuenta como completado y pasa a "No asistieron". Se deshace con el mismo botón o tocando su fila en la lista de ausentes.
 function toggleAbsent(el){
@@ -1182,7 +1119,7 @@ function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;
 function renderPeopleAdmin(){
   ['daily1','daily2'].forEach(dk=>{
     const list=DB.people[dk],box=document.getElementById('list-people-'+dk);
-    box.innerHTML=list.length?list.map(name=>`<div class="crud-item"><span class="crud-item-name">${escapeHtml(name)}</span><button class="crud-btn-del" data-daily="${dk}" data-name="${escapeHtml(name)}" onclick="renamePerson(this.dataset.daily,this.dataset.name)" title="Editar" style="color:var(--cyan);border-color:var(--border)">✏️</button><button class="crud-btn-del" data-daily="${dk}" data-name="${escapeHtml(name)}" onclick="removePerson(this.dataset.daily,this.dataset.name)" title="Eliminar">🗑</button></div>`).join(''):`<div class="crud-empty">Sin personas aún.</div>`;
+    box.innerHTML=list.length?list.map(name=>`<div class="crud-item"><span class="crud-item-name">${escapeHtml(name)}</span><button class="crud-btn-del crud-btn-edit" data-daily="${dk}" data-name="${escapeHtml(name)}" onclick="renamePerson(this.dataset.daily,this.dataset.name)" title="Editar">Editar</button><button class="crud-btn-del" data-daily="${dk}" data-name="${escapeHtml(name)}" onclick="removePerson(this.dataset.daily,this.dataset.name)" title="Eliminar">Quitar</button></div>`).join(''):`<div class="crud-empty">Sin personas aún.</div>`;
   });
 }
 async function renamePerson(dk,oldName){
@@ -1286,7 +1223,7 @@ async function saveTaskEditor(btn){
   const variantId=selectedAdminVariant?REFS.variants[variantKey(selectedAdminProject,selectedAdminVariant)]:null;
   if(!projectId||(selectedAdminVariant&&!variantId))return;
   const ok=await persist(async()=>check(await supabaseClient.rpc('save_template',{p_project_id:projectId,p_variant_id:variantId,p_tasks:lines})));
-  if(ok&&btn){const old=btn.textContent;btn.textContent='✓ Guardado';setTimeout(()=>btn.textContent=old,1500);}
+  if(ok&&btn){const old=btn.textContent;btn.textContent='Guardada';setTimeout(()=>btn.textContent=old,1500);}
 }
 async function addProject(){
   const input=document.getElementById('new-project'),name=input.value.trim().toUpperCase();
@@ -1376,9 +1313,9 @@ function calcGetOffDays(){
 
 function calcRun(){
   const sv=document.getElementById('calcWorkStart').value,ev=document.getElementById('calcWorkEnd').value;
-  if(!sv||!ev){document.getElementById('calcResults').innerHTML='<div style="text-align:center;color:var(--muted);padding:30px;font-family:DM Mono,monospace;font-size:12px">Seleccioná el rango de trabajo.</div>';return;}
+  if(!sv||!ev){document.getElementById('calcResults').innerHTML='<div class="calc-msg">Elegí las fechas de inicio y fin.</div>';return;}
   const start=calcParseDate(sv),end=calcParseDate(ev);
-  if(start>end){document.getElementById('calcResults').innerHTML='<div style="text-align:center;color:var(--red);padding:30px;font-family:DM Mono,monospace;font-size:12px">La fecha de inicio debe ser anterior a la fecha final.</div>';return;}
+  if(start>end){document.getElementById('calcResults').innerHTML='<div class="calc-msg is-error">La fecha de inicio tiene que ser anterior a la final.</div>';return;}
   const offDays=calcGetOffDays();
   let totalCal=0,weekends=0,holidaysIn=0,offIn=0,workDays=0;const hitsArr=[];
   const cur=new Date(start);
@@ -1390,10 +1327,10 @@ function calcRun(){
     else{workDays++;}
     cur.setDate(cur.getDate()+1);
   }
-  let html=`<div class="calc-result-card"><div class="calc-result-number">${workDays}</div><div class="calc-result-label">días hábiles de trabajo</div><div class="calc-breakdown"><div class="calc-stat"><div class="calc-stat-num s-calendar">${totalCal}</div><div class="calc-stat-label">Días calendario</div></div><div class="calc-stat"><div class="calc-stat-num s-weekends">${weekends}</div><div class="calc-stat-label">Fines de semana</div></div><div class="calc-stat"><div class="calc-stat-num s-holidays">${holidaysIn}</div><div class="calc-stat-label">Feriados</div></div><div class="calc-stat"><div class="calc-stat-num s-off">${offIn}</div><div class="calc-stat-label">Días off</div></div></div></div>`;
+  let html=`<div class="calc-result-card"><div class="calc-result-number">${workDays}</div><div class="calc-result-label">días hábiles</div><div class="calc-breakdown"><div class="calc-stat"><div class="calc-stat-num s-calendar">${totalCal}</div><div class="calc-stat-label">Días calendario</div></div><div class="calc-stat"><div class="calc-stat-num s-weekends">${weekends}</div><div class="calc-stat-label">Fines de semana</div></div><div class="calc-stat"><div class="calc-stat-num s-holidays">${holidaysIn}</div><div class="calc-stat-label">Feriados</div></div><div class="calc-stat"><div class="calc-stat-num s-off">${offIn}</div><div class="calc-stat-label">Días libres</div></div></div></div>`;
   if(hitsArr.length){
     html+='<div class="calc-section"><div class="calc-section-title">Feriados en el rango</div>';
-    hitsArr.forEach(h=>{const d=calcParseDate(h.date);const tag=h.note==='off'?'<span class="calc-tag" style="background:rgba(247,201,72,0.1);color:var(--gold)">DÍA OFF</span>':'<span class="calc-tag calc-tag-workday">RESTADO</span>';html+=`<div class="calc-holiday-item ch-in-range"><span class="ch-date">${calcFmtDate(d)}</span><span class="ch-name">${h.name} ${tag}</span></div>`;});
+    hitsArr.forEach(h=>{const d=calcParseDate(h.date);const tag=h.note==='off'?'<span class="calc-tag calc-tag-off">Día libre</span>':'<span class="calc-tag calc-tag-workday">Se resta</span>';html+=`<div class="calc-holiday-item ch-in-range"><span class="ch-date">${calcFmtDate(d)}</span><span class="ch-name">${h.name} ${tag}</span></div>`;});
     html+='</div>';
   }
   document.getElementById('calcResults').innerHTML=html;
@@ -1407,7 +1344,7 @@ function calcClear(){
 function calcToggleHolidays(){
   const list=document.getElementById('calcHolidaysList');list.classList.toggle('open');if(list.innerHTML)return;
   let html='',cy='';
-  HOLIDAYS_CR.forEach(h=>{const d=calcParseDate(h.date);const y=d.getFullYear().toString();if(y!==cy){cy=y;html+=`<div class="calc-year-header">${y}</div>`;}const wk=d.getDay()===0||d.getDay()===6;const tag=wk?`<span class="calc-tag calc-tag-weekend">${d.getDay()===0?'DOM':'SÁB'}</span>`:'';html+=`<div class="calc-holiday-item"><span class="ch-date">${calcFmtDate(d)}</span><span class="ch-name">${h.name} ${tag}</span></div>`;});
+  HOLIDAYS_CR.forEach(h=>{const d=calcParseDate(h.date);const y=d.getFullYear().toString();if(y!==cy){cy=y;html+=`<div class="calc-year-header">${y}</div>`;}const wk=d.getDay()===0||d.getDay()===6;const tag=wk?`<span class="calc-tag calc-tag-weekend">${d.getDay()===0?'Domingo':'Sábado'}</span>`:'';html+=`<div class="calc-holiday-item"><span class="ch-date">${calcFmtDate(d)}</span><span class="ch-name">${h.name} ${tag}</span></div>`;});
   list.innerHTML=html;
 }
 
@@ -1538,6 +1475,7 @@ function renderUserInfo(){
   document.getElementById('sidebar-user-name').textContent=name;
   document.getElementById('sidebar-user-role').textContent=ROLE_LABELS[currentUser.role]||currentUser.role;
   document.getElementById('mobile-logout').title='Cerrar sesión ('+name+')';
+  document.getElementById('home-greeting').textContent='Hola, '+(currentUser.full_name||'').trim().split(/\s+/)[0];
 }
 
 // Mejora la UI; la protección real está en el RLS de Supabase.

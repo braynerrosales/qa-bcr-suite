@@ -489,33 +489,33 @@ const lastWrite = () => writes[writes.length - 1];
   assert.equal(await page.inputValue('#task-textarea'), 'QA - {n} - Normal.');
   await page.fill('#task-textarea', 'QA - {n} - Uno.\n\n  QA - {n} - Dos.  ');
   await page.click('#asec-tasks button:has-text("Guardar plantilla")');
-  await page.waitForSelector('#asec-tasks button:has-text("✓ Guardado")');
+  await page.waitForSelector('#asec-tasks button:has-text("Guardada")');
   assert.deepEqual(lastWrite().body, { p_project_id: 2, p_variant_id: 1, p_tasks: ['QA - {n} - Uno.', 'QA - {n} - Dos.'] });
   assert.equal(await page.inputValue('#task-textarea'), 'QA - {n} - Uno.\nQA - {n} - Dos.');
   ok('plantilla: se guarda con save_template() (proyecto + variante)');
 
   await page.fill('#new-variant', 'urgente');
-  await page.click('#asec-tasks button:has-text("+ Variante")');
+  await page.click('#asec-tasks button:has-text("Agregar variante")');
   await until(page, () => document.getElementById('task-variant-select').value === 'urgente');
   assert.ok(tables.project_variants.some((v) => v.name === 'urgente' && v.project_id === 2));
   assert.equal(await page.inputValue('#task-textarea'), '');
   ok('variante: se crea y queda seleccionada');
 
   answers.push(true);
-  await page.click('#asec-tasks button:has-text("🗑 Variante")');
+  await page.click('#asec-tasks button:has-text("Eliminar variante")');
   await until(page, () => ![...document.querySelectorAll('#task-variant-select option')].some((o) => o.value === 'urgente'));
   assert.ok(!tables.project_variants.some((v) => v.name === 'urgente'));
   ok('variante: se elimina');
 
   await page.fill('#new-project', 'nuevo');
-  await page.click('#asec-tasks button:has-text("+ Agregar proyecto")');
+  await page.click('#asec-tasks button:has-text("Agregar proyecto")');
   await page.waitForSelector('#task-project-list .proj-btn.active[data-code="NUEVO"]');
   await page.waitForSelector('#project-grid .proj-btn[data-type="NUEVO"]', { state: 'attached' });
   ok('proyecto: se crea en mayúsculas, queda seleccionado y aparece en el QA Generator');
 
   await page.fill('#task-textarea', 'QA - {n} - Única.');
   await page.click('#asec-tasks button:has-text("Guardar plantilla")');
-  await page.waitForSelector('#asec-tasks button:has-text("✓ Guardado")');
+  await page.waitForSelector('#asec-tasks button:has-text("Guardada")');
   assert.equal(lastWrite().body.p_variant_id, null);
   ok('plantilla sin variante: p_variant_id null');
 
