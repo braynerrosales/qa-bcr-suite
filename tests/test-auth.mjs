@@ -1,4 +1,4 @@
-// Prueba la Fase 2 con el cliente real de supabase-js y un Supabase simulado en la red.
+// Prueba las Fases 2 y 3 con el cliente real de supabase-js y un Supabase simulado en la red.
 import { chromium } from 'playwright-core';
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -33,6 +33,98 @@ const subOf = (req) => {
 };
 let rejectNextPatch = false;
 const patches = [];
+
+// ── Datos simulados (Fase 3): tablas en memoria con la forma de Supabase ──
+let failConfig = false;      // get_app_config responde 500
+let failNextWrite = null;    // código de error para la próxima escritura
+let tables;
+function resetData(empty = false) {
+  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [] } : {
+    daily_groups: [{ id: 1, code: 'daily1', active: true }, { id: 2, code: 'daily2', active: true }],
+    daily_members: [
+      { id: 1, daily_group_id: 1, name: 'Ana <img src=x onerror=alert(1)>', active: true },
+      { id: 2, daily_group_id: 1, name: 'Beto Uno', active: true },
+      { id: 3, daily_group_id: 2, name: 'Caro Dos', active: true },
+      { id: 4, daily_group_id: 1, name: 'Dani Viejo', active: false },
+    ],
+    daily_rules: [{ id: 1, daily_group_id: 1, first_range: 1 }, { id: 2, daily_group_id: 2, first_range: 1 }],
+    daily_rule_members: [{ id: 1, daily_member_id: 2, rule_type: 'LAST_FIXED' }],
+    projects: [
+      { id: 1, code: 'DATA', color: '#4f8ef7', active: true },
+      { id: 2, code: 'COMERCIAL', color: '#60a5fa', active: true },
+    ],
+    project_variants: [{ id: 1, project_id: 2, name: 'normal', active: true }, { id: 2, project_id: 2, name: "x'><b>", active: true }],
+    templates: [
+      { id: 1, project_id: 1, variant_id: null, active: true, tasks: ['QA - {n} - Smoke.'] },
+      { id: 2, project_id: 2, variant_id: 1, active: true, tasks: ['QA - {n} - Normal.'] },
+    ],
+  };
+}
+resetData();
+const nextId = (rows) => Math.max(0, ...rows.map((r) => r.id)) + 1;
+// Igual que public.get_app_config() (supabase/migrations/20261015000003_rpc.sql).
+function appConfig() {
+  const t = tables, people = {}, rules = {}, projects = {};
+  for (const g of t.daily_groups.filter((g) => g.active)) {
+    const ms = t.daily_members.filter((m) => m.daily_group_id === g.id && m.active).sort((a, b) => a.id - b.id);
+    people[g.code] = ms.map((m) => m.name);
+    const byRule = (type) => t.daily_rule_members.filter((rm) => rm.rule_type === type).sort((a, b) => a.id - b.id)
+      .map((rm) => ms.find((m) => m.id === rm.daily_member_id)).filter(Boolean).map((m) => m.name);
+    rules[g.code] = { firstGroup: byRule('FIRST_GROUP'), range: t.daily_rules.find((r) => r.daily_group_id === g.id)?.first_range ?? 1, lastFixed: byRule('LAST_FIXED') };
+  }
+  for (const p of t.projects.filter((p) => p.active)) {
+    const vs = t.project_variants.filter((v) => v.project_id === p.id && v.active).sort((a, b) => a.id - b.id);
+    const templates = {};
+    for (const tp of t.templates.filter((x) => x.project_id === p.id && x.active)) {
+      const v = t.project_variants.find((v) => v.id === tp.variant_id);
+      templates[v ? v.name : ''] = tp.tasks;
+    }
+    projects[p.code] = { color: p.color, variants: vs.map((v) => v.name), templates };
+  }
+  return { people, rules, projects };
+}
+const isLead = (me) => !!me && me.active && (me.role === 'ADMIN' || me.role === 'QA_LEAD');
+const writes = [];
+// Tablas de configuración: GET, POST (insert / upsert), PATCH y DELETE con filtros eq.
+function tableRequest(req, url, me, json) {
+  const name = url.pathname.replace('/rest/v1/', '');
+  const rows = tables[name];
+  const filters = [...url.searchParams].filter(([k]) => !['select', 'on_conflict', 'columns'].includes(k))
+    .map(([k, v]) => [k, v.replace(/^eq\./, '')]);
+  const match = (r) => filters.every(([k, v]) => String(r[k]) === v);
+  const pick = (r) => Object.fromEntries((url.searchParams.get('select') || '*').split(',').map((c) => [c, r[c]]));
+  const method = req.method();
+  if (method === 'GET') return json(200, rows.filter(match).map(pick));
+  const body = req.postDataJSON();
+  writes.push({ method, name, filters: Object.fromEntries(filters), body });
+  if (failNextWrite) { const code = failNextWrite; failNextWrite = null; return json(409, { code, message: 'duplicate key value violates unique constraint' }); }
+  const lead = isLead(me);
+  if (method === 'POST') {
+    if (!lead) return json(403, { code: '42501', message: 'new row violates row-level security policy' });
+    const conflict = url.searchParams.get('on_conflict');
+    for (const item of [].concat(body)) {
+      const existing = conflict && rows.find((r) => r[conflict] === item[conflict]);
+      if (existing) Object.assign(existing, item);
+      else {
+        const dup = name === 'daily_members' && rows.find((r) => r.daily_group_id === item.daily_group_id && r.name === item.name);
+        if (dup) return json(409, { code: '23505', message: 'duplicate key value violates unique constraint' });
+        rows.push({ id: nextId(rows), active: true, ...item });
+      }
+    }
+    return r201(json);
+  }
+  const target = lead ? rows.filter(match) : [];   // el RLS filtra: 0 filas, sin error
+  if (method === 'PATCH') target.forEach((r) => Object.assign(r, body));
+  if (method === 'DELETE') {
+    tables[name] = rows.filter((r) => !target.includes(r));
+    // ON DELETE CASCADE del esquema
+    if (name === 'daily_members') tables.daily_rule_members = tables.daily_rule_members.filter((rm) => !target.some((m) => m.id === rm.daily_member_id));
+    if (name === 'projects') { tables.project_variants = tables.project_variants.filter((v) => !target.some((p) => p.id === v.project_id)); tables.templates = tables.templates.filter((tp) => !target.some((p) => p.id === tp.project_id)); }
+    if (name === 'project_variants') tables.templates = tables.templates.filter((tp) => !target.some((v) => v.id === tp.variant_id));
+  }
+  return json(200, target.map((r) => ({ id: r.id })));
+}
+const r201 = (json) => json(201, null);
 
 async function setup(context) {
   await context.route('https://fonts.googleapis.com/**', (r) => r.abort());
@@ -81,6 +173,22 @@ async function setup(context) {
         return json(200, [{ id: idEq }]);
       }
     }
+    if (url.pathname === '/rest/v1/rpc/get_app_config') {
+      if (failConfig) return json(500, { code: 'XX000', message: 'falla simulada' });
+      return json(200, appConfig());
+    }
+    if (url.pathname === '/rest/v1/rpc/save_template') {
+      const me = byId(subOf(req))?.[1], b = req.postDataJSON();
+      writes.push({ method: 'RPC', name: 'save_template', body: b });
+      if (!isLead(me)) return json(403, { code: '42501', message: 'Solo ADMIN o QA_LEAD pueden modificar plantillas' });
+      let tp = tables.templates.find((x) => x.project_id === b.p_project_id && x.variant_id === b.p_variant_id);
+      if (!tp) tables.templates.push(tp = { id: nextId(tables.templates), project_id: b.p_project_id, variant_id: b.p_variant_id, active: true });
+      tp.active = true; tp.tasks = b.p_tasks.map((x) => x.trim()).filter(Boolean);
+      return json(200, tp.id);
+    }
+    if (url.pathname.startsWith('/rest/v1/') && tables[url.pathname.replace('/rest/v1/', '')]) {
+      return tableRequest(req, url, byId(subOf(req))?.[1], json);
+    }
     return json(404, { message: 'no simulado: ' + req.method() + ' ' + url.pathname });
   });
 }
@@ -88,12 +196,15 @@ async function setup(context) {
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
 const ok = (m) => console.log('OK  ' + m);
 const errors = [];
+const dialogs = [];   // mensajes de alert/confirm/prompt
+const answers = [];   // respuestas en orden: string para prompt, false para cancelar
 
 async function newPage(viewport = { width: 1280, height: 800 }) {
   const context = await browser.newContext({ viewport });
   await setup(context);
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
+  page.on('dialog', (d) => { dialogs.push(d.message()); const a = answers.shift(); a === false ? d.dismiss() : d.accept(typeof a === 'string' ? a : undefined); });
   page.on('console', (m) => { if (/Content Security Policy|integrity/i.test(m.text())) errors.push(m.text()); });
   return { context, page };
 }
@@ -249,6 +360,222 @@ users['qa@bcr.test'].role = 'QA';
   ok('móvil: botón Salir visible, Admin oculto para QA, sin scroll horizontal');
   await context.close();
 }
+
+// ───────────── Fase 3: datos en Supabase ─────────────
+const until = (page, fn, arg) => page.waitForFunction(fn, arg);
+const lastWrite = () => writes[writes.length - 1];
+
+// 12. QA: carga desde Supabase, genera tareas, nombres escapados, sin permisos de escritura
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'qa@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  assert.equal(await page.isVisible('#data-banner'), false);
+  assert.deepEqual(await page.locator('#project-grid .proj-btn').allTextContents(), [' DATA', ' COMERCIAL']);
+  assert.equal(await page.textContent('#dtab1 .dt-count'), '2 participantes');
+  ok('QA: proyectos y personas vienen de Supabase, sin aviso de archivo');
+
+  await page.click('#nav-qa');
+  await page.click('#project-grid .proj-btn[data-type="DATA"]');
+  await page.fill('#pbi-input', 'PBI 123 - Algo <b>raro</b>');
+  await page.click('#btn-gen');
+  await page.waitForSelector('#output-section.visible');
+  assert.deepEqual(await page.locator('#table-body td').allTextContents(), ['PBI 123 - Algo <b>raro</b>', 'QA - 123 - Smoke.']);
+  ok('QA Generator usa la plantilla de Supabase y muestra el texto sin interpretarlo como HTML');
+
+  await page.click('#project-grid .proj-btn[data-type="COMERCIAL"]');
+  assert.deepEqual(await page.locator('#variant-select option').allTextContents(), ['Seleccionar variante...', 'Normal', "X'><b>"]);
+  ok('variantes con caracteres especiales se muestran como texto');
+
+  await page.click('#nav-daily');
+  await page.click('#rollBtn');
+  await page.waitForSelector('#listBody .participant-item');
+  const names = await page.locator('#listBody .p-name').allTextContents();
+  assert.ok(names.includes('Ana <img'), names.join('|'));
+  assert.equal(await page.locator('#listBody img').count(), 0);
+  assert.equal(names[names.length - 1], 'Beto Uno');
+  await page.locator('#listBody .participant-item').first().click();
+  assert.equal(await page.textContent('#doneCount'), '1');
+  await page.locator('#listBody .participant-item').first().click();
+  assert.equal(await page.textContent('#doneCount'), '0');
+  ok('Daily: usa la regla "fijo al final" de Supabase y escapa los nombres');
+
+  const n = writes.length;
+  await page.evaluate(() => addPerson('daily1'));
+  await page.evaluate(async () => { document.getElementById('newp-daily1').value = 'Intruso'; await addPerson('daily1'); });
+  assert.equal(writes.length, n);
+  assert.match(dialogs.pop(), /No tenés permiso/);
+  ok('QA: la app no intenta escribir (y el RLS lo bloquearía igual)');
+
+  const cache = await page.evaluate(() => JSON.parse(localStorage.getItem('qaBcrSuiteCache_v3')));
+  assert.equal(cache.userId, users['qa@bcr.test'].id);
+  await page.click('.sidebar-logout');
+  await page.waitForSelector('#auth-form:not([hidden])');
+  assert.equal(await page.evaluate(() => localStorage.getItem('qaBcrSuiteCache_v3')), null);
+  ok('la copia local es del usuario y se borra al cerrar sesión');
+  await context.close();
+}
+
+// 13. QA_LEAD: personas, reglas, plantillas, proyectos y variantes se guardan en Supabase
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'lead@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#nav-admin');
+
+  await page.fill('#newp-daily1', 'Eva Nueva');
+  await page.click('#asec-people .crud-btn-add >> nth=0');
+  await page.waitForSelector('#list-people-daily1 .crud-item:has-text("Eva Nueva")');
+  assert.ok(tables.daily_members.some((m) => m.name === 'Eva Nueva' && m.daily_group_id === 1));
+  assert.equal(await page.inputValue('#newp-daily1'), '');
+  ok('agregar persona: se inserta en daily_members');
+
+  await page.fill('#newp-daily1', 'Dani Viejo');
+  await page.click('#asec-people .crud-btn-add >> nth=0');
+  await page.waitForSelector('#list-people-daily1 .crud-item:has-text("Dani Viejo")');
+  assert.equal(tables.daily_members.find((m) => m.id === 4).active, true);
+  ok('agregar a alguien que estaba inactivo lo reactiva (no choca con el unique)');
+
+  answers.push('Eva Renombrada');
+  await page.locator('#list-people-daily1 .crud-item:has-text("Eva Nueva") button[title="Editar"]').click();
+  await page.waitForSelector('#list-people-daily1 .crud-item:has-text("Eva Renombrada")');
+  assert.deepEqual(lastWrite().body, { name: 'Eva Renombrada' });
+  ok('renombrar persona: actualiza daily_members por id');
+
+  await page.click('#atab-rules');
+  const beto = page.locator('#list-rules-daily1 .crud-item:has-text("Beto Uno")');
+  assert.equal(await beto.locator('input >> nth=1').isChecked(), true);
+  await beto.locator('input >> nth=0').check();
+  await until(page, () => !document.body.classList.contains('saving'));
+  assert.deepEqual(tables.daily_rule_members.filter((r) => r.daily_member_id === 2).map((r) => r.rule_type), ['FIRST_GROUP']);
+  assert.equal(await page.locator('#list-rules-daily1 .crud-item:has-text("Beto Uno") input >> nth=1').isChecked(), false);
+  ok('regla: marcar "primeros" reemplaza "fijo al final" con un upsert');
+
+  await page.locator('#list-rules-daily1 .crud-item:has-text("Beto Uno") input >> nth=0').uncheck();
+  await until(page, () => !document.body.classList.contains('saving'));
+  assert.equal(tables.daily_rule_members.filter((r) => r.daily_member_id === 2).length, 0);
+  ok('regla: desmarcar la borra');
+
+  await page.fill('#range-daily1', '3');
+  await page.dispatchEvent('#range-daily1', 'change');
+  await until(page, () => !document.body.classList.contains('saving'));
+  assert.equal(tables.daily_rules.find((r) => r.daily_group_id === 1).first_range, 3);
+  ok('rango: se guarda en daily_rules');
+
+  await page.click('#atab-tasks');
+  await page.click('#task-project-list .proj-btn[data-code="COMERCIAL"]');
+  assert.equal(await page.inputValue('#task-textarea'), 'QA - {n} - Normal.');
+  await page.fill('#task-textarea', 'QA - {n} - Uno.\n\n  QA - {n} - Dos.  ');
+  await page.click('#asec-tasks button:has-text("Guardar plantilla")');
+  await page.waitForSelector('#asec-tasks button:has-text("✓ Guardado")');
+  assert.deepEqual(lastWrite().body, { p_project_id: 2, p_variant_id: 1, p_tasks: ['QA - {n} - Uno.', 'QA - {n} - Dos.'] });
+  assert.equal(await page.inputValue('#task-textarea'), 'QA - {n} - Uno.\nQA - {n} - Dos.');
+  ok('plantilla: se guarda con save_template() (proyecto + variante)');
+
+  await page.fill('#new-variant', 'urgente');
+  await page.click('#asec-tasks button:has-text("+ Variante")');
+  await until(page, () => document.getElementById('task-variant-select').value === 'urgente');
+  assert.ok(tables.project_variants.some((v) => v.name === 'urgente' && v.project_id === 2));
+  assert.equal(await page.inputValue('#task-textarea'), '');
+  ok('variante: se crea y queda seleccionada');
+
+  answers.push(true);
+  await page.click('#asec-tasks button:has-text("🗑 Variante")');
+  await until(page, () => ![...document.querySelectorAll('#task-variant-select option')].some((o) => o.value === 'urgente'));
+  assert.ok(!tables.project_variants.some((v) => v.name === 'urgente'));
+  ok('variante: se elimina');
+
+  await page.fill('#new-project', 'nuevo');
+  await page.click('#asec-tasks button:has-text("+ Agregar proyecto")');
+  await page.waitForSelector('#task-project-list .proj-btn.active[data-code="NUEVO"]');
+  await page.waitForSelector('#project-grid .proj-btn[data-type="NUEVO"]', { state: 'attached' });
+  ok('proyecto: se crea en mayúsculas, queda seleccionado y aparece en el QA Generator');
+
+  await page.fill('#task-textarea', 'QA - {n} - Única.');
+  await page.click('#asec-tasks button:has-text("Guardar plantilla")');
+  await page.waitForSelector('#asec-tasks button:has-text("✓ Guardado")');
+  assert.equal(lastWrite().body.p_variant_id, null);
+  ok('plantilla sin variante: p_variant_id null');
+
+  answers.push(true);
+  await page.click('#asec-tasks button:has-text("Eliminar proyecto")');
+  await until(page, () => !document.querySelector('#task-project-list [data-code="NUEVO"]'));
+  assert.ok(!tables.projects.some((p) => p.code === 'NUEVO'));
+  assert.equal(await page.isVisible('#task-editor-wrap'), false);
+  ok('proyecto: se elimina');
+
+  await page.click('#atab-people');
+  answers.push('Caro Dos');
+  failNextWrite = '23505';
+  await page.locator('#list-people-daily1 .crud-item:has-text("Eva Renombrada") button[title="Editar"]').click();
+  await until(page, () => !document.body.classList.contains('saving'));
+  assert.ok(dialogs.some((d) => /Ya existe un registro con ese nombre/.test(d)), dialogs.join(' | '));
+  assert.equal(await page.locator('#list-people-daily1 .crud-item:has-text("Eva Renombrada")').count(), 1);
+  ok('si Supabase rechaza el cambio, avisa y la lista muestra lo guardado');
+
+  answers.push(true);
+  await page.locator('#list-people-daily1 .crud-item:has-text("Eva Renombrada") button[title="Eliminar"]').click();
+  await until(page, () => !document.querySelector('#list-people-daily1').textContent.includes('Eva Renombrada'));
+  assert.ok(!tables.daily_members.some((m) => m.name === 'Eva Renombrada'));
+  ok('quitar persona: se borra de daily_members');
+
+  const otro = await browser.newContext();
+  await setup(otro);
+  const p2 = await otro.newPage();
+  await p2.goto('http://app.test/index.html');
+  await login(p2, 'qa@bcr.test');
+  await p2.waitForSelector('.layout', { state: 'visible' });
+  assert.equal(await p2.textContent('#dtab1 .dt-count'), '3 participantes');
+  ok('otro usuario en otro navegador ve los cambios');
+  await otro.close();
+  await page.screenshot({ path: DIR + 'tests/shot-admin.png', fullPage: true });
+  await context.close();
+}
+
+// 14. Sin conexión con Supabase: usa la última copia del usuario
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'lead@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  failConfig = true;
+  await page.reload();
+  await page.waitForSelector('.layout', { state: 'visible' });
+  assert.match(await page.textContent('#data-banner-text'), /Sin conexión con Supabase/);
+  assert.equal(await page.textContent('#dtab1 .dt-count'), '3 participantes');
+  failConfig = false;
+  await page.click('#data-banner-btn');
+  await until(page, () => !document.getElementById('data-banner').classList.contains('visible'));
+  ok('sin conexión: muestra la copia guardada con aviso y "Reintentar" recupera');
+  await context.close();
+}
+{
+  const { context, page } = await newPage();
+  failConfig = true;
+  await page.goto('http://app.test/index.html');
+  await login(page, 'lead@bcr.test');
+  await page.waitForSelector('#auth-blocked:not([hidden])');
+  assert.match(await page.textContent('#auth-blocked-text'), /No se pudieron cargar los datos.*XX000/);
+  failConfig = false;
+  ok('sin conexión y sin copia: no muestra la app vacía, explica el error');
+  await context.close();
+}
+
+// 15. Base vacía: avisa qué falta
+resetData(true);
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'lead@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  assert.match(await page.textContent('#data-banner-text'), /todavía no tiene proyectos ni personas/);
+  assert.equal(await page.textContent('#project-grid'), 'No hay proyectos configurados.');
+  ok('base vacía: avisa que faltan los datos iniciales');
+  await context.close();
+}
+resetData();
 
 await browser.close();
 assert.deepEqual(errors, [], 'errores de JS en la página: ' + errors.join(' | '));

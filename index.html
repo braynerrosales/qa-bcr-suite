@@ -346,6 +346,8 @@
   }
   /* AUTH (v3) */
   [hidden] { display: none !important; }
+  body.saving { cursor: progress; }
+  body.saving .admin-section { pointer-events: none; opacity: .7; }
   body.auth-locked .layout, body.auth-locked .mobile-topbar, body.auth-locked .data-banner { display: none !important; }
   .auth-screen { display: none; min-height: 100vh; align-items: center; justify-content: center; padding: 24px 16px; position: relative; z-index: 1; }
   body.auth-locked .auth-screen { display: flex; }
@@ -414,11 +416,10 @@
   </div>
 </div>
 
-<div class="data-banner" id="data-banner">
-  <span class="data-banner-text" id="data-banner-text">📂 No se encontró <strong>qa-bcr-suite-data.json</strong> junto a este archivo. Cargá tu último respaldo para asegurarte de ver la información más reciente.</span>
-  <button class="data-banner-btn" id="data-banner-btn" onclick="document.getElementById('import-file-startup').click()">Cargar archivo</button>
-  <input type="file" id="import-file-startup" accept="application/json" style="display:none" onchange="importData(event)">
-  <button class="data-banner-dismiss" onclick="document.getElementById('data-banner').classList.remove('visible')" title="Cerrar">✕</button>
+<div class="data-banner" id="data-banner" role="status">
+  <span class="data-banner-text" id="data-banner-text"></span>
+  <button class="data-banner-btn" id="data-banner-btn" hidden onclick="retryLoadConfig()">Reintentar</button>
+  <button class="data-banner-dismiss" onclick="hideNotice()" title="Cerrar">✕</button>
 </div>
 
 <div class="layout">
@@ -701,7 +702,7 @@
           <div class="admin-card-desc">Una tarea por línea. Usá <code>${'{'}n{'}'}</code> donde debe ir el número del PBI/HU.</div>
           <textarea class="task-textarea" id="task-textarea"></textarea>
           <div class="backup-btns">
-            <button class="btn-secondary" onclick="saveTaskEditor()">💾 Guardar plantilla</button>
+            <button class="btn-secondary" onclick="saveTaskEditor(this)">💾 Guardar plantilla</button>
             <button class="crud-btn-del" style="width:auto;padding:0 14px" onclick="removeProject()">🗑 Eliminar proyecto</button>
           </div>
         </div>
@@ -709,18 +710,13 @@
 
       <!-- BACKUP -->
       <div class="admin-section" id="asec-backup">
-        <div class="admin-card-title">Respaldo y portabilidad</div>
-        <div class="admin-card-desc">Los datos se guardan automáticamente en este navegador. Para llevarlos a otra PC, exportá el archivo JSON y luego importalo ahí.</div>
+        <div class="admin-card-title">Respaldo</div>
+        <div class="admin-card-desc">Los datos se guardan en Supabase y todo el equipo ve los mismos. Podés descargar una copia de la configuración actual (personas, reglas, proyectos y plantillas) como JSON.</div>
         <div class="backup-btns">
-          <button class="btn-secondary" onclick="linkDataFile()">🔗 Vincular archivo de datos</button>
-          <button class="btn-secondary" onclick="refreshFromLinkedHandle()">🔄 Actualizar desde archivo vinculado</button>
-          <button class="btn-secondary" onclick="saveToLinkedFile()">💾 Guardar en archivo (sobrescribe)</button>
-          <button class="btn-secondary" onclick="exportData()">⬇ Exportar como nuevo JSON</button>
-          <button class="btn-secondary" onclick="document.getElementById('import-file').click()">⬆ Importar datos (JSON)</button>
-          <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importData(event)">
-          <button class="crud-btn-del" style="width:auto;padding:0 14px" onclick="resetData()">↺ Restablecer valores originales</button>
+          <button class="btn-secondary" onclick="exportData()">⬇ Exportar configuración (JSON)</button>
+          <button class="btn-secondary" onclick="retryLoadConfig()">🔄 Recargar desde Supabase</button>
         </div>
-        <div class="backup-note">"Vincular archivo de datos" te pide elegir <strong>una vez</strong> el archivo qa-bcr-suite-data.json que está junto a este HTML. Después, "Guardar en archivo" te pregunta antes de sobrescribirlo con los datos actuales.<br>Esta función solo funciona en Chrome/Edge, y solo si la página no se abrió con doble clic directo (necesita servirse desde un servidor local o similar). Si no está disponible, usá "Exportar" e importalo manualmente.</div>
+        <div class="backup-note">El archivo contiene nombres del equipo: guardalo en un lugar privado.</div>
         <div class="backup-note" id="backup-status"></div>
       </div>
 
@@ -779,42 +775,19 @@
 </div>
 
 <script>
-/* ============ DATA MODEL (persistente: localStorage + export/import JSON) ============ */
-const STORAGE_KEY='qaBcrSuiteDB_v1';
+/* ============ DATA MODEL (Supabase; localStorage solo como copia de respaldo) ============ */
+const CACHE_KEY='qaBcrSuiteCache_v3';
 const PALETTE=['#4f8ef7','#60a5fa','#f7c948','#818cf8','#4ade80','#fbbf24','#f87171','#00d4ff','#7c3aed','#00c9a7'];
+const DAILY_KEYS=['daily1','daily2'];
 
-const DEFAULT_DB={
-  // Sin nombres: la página es pública. Las personas se importan desde el JSON
-  // (Administración → Respaldo) y en la Fase 3 vendrán de Supabase.
+// Forma que usa toda la app (la misma que devuelve get_app_config()).
+const EMPTY_DB={
   people:{daily1:[],daily2:[]},
   rules:{
     daily1:{firstGroup:[],range:1,lastFixed:[]},
     daily2:{firstGroup:[],range:1,lastFixed:[]}
   },
-  projects:{
-    DATA:{color:'#4f8ef7',variants:[],templates:{'':["QA - {n} - Especificación de Casos de Pruebas.","QA - {n} - Estimación de Casos de Pruebas.","QA - {n} - Pruebas de Smoke.","QA - {n} - Regresión de pruebas.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Re ejecución de pruebas."]}},
-    COMERCIAL:{color:'#60a5fa',variants:['normal','sin especificación','sin estimación y especificación'],templates:{
-      'normal':["QA - {n} - Especificación de casos de pruebas.","QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas (Consultor 1).","QA - {n} - Re ejecución de pruebas.","QA - {n} - Pruebas de regresión."],
-      'sin especificación':["QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas (Consultor 1).","QA - {n} - Re ejecución de pruebas.","QA - {n} - Pruebas de regresión."],
-      'sin estimación y especificación':["QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas (Consultor 1).","QA - {n} - Re ejecución de pruebas.","QA - {n} - Pruebas de regresión."]
-    }},
-    AHORRO:{color:'#f7c948',variants:['sin especificación','con especificación'],templates:{
-      'sin especificación':["QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas (Consultor 1).","QA - {n} - Re ejecución de pruebas.","QA - {n} - Pruebas de regresión."],
-      'con especificación':["QA - {n} - Especificación de casos de pruebas","QA - {n} - Estimación de casos de pruebas","QA - {n} - Creación de Catalogo de pruebas","QA - {n} - Pruebas de Smoke","QA - {n} - Ejecución de casos de pruebas (Consultor 1)","QA - {n} - Re ejecución de pruebas","QA - {n} - Pruebas de regresión"]
-    }},
-    SISTAR:{color:'#818cf8',variants:['normal','sin estimación'],templates:{
-      'normal':["QA - {n} - Estimación de casos de prueba y Especificación de casos de prueba.","QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Regresión de pruebas.","QA - {n} - Re ejecución de pruebas."],
-      'sin estimación':["QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Regresión de pruebas.","QA - {n} - Re ejecución de pruebas."]
-    }},
-    TUCAN:{color:'#4ade80',variants:['normal','ejecución'],templates:{
-      'normal':["QA - {n} - Estimación y Creación de escenarios de prueba","QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Regresión de pruebas.","QA - {n} - Re ejecución de pruebas."],
-      'ejecución':["QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Regresión de pruebas.","QA - {n} - Re ejecución de pruebas."]
-    }},
-    GOBIERNO:{color:'#fbbf24',variants:['ejecución'],templates:{
-      'ejecución':["QA - {n} - Pruebas de Smoke.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Regresión de pruebas.","QA - {n} - Re ejecución de pruebas."]
-    }},
-    AUTO:{color:'#f87171',variants:[],templates:{'':["AUT- {n} - Análisis del flujo.","AUT- {n} - Análisis de selectores.","AUT- {n} - Creación del script.","AUT- {n} - Preparación de ambientes.","AUT- {n} - Ejecución de casos de pruebas (Consultor 1).","AUT- {n} - Documentación de pruebas."]}}
-  }
+  projects:{}
 };
 
 function clone(o){return JSON.parse(JSON.stringify(o));}
@@ -827,15 +800,107 @@ function mergeDeep(base,loaded){
   }
   return loaded!==undefined?loaded:base;
 }
-function loadDB(){
+let DB=clone(EMPTY_DB);
+
+// ids de Supabase por nombre, para poder guardar cambios.
+// Incluye filas inactivas: agregar algo que existía lo reactiva.
+let REFS={groups:{},members:{},projects:{},variants:{}};
+const memberKey=(dk,name)=>dk+'\u0000'+name;
+const variantKey=(code,name)=>code+'\u0000'+name;
+
+function readCache(){
   try{
-    const raw=localStorage.getItem(STORAGE_KEY);
-    if(raw){return mergeDeep(clone(DEFAULT_DB),JSON.parse(raw));}
-  }catch(e){console.warn('No se pudo leer localStorage',e);}
-  return clone(DEFAULT_DB);
+    const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');
+    return c&&currentUser&&c.userId===currentUser.id?c:null;
+  }catch(e){return null;}
 }
-let DB=loadDB();
-function saveDB(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));}catch(e){console.warn('No se pudo guardar en localStorage',e);}}
+function writeCache(){
+  try{localStorage.setItem(CACHE_KEY,JSON.stringify({userId:currentUser.id,savedAt:new Date().toISOString(),db:DB}));}
+  catch(e){console.warn('No se pudo guardar la copia local',e);}
+}
+function clearCache(){try{localStorage.removeItem(CACHE_KEY);}catch(e){}}
+
+async function fetchConfig(){
+  const results=await Promise.all([
+    supabaseClient.rpc('get_app_config'),
+    supabaseClient.from('daily_groups').select('id,code'),
+    supabaseClient.from('daily_members').select('id,daily_group_id,name'),
+    supabaseClient.from('projects').select('id,code'),
+    supabaseClient.from('project_variants').select('id,project_id,name')
+  ]);
+  const failed=results.find(r=>r.error);
+  if(failed)throw failed.error;
+  const [cfg,groups,members,projects,variants]=results.map(r=>r.data);
+  const groupCode={},projectCode={},refs={groups:{},members:{},projects:{},variants:{}};
+  groups.forEach(g=>{groupCode[g.id]=g.code;refs.groups[g.code]=g.id;});
+  members.forEach(m=>{if(groupCode[m.daily_group_id])refs.members[memberKey(groupCode[m.daily_group_id],m.name)]=m.id;});
+  projects.forEach(p=>{projectCode[p.id]=p.code;refs.projects[p.code]=p.id;});
+  variants.forEach(v=>{if(projectCode[v.project_id])refs.variants[variantKey(projectCode[v.project_id],v.name)]=v.id;});
+  REFS=refs;
+  DB=mergeDeep(clone(EMPTY_DB),cfg||{});
+  // Si hay un proyecto o una variante sin plantilla, se usa la IA (como en v2).
+  Object.values(DB.projects).forEach(p=>{p.variants=p.variants||[];p.templates=p.templates||{};});
+}
+
+function renderData(){
+  renderProjectButtons();
+  updateDailyCounts();
+  renderAdmin();
+  refreshQaSelection();
+}
+
+async function loadConfig(){
+  await fetchConfig();
+  writeCache();
+  renderData();
+  const empty=!Object.keys(DB.projects).length&&DAILY_KEYS.every(dk=>!DB.people[dk].length);
+  if(empty)showNotice('La base de Supabase todavía no tiene proyectos ni personas. Cargá los datos iniciales (seed.sql) o agregalos desde Administración.');
+  else hideNotice();
+}
+
+async function retryLoadConfig(){
+  showNotice('Cargando datos desde Supabase...');
+  try{await loadConfig();setBackupStatus('✓ Datos recargados desde Supabase.');}
+  catch(e){console.error(e);showNotice('⚠ No se pudieron cargar los datos de Supabase'+errorDetail(e)+'.',true);}
+}
+
+function showNotice(text,retry){
+  document.getElementById('data-banner-text').textContent=text;
+  document.getElementById('data-banner-btn').hidden=!retry;
+  document.getElementById('data-banner').classList.add('visible');
+}
+function hideNotice(){document.getElementById('data-banner').classList.remove('visible');}
+function setBackupStatus(text){document.getElementById('backup-status').textContent=text;}
+
+function errorDetail(e){return e&&(e.code||e.message)?` (${[e.code,e.message].filter(Boolean).join(': ')})`:'';}
+function writeErrorMessage(e){
+  if(e&&e.code==='23505')return 'Ya existe un registro con ese nombre.';
+  if(e&&(e.code==='42501'||e.code==='PGRST116'))return 'No tenés permiso para este cambio.';
+  return 'No se pudo guardar'+errorDetail(e)+'.';
+}
+
+// Ejecuta un cambio en Supabase y vuelve a cargar todo desde la base,
+// así la pantalla siempre muestra lo guardado (también si el cambio falla).
+let saving=false;
+async function persist(action){
+  if(!canManageConfig()){alert('No tenés permiso para modificar la configuración.');return false;}
+  if(saving)return false;
+  saving=true;
+  document.body.classList.add('saving');
+  let ok=true;
+  try{await action();}
+  catch(e){console.error(e);ok=false;alert('⚠ '+writeErrorMessage(e));}
+  try{await loadConfig();}
+  catch(e){console.error(e);showNotice('⚠ El cambio se envió, pero no se pudieron recargar los datos'+errorDetail(e)+'.',true);}
+  finally{saving=false;document.body.classList.remove('saving');}
+  return ok;
+}
+// supabase-js no lanza excepciones: devuelve {data,error}.
+function check(res,needRows){
+  if(res.error)throw res.error;
+  if(needRows&&(!res.data||(Array.isArray(res.data)&&!res.data.length)))throw {code:'42501'};
+  return res.data;
+}
 
 /* ============ NAVIGATION ============ */
 function showPage(id) {
@@ -854,7 +919,18 @@ let selectedProject=null, selectedVariant=null, currentImageBase64=null, current
 
 function renderProjectButtons(){
   const grid=document.getElementById('project-grid');
-  grid.innerHTML=Object.keys(DB.projects).map(key=>`<button class="proj-btn" data-type="${key}" onclick="selectProject(this)"><span class="proj-dot" style="background:${DB.projects[key].color}"></span> ${key}</button>`).join('');
+  const keys=Object.keys(DB.projects);
+  grid.innerHTML=keys.length?keys.map(key=>`<button class="proj-btn" data-type="${escapeHtml(key)}" onclick="selectProject(this)"><span class="proj-dot" style="background:${escapeHtml(DB.projects[key].color||'#888888')}"></span> ${escapeHtml(key)}</button>`).join(''):'<div class="crud-empty">No hay proyectos configurados.</div>';
+}
+// Tras recargar los datos, mantiene el proyecto y la variante elegidos si siguen existiendo.
+function refreshQaSelection(){
+  if(!selectedProject)return;
+  const btn=[...document.querySelectorAll('#project-grid .proj-btn')].find(b=>b.dataset.type===selectedProject);
+  if(!btn){selectedProject=null;selectedVariant=null;document.getElementById('qa-variant-section').style.display='none';checkReady();return;}
+  const prev=selectedVariant;
+  selectProject(btn);
+  const vsel=document.getElementById('variant-select');
+  if(prev&&DB.projects[selectedProject].variants.includes(prev)){vsel.value=prev;selectedVariant=prev;checkReady();}
 }
 
 function onDragOver(e){e.preventDefault();document.getElementById('upload-zone').classList.add('drag-over');}
@@ -883,7 +959,7 @@ function selectProject(btn){
   document.querySelectorAll('.proj-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
   selectedProject=btn.dataset.type;selectedVariant=null;
   const vs=document.getElementById('qa-variant-section'),vsel=document.getElementById('variant-select'),variants=DB.projects[selectedProject]?.variants||[];
-  if(variants.length>0){vs.style.display='block';vsel.innerHTML='<option value="">Seleccionar variante...</option>'+variants.map(v=>`<option value="${v}">${v.charAt(0).toUpperCase()+v.slice(1)}</option>`).join('');vsel.onchange=()=>{selectedVariant=vsel.value;checkReady();};}
+  if(variants.length>0){vs.style.display='block';vsel.innerHTML='<option value="">Seleccionar variante...</option>'+variants.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v.charAt(0).toUpperCase()+v.slice(1))}</option>`).join('');vsel.onchange=()=>{selectedVariant=vsel.value;checkReady();};}
   else{vs.style.display='none';selectedVariant=null;}
   checkReady();
 }
@@ -904,11 +980,12 @@ async function generate(){
   }catch(err){sm.className='status-msg error';sm.textContent='⚠ Error: '+err.message;}
   finally{btn.disabled=false;lb.classList.remove('active');checkReady();}
 }
+function addRow(tbody,cls,text){const tr=document.createElement('tr'),td=document.createElement('td');tr.className=cls;td.textContent=String(text);tr.appendChild(td);tbody.appendChild(tr);}
 function renderTable(pbis,fn){
   const tbody=document.getElementById('table-body');tbody.innerHTML='';
   pbis.forEach(({raw,num})=>{
-    const pr=document.createElement('tr');pr.className='pbi-row';pr.innerHTML=`<td>${raw}</td>`;tbody.appendChild(pr);
-    (num?fn(num):fn('####')).forEach(task=>{const tr=document.createElement('tr');tr.className='task-row';tr.innerHTML=`<td>${task}</td>`;tbody.appendChild(tr);});
+    addRow(tbody,'pbi-row',raw);
+    (num?fn(num):fn('####')).forEach(task=>addRow(tbody,'task-row',task));
   });
 }
 async function generateWithAI(pbis,rawInput){
@@ -917,7 +994,7 @@ async function generateWithAI(pbis,rawInput){
   if(!res.ok)throw new Error(`API Error: ${res.status}`);
   const data=await res.json(),parsed=JSON.parse(data.content.map(i=>i.text||'').join('').replace(/```json|```/g,'').trim());
   const tbody=document.getElementById('table-body');tbody.innerHTML='';
-  parsed.forEach(({pbi,tasks})=>{const pr=document.createElement('tr');pr.className='pbi-row';pr.innerHTML=`<td>${pbi}</td>`;tbody.appendChild(pr);tasks.forEach(task=>{const tr=document.createElement('tr');tr.className='task-row';tr.innerHTML=`<td>${task}</td>`;tbody.appendChild(tr);});});
+  parsed.forEach(({pbi,tasks})=>{addRow(tbody,'pbi-row',pbi);(tasks||[]).forEach(task=>addRow(tbody,'task-row',task));});
 }
 function copyTable(){
   const text=[...document.querySelectorAll('#table-body tr')].map(r=>r.querySelector('td')?.innerText?.trim()).filter(Boolean).join('\n');
@@ -975,7 +1052,7 @@ function roll(){
   document.getElementById('listBody').innerHTML=order.map((name,i)=>{
     const pos=i+1,isFirst=pos===1,isLast=pos===n,short=name.split(' ').slice(0,2).join(' ');
     const tag=isFirst?'<span class="p-tag tag-first">Primero 🥇</span>':isLast?'<span class="p-tag tag-last">Último</span>':'';
-    return `<div class="participant-item" style="animation-delay:${i*40}ms" data-name="${name}" data-short="${short}" data-color="${color}" onclick="toggleDone(this)"><span class="pos-num ${isFirst?'pos-first':''}">${pos}</span><div class="p-avatar ${color}">${getInitials(name)}</div><span class="p-name ${isLast?'name-last':''}">${short}</span>${tag}</div>`;
+    return `<div class="participant-item" style="animation-delay:${i*40}ms" data-name="${escapeHtml(name)}" data-short="${escapeHtml(short)}" data-color="${color}" onclick="toggleDone(this)"><span class="pos-num ${isFirst?'pos-first':''}">${pos}</span><div class="p-avatar ${color}">${escapeHtml(getInitials(name))}</div><span class="p-name ${isLast?'name-last':''}">${escapeHtml(short)}</span>${tag}</div>`;
   }).join('');
 }
 function toggleDone(el){
@@ -984,7 +1061,7 @@ function toggleDone(el){
   const existingEmpty=doneBody.querySelector('.done-empty');
   if(el.classList.contains('done')){
     el.classList.remove('done');
-    const doneItem=doneBody.querySelector(`[data-done="${name}"]`);
+    const doneItem=doneBody.querySelector(`[data-done="${CSS.escape(name)}"]`);
     if(doneItem)doneItem.remove();
   } else {
     el.classList.add('done');
@@ -992,7 +1069,7 @@ function toggleDone(el){
     const div=document.createElement('div');
     div.className='done-item';
     div.dataset.done=name;
-    div.innerHTML=`<div class="done-avatar">${getInitials(name)}</div><span class="done-name">${short}</span><span class="done-check">✓</span>`;
+    div.innerHTML=`<div class="done-avatar">${escapeHtml(getInitials(name))}</div><span class="done-name">${escapeHtml(short)}</span><span class="done-check">✓</span>`;
     div.onclick=()=>{ el.classList.remove('done'); div.remove(); updateDoneCount(); };
     doneBody.appendChild(div);
   }
@@ -1024,33 +1101,35 @@ function renderPeopleAdmin(){
     box.innerHTML=list.length?list.map(name=>`<div class="crud-item"><span class="crud-item-name">${escapeHtml(name)}</span><button class="crud-btn-del" data-daily="${dk}" data-name="${escapeHtml(name)}" onclick="renamePerson(this.dataset.daily,this.dataset.name)" title="Editar" style="color:var(--cyan);border-color:var(--border)">✏️</button><button class="crud-btn-del" data-daily="${dk}" data-name="${escapeHtml(name)}" onclick="removePerson(this.dataset.daily,this.dataset.name)" title="Eliminar">🗑</button></div>`).join(''):`<div class="crud-empty">Sin personas aún.</div>`;
   });
 }
-function renamePerson(dk,oldName){
+async function renamePerson(dk,oldName){
   const newName=prompt('Editar nombre:',oldName);
   if(newName===null)return;
   const trimmed=newName.trim();
   if(!trimmed||trimmed===oldName)return;
   if(DB.people[dk].includes(trimmed)){alert('Ya existe una persona con ese nombre en esta lista.');return;}
-  const idx=DB.people[dk].indexOf(oldName);
-  if(idx===-1)return;
-  DB.people[dk][idx]=trimmed;
-  const rule=DB.rules[dk];
-  rule.firstGroup=rule.firstGroup.map(n=>n===oldName?trimmed:n);
-  rule.lastFixed=rule.lastFixed.map(n=>n===oldName?trimmed:n);
-  saveDB();renderPeopleAdmin();renderRulesAdmin();updateDailyCounts();
+  const id=REFS.members[memberKey(dk,oldName)];
+  if(!id)return;
+  await persist(async()=>check(await supabaseClient.from('daily_members').update({name:trimmed}).eq('id',id).select('id'),true));
 }
-function addPerson(dk){
+async function addPerson(dk){
   const input=document.getElementById('newp-'+dk),name=input.value.trim();
   if(!name)return;
   if(DB.people[dk].includes(name)){input.value='';return;}
-  DB.people[dk].push(name);input.value='';
-  saveDB();renderPeopleAdmin();renderRulesAdmin();updateDailyCounts();
+  const groupId=REFS.groups[dk];
+  if(!groupId){alert(`No existe el grupo ${dk} en Supabase. Cargá los datos iniciales (seed.sql).`);return;}
+  const existing=REFS.members[memberKey(dk,name)];
+  const ok=await persist(async()=>{
+    if(existing)check(await supabaseClient.from('daily_members').update({active:true}).eq('id',existing).select('id'),true);
+    else check(await supabaseClient.from('daily_members').insert({daily_group_id:groupId,name}));
+  });
+  if(ok)input.value='';
 }
-function removePerson(dk,name){
+async function removePerson(dk,name){
   if(!confirm(`¿Quitar a "${name}" de ${dk==='daily1'?'Daily 1':'Daily 2'}?`))return;
-  DB.people[dk]=DB.people[dk].filter(n=>n!==name);
-  DB.rules[dk].firstGroup=DB.rules[dk].firstGroup.filter(n=>n!==name);
-  DB.rules[dk].lastFixed=DB.rules[dk].lastFixed.filter(n=>n!==name);
-  saveDB();renderPeopleAdmin();renderRulesAdmin();updateDailyCounts();
+  const id=REFS.members[memberKey(dk,name)];
+  if(!id)return;
+  // Se borra la persona y sus reglas; el histórico del Daily conserva el nombre.
+  await persist(async()=>check(await supabaseClient.from('daily_members').delete().eq('id',id).select('id'),true));
 }
 
 /* ============ ADMIN: REGLA DE PRIMEROS (CRUD + rango) ============ */
@@ -1070,24 +1149,23 @@ function renderRulesAdmin(){
     }).join(''):`<div class="crud-empty">Agregá personas primero.</div>`;
   });
 }
-function toggleFirstRule(dk,name,checked){
-  const rule=DB.rules[dk];
-  rule.firstGroup=rule.firstGroup.filter(n=>n!==name);
-  rule.lastFixed=rule.lastFixed.filter(n=>n!==name);
-  if(checked)rule.firstGroup.push(name);
-  saveDB();renderRulesAdmin();
+// Una persona tiene como máximo una regla (unique en daily_rule_members):
+// marcar una reemplaza la otra con un upsert.
+async function setRule(dk,name,ruleType,checked){
+  const id=REFS.members[memberKey(dk,name)];
+  if(!id)return;
+  await persist(async()=>{
+    if(checked)check(await supabaseClient.from('daily_rule_members').upsert({daily_member_id:id,rule_type:ruleType},{onConflict:'daily_member_id'}));
+    else check(await supabaseClient.from('daily_rule_members').delete().eq('daily_member_id',id).eq('rule_type',ruleType));
+  });
 }
-function toggleLastFixed(dk,name,checked){
-  const rule=DB.rules[dk];
-  rule.lastFixed=rule.lastFixed.filter(n=>n!==name);
-  rule.firstGroup=rule.firstGroup.filter(n=>n!==name);
-  if(checked)rule.lastFixed.push(name);
-  saveDB();renderRulesAdmin();
-}
-function setRange(dk,value){
-  const n=parseInt(value,10);
-  DB.rules[dk].range=isNaN(n)||n<1?1:n;
-  saveDB();renderRulesAdmin();
+function toggleFirstRule(dk,name,checked){return setRule(dk,name,'FIRST_GROUP',checked);}
+function toggleLastFixed(dk,name,checked){return setRule(dk,name,'LAST_FIXED',checked);}
+async function setRange(dk,value){
+  const n=parseInt(value,10),range=isNaN(n)||n<1?1:n;
+  const groupId=REFS.groups[dk];
+  if(!groupId){renderRulesAdmin();return;}
+  await persist(async()=>check(await supabaseClient.from('daily_rules').upsert({daily_group_id:groupId,first_range:range},{onConflict:'daily_group_id'})));
 }
 
 /* ============ ADMIN: TAREAS / PROYECTOS (CRUD) ============ */
@@ -1095,16 +1173,20 @@ let selectedAdminProject=null,selectedAdminVariant='';
 function renderTaskProjectList(){
   const box=document.getElementById('task-project-list');
   const keys=Object.keys(DB.projects);
-  box.innerHTML=keys.map(k=>`<button class="proj-btn ${k===selectedAdminProject?'active':''}" onclick="selectAdminProject('${k}')"><span class="proj-dot" style="background:${DB.projects[k].color}"></span> ${k}</button>`).join('');
+  box.innerHTML=keys.map(k=>`<button class="proj-btn ${k===selectedAdminProject?'active':''}" data-code="${escapeHtml(k)}" onclick="selectAdminProject(this.dataset.code)"><span class="proj-dot" style="background:${escapeHtml(DB.projects[k].color||'#888888')}"></span> ${escapeHtml(k)}</button>`).join('');
   if(selectedAdminProject&&!DB.projects[selectedAdminProject]){selectedAdminProject=null;document.getElementById('task-editor-wrap').style.display='none';}
+  else if(selectedAdminProject)fillVariantSelect(selectedAdminVariant);
+}
+function fillVariantSelect(preferred){
+  const variants=DB.projects[selectedAdminProject].variants,vsel=document.getElementById('task-variant-select');
+  vsel.innerHTML=variants.length?variants.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join(''):`<option value="">(sin variante)</option>`;
+  if(preferred&&variants.includes(preferred))vsel.value=preferred;
+  renderTaskEditor();
 }
 function selectAdminProject(key){
-  selectedAdminProject=key;
+  selectedAdminProject=key;selectedAdminVariant='';
   renderTaskProjectList();
   document.getElementById('task-editor-wrap').style.display='block';
-  const variants=DB.projects[key].variants,vsel=document.getElementById('task-variant-select');
-  vsel.innerHTML=variants.length?variants.map(v=>`<option value="${v}">${v}</option>`).join(''):`<option value="">(sin variante)</option>`;
-  renderTaskEditor();
 }
 function renderTaskEditor(){
   if(!selectedAdminProject)return;
@@ -1113,186 +1195,67 @@ function renderTaskEditor(){
   const tasks=DB.projects[selectedAdminProject].templates[selectedAdminVariant]||[];
   document.getElementById('task-textarea').value=tasks.join('\n');
 }
-function saveTaskEditor(){
+async function saveTaskEditor(btn){
   if(!selectedAdminProject)return;
   const lines=document.getElementById('task-textarea').value.split('\n').map(l=>l.trim()).filter(Boolean);
-  DB.projects[selectedAdminProject].templates[selectedAdminVariant]=lines;
-  saveDB();
-  const btn=event.target;const old=btn.textContent;btn.textContent='✓ Guardado';setTimeout(()=>btn.textContent=old,1500);
-  renderProjectButtons();
+  const projectId=REFS.projects[selectedAdminProject];
+  const variantId=selectedAdminVariant?REFS.variants[variantKey(selectedAdminProject,selectedAdminVariant)]:null;
+  if(!projectId||(selectedAdminVariant&&!variantId))return;
+  const ok=await persist(async()=>check(await supabaseClient.rpc('save_template',{p_project_id:projectId,p_variant_id:variantId,p_tasks:lines})));
+  if(ok&&btn){const old=btn.textContent;btn.textContent='✓ Guardado';setTimeout(()=>btn.textContent=old,1500);}
 }
-function addProject(){
+async function addProject(){
   const input=document.getElementById('new-project'),name=input.value.trim().toUpperCase();
-  if(!name||DB.projects[name])return;
+  if(!name)return;
+  if(DB.projects[name]){input.value='';selectAdminProject(name);return;}
   const usedColors=Object.values(DB.projects).map(p=>p.color),color=PALETTE.find(c=>!usedColors.includes(c))||PALETTE[Object.keys(DB.projects).length%PALETTE.length];
-  DB.projects[name]={color,variants:[],templates:{'':[]}};
-  input.value='';
-  saveDB();renderProjectButtons();renderTaskProjectList();selectAdminProject(name);
+  const existing=REFS.projects[name];
+  const ok=await persist(async()=>{
+    if(existing)check(await supabaseClient.from('projects').update({active:true}).eq('id',existing).select('id'),true);
+    else check(await supabaseClient.from('projects').insert({code:name,name,color}));
+  });
+  if(ok){input.value='';if(DB.projects[name])selectAdminProject(name);}
 }
-function removeProject(){
+async function removeProject(){
   if(!selectedAdminProject)return;
   if(!confirm(`¿Eliminar el proyecto "${selectedAdminProject}" y todas sus plantillas?`))return;
-  delete DB.projects[selectedAdminProject];
-  selectedAdminProject=null;
-  document.getElementById('task-editor-wrap').style.display='none';
-  saveDB();renderProjectButtons();renderTaskProjectList();
+  const id=REFS.projects[selectedAdminProject];
+  if(!id)return;
+  // El historial del QA Generator conserva el nombre del proyecto.
+  await persist(async()=>check(await supabaseClient.from('projects').delete().eq('id',id).select('id'),true));
 }
-function addVariant(){
+async function addVariant(){
   if(!selectedAdminProject)return;
   const input=document.getElementById('new-variant'),name=input.value.trim();
   if(!name)return;
   const proj=DB.projects[selectedAdminProject];
-  if(!proj.variants.includes(name)){proj.variants.push(name);proj.templates[name]=[];}
-  input.value='';
-  saveDB();
-  const vsel=document.getElementById('task-variant-select');
-  vsel.innerHTML=proj.variants.map(v=>`<option value="${v}">${v}</option>`).join('');
-  vsel.value=name;
-  renderTaskEditor();
-}
-function removeVariant(){
-  if(!selectedAdminProject)return;
-  const proj=DB.projects[selectedAdminProject],vsel=document.getElementById('task-variant-select'),variant=vsel.value;
-  if(!variant){alert('Este proyecto no tiene variante seleccionada para eliminar.');return;}
-  if(!confirm(`¿Eliminar la variante "${variant}"?`))return;
-  proj.variants=proj.variants.filter(v=>v!==variant);
-  delete proj.templates[variant];
-  if(proj.variants.length===0&&!proj.templates[''])proj.templates['']=[];
-  saveDB();
-  vsel.innerHTML=proj.variants.length?proj.variants.map(v=>`<option value="${v}">${v}</option>`).join(''):`<option value="">(sin variante)</option>`;
-  renderTaskEditor();
-}
-
-/* ============ ADMIN: GUARDADO DIRECTO EN ARCHIVO (File System Access API) ============ */
-let linkedFileHandle=null;
-function idbOpen(){
-  return new Promise((resolve,reject)=>{
-    const req=indexedDB.open('qaBcrSuiteFS',1);
-    req.onupgradeneeded=()=>{req.result.createObjectStore('handles');};
-    req.onsuccess=()=>resolve(req.result);
-    req.onerror=()=>reject(req.error);
+  if(proj.variants.includes(name)){input.value='';fillVariantSelect(name);return;}
+  const projectId=REFS.projects[selectedAdminProject],existing=REFS.variants[variantKey(selectedAdminProject,name)];
+  if(!projectId)return;
+  selectedAdminVariant=name;
+  const ok=await persist(async()=>{
+    if(existing)check(await supabaseClient.from('project_variants').update({active:true}).eq('id',existing).select('id'),true);
+    else check(await supabaseClient.from('project_variants').insert({project_id:projectId,name}));
   });
+  if(ok)input.value='';
 }
-async function getHandleFromIDB(){
-  if(!('indexedDB' in window))return null;
-  try{
-    const db=await idbOpen();
-    return await new Promise(resolve=>{
-      const tx=db.transaction('handles','readonly'),getReq=tx.objectStore('handles').get('dataFile');
-      getReq.onsuccess=()=>resolve(getReq.result||null);
-      getReq.onerror=()=>resolve(null);
-    });
-  }catch(e){return null;}
-}
-async function setHandleInIDB(handle){
-  if(!('indexedDB' in window))return;
-  try{
-    const db=await idbOpen();
-    await new Promise(resolve=>{
-      const tx=db.transaction('handles','readwrite');
-      tx.objectStore('handles').put(handle,'dataFile');
-      tx.oncomplete=resolve;tx.onerror=resolve;
-    });
-  }catch(e){/* ignore */}
-}
-function fsApiAvailable(){return 'showOpenFilePicker' in window;}
-async function linkDataFile(){
-  if(!fsApiAvailable()){
-    document.getElementById('backup-status').textContent='⚠ Tu navegador no soporta guardado directo a archivo (necesitás Chrome o Edge, y que la página no esté abierta con doble clic directo). Usá "Exportar" / "Importar" como alternativa.';
-    return;
-  }
-  try{
-    const [handle]=await window.showOpenFilePicker({types:[{description:'JSON',accept:{'application/json':['.json']}}],multiple:false});
-    linkedFileHandle=handle;
-    await setHandleInIDB(handle);
-    document.getElementById('backup-status').textContent=`✓ Archivo vinculado: ${handle.name}. Ahora podés usar "Guardar en archivo (sobrescribe)".`;
-  }catch(e){if(e.name!=='AbortError')document.getElementById('backup-status').textContent='⚠ No se pudo vincular el archivo.';}
-}
-async function ensureHandlePermission(handle){
-  const opts={mode:'readwrite'};
-  if((await handle.queryPermission(opts))==='granted')return true;
-  if((await handle.requestPermission(opts))==='granted')return true;
-  return false;
-}
-async function saveToLinkedFile(){
-  if(!fsApiAvailable()){
-    document.getElementById('backup-status').textContent='⚠ Tu navegador no soporta esta función. Usá "Exportar" y reemplazá el archivo manualmente.';
-    return;
-  }
-  if(!linkedFileHandle)linkedFileHandle=await getHandleFromIDB();
-  if(!linkedFileHandle){await linkDataFile();if(!linkedFileHandle)return;}
-  const ok=await ensureHandlePermission(linkedFileHandle);
-  if(!ok){document.getElementById('backup-status').textContent='⚠ No se otorgó permiso para escribir el archivo.';return;}
-  if(!confirm(`¿Sobrescribir "${linkedFileHandle.name}" con los datos actuales? Esta acción reemplaza el contenido del archivo.`))return;
-  try{
-    const writable=await linkedFileHandle.createWritable();
-    await writable.write(JSON.stringify(DB,null,2));
-    await writable.close();
-    document.getElementById('backup-status').textContent=`✓ Guardado en ${linkedFileHandle.name}.`;
-  }catch(e){document.getElementById('backup-status').textContent='⚠ Error al guardar: '+e.message;}
+async function removeVariant(){
+  if(!selectedAdminProject)return;
+  const variant=document.getElementById('task-variant-select').value;
+  if(!variant){alert('Este proyecto no tiene variante seleccionada para eliminar.');return;}
+  if(!confirm(`¿Eliminar la variante "${variant}" y su plantilla?`))return;
+  const id=REFS.variants[variantKey(selectedAdminProject,variant)];
+  if(!id)return;
+  selectedAdminVariant='';
+  await persist(async()=>check(await supabaseClient.from('project_variants').delete().eq('id',id).select('id'),true));
 }
 
-async function readHandleIntoDB(handle){
-  try{
-    const file=await handle.getFile();
-    const text=await file.text();
-    const loaded=JSON.parse(text);
-    DB=mergeDeep(clone(DEFAULT_DB),loaded);
-    saveDB();
-    renderProjectButtons();renderAdmin();updateDailyCounts();selectDaily(activeDaily);
-    document.getElementById('data-banner').classList.remove('visible');
-    return true;
-  }catch(e){return false;}
-}
-async function refreshFromLinkedHandle(){
-  if(!fsApiAvailable()){
-    document.getElementById('backup-status').textContent='⚠ Tu navegador no soporta esta función. Usá "Importar datos" y seleccioná el archivo actualizado.';
-    return;
-  }
-  if(!linkedFileHandle)linkedFileHandle=await getHandleFromIDB();
-  if(!linkedFileHandle){
-    document.getElementById('backup-status').textContent='⚠ No hay ningún archivo vinculado todavía. Usá "Vincular archivo de datos" primero.';
-    return;
-  }
-  try{
-    if((await linkedFileHandle.queryPermission({mode:'read'}))!=='granted'){
-      if((await linkedFileHandle.requestPermission({mode:'read'}))!=='granted'){
-        document.getElementById('backup-status').textContent='⚠ No se otorgó permiso de lectura sobre el archivo.';
-        return;
-      }
-    }
-    const ok=await readHandleIntoDB(linkedFileHandle);
-    document.getElementById('backup-status').textContent=ok?`✓ Datos actualizados desde ${linkedFileHandle.name}.`:'⚠ No se pudo leer el archivo (¿sigue existiendo en esa ruta?).';
-  }catch(e){document.getElementById('backup-status').textContent='⚠ Error: '+e.message;}
-}
-
-/* ============ ADMIN: RESPALDO (export/import/reset) ============ */
+/* ============ ADMIN: RESPALDO ============ */
 function exportData(){
   const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download='qa-bcr-suite-data.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-  document.getElementById('backup-status').textContent='✓ Datos exportados como qa-bcr-suite-data.json';
-}
-function importData(event){
-  const file=event.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    try{
-      const loaded=JSON.parse(e.target.result);
-      DB=mergeDeep(clone(DEFAULT_DB),loaded);
-      saveDB();renderProjectButtons();renderAdmin();updateDailyCounts();selectDaily(activeDaily);
-      document.getElementById('backup-status').textContent='✓ Datos importados correctamente.';
-      document.getElementById('data-banner').classList.remove('visible');
-    }catch(err){document.getElementById('backup-status').textContent='⚠ El archivo no es un JSON válido.';}
-  };
-  reader.readAsText(file);
-  event.target.value='';
-}
-function resetData(){
-  if(!confirm('Esto va a restablecer personas, reglas y tareas a los valores originales. ¿Continuar?'))return;
-  DB=clone(DEFAULT_DB);
-  saveDB();renderProjectButtons();renderAdmin();updateDailyCounts();selectDaily(activeDaily);
-  document.getElementById('backup-status').textContent='✓ Datos restablecidos a los valores originales.';
+  a.href=url;a.download='qa-bcr-suite-config.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  setBackupStatus('✓ Configuración exportada como qa-bcr-suite-config.json');
 }
 
 /* ============ CALC DÍAS HÁBILES ============ */
@@ -1406,7 +1369,7 @@ async function initAuth(){
   supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
   // Solo UI aquí: supabase-js no permite llamar a otros métodos de auth dentro de este callback.
   supabaseClient.auth.onAuthStateChange(event=>{
-    if(event==='SIGNED_OUT'){currentUser=null;showAuth('login');}
+    if(event==='SIGNED_OUT'){currentUser=null;clearCache();showAuth('login');}
   });
   const {data:{session}}=await supabaseClient.auth.getSession();
   if(!session){showAuth('login');return;}
@@ -1440,6 +1403,17 @@ async function enterWithSession(){
   }
   if(!currentUser){showAuth('blocked','Tu usuario no tiene perfil en QA BCR Suite. Pedile a un administrador que lo revise.');return;}
   if(!currentUser.active){showAuth('blocked','Tu usuario está desactivado. Pedile a un administrador que lo reactive.');return;}
+  try{
+    await loadConfig();
+  }catch(e){
+    console.error('No se pudieron cargar los datos',e);
+    const cache=readCache();
+    if(!cache){showAuth('blocked','No se pudieron cargar los datos de Supabase. Revisá la conexión y recargá la página.'+errorDetail(e));return;}
+    // Sin conexión: se muestra la última copia de este usuario, solo para consultar.
+    DB=mergeDeep(clone(EMPTY_DB),cache.db);REFS={groups:{},members:{},projects:{},variants:{}};
+    renderData();
+    showNotice(`⚠ Sin conexión con Supabase: se muestran los datos guardados el ${new Date(cache.savedAt).toLocaleString()}. Los cambios no se guardarán.`,true);
+  }
   showApp();
 }
 
@@ -1467,6 +1441,7 @@ async function onLoginSubmit(event){
 }
 
 async function logout(){
+  clearCache();
   if(supabaseClient){
     try{const {error}=await supabaseClient.auth.signOut();if(error)throw error;}
     catch(e){await supabaseClient.auth.signOut({scope:'local'});}
@@ -1527,44 +1502,7 @@ async function updateUser(id,changes,input){
 }
 
 /* ============ INIT ============ */
-renderProjectButtons();
-updateDailyCounts();
-renderAdmin();
-
-(async function initLoad(){
-  // 1. Intento silencioso vía fetch (funciona si se sirve por http/servidor local)
-  try{
-    const res=await fetch('./qa-bcr-suite-data.json',{cache:'no-store'});
-    if(res.ok){
-      const loaded=await res.json();
-      DB=mergeDeep(clone(DEFAULT_DB),loaded);
-      saveDB();
-      renderProjectButtons();renderAdmin();updateDailyCounts();selectDaily(activeDaily);
-      return;
-    }
-  }catch(e){/* bloqueado bajo file:// o no encontrado */}
-
-  // 2. Si hay un archivo vinculado previamente, ofrecer actualizar con un clic (sin re-seleccionar)
-  const banner=document.getElementById('data-banner'),text=document.getElementById('data-banner-text'),btn=document.getElementById('data-banner-btn');
-  const handle=await getHandleFromIDB();
-  if(handle && fsApiAvailable()){
-    linkedFileHandle=handle;
-    try{
-      if((await handle.queryPermission({mode:'read'}))==='granted'){
-        const ok=await readHandleIntoDB(handle);
-        if(ok)return;
-      }
-    }catch(e){/* ignore */}
-    text.innerHTML=`📂 Hay un archivo vinculado (<strong>${escapeHtml(handle.name)}</strong>). Actualizá para traer los últimos cambios.`;
-    btn.textContent='🔄 Actualizar desde archivo vinculado';
-    btn.onclick=refreshFromLinkedHandle;
-  } else {
-    text.innerHTML='📂 No se encontró <strong>qa-bcr-suite-data.json</strong> junto a este archivo. Cargá tu último respaldo para asegurarte de ver la información más reciente.';
-    btn.textContent='Cargar archivo';
-    btn.onclick=()=>document.getElementById('import-file-startup').click();
-  }
-  banner.classList.add('visible');
-})();
+renderData();
 
 initAuth();
 </script>

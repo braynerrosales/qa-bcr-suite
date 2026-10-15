@@ -98,7 +98,7 @@ psql -d qabcr -f out/seed.sql -f out/verify-seed.sql -f supabase/tests/rls_test.
 
 ## Fase 2: login y roles (`index.html`)
 
-Parte de `qa-bcr-suite_6.html`; los cambios están en `app/cambios-fase2.diff`. Los datos siguen en `localStorage` y el JSON: eso cambia en la Fase 3.
+Parte de `qa-bcr-suite_6.html`; los cambios están en `app/cambios-fase2.diff`. Desde la Fase 3 los datos vienen de Supabase (ver abajo).
 
 **Configurar antes de publicar** — en el bloque `AUTH (Supabase)` del script:
 
@@ -123,11 +123,34 @@ Seguridad de la página publicada:
 
 - Librería `@supabase/supabase-js@2.117.2` desde jsDelivr, versión fija y con `integrity` (SRI): si el archivo cambia, el navegador no lo ejecuta. Al subir de versión hay que recalcular el hash.
 - *Content Security Policy*: solo carga scripts propios y ese archivo, y solo se conecta al proyecto de Supabase configurado y a la API de Anthropic (esta última se quita en la Fase 4).
-- `DEFAULT_DB` no trae nombres de personas. Se cargan con *Administración → Respaldo → Importar datos* hasta la Fase 3.
+- El HTML no trae nombres de personas ni datos del equipo: todo se lee de Supabase después del login.
 - Las claves `sb_secret_...` / `service_role` nunca van en el HTML ni en el repositorio.
 
 **Pruebas** (`tests/test-auth.mjs`): Playwright con el cliente real de supabase-js y un Supabase simulado en la red. Cubre sin configuración, login correcto e incorrecto, sesión persistente, logout, usuario desactivado, usuario eliminado, permisos de QA / QA_LEAD / ADMIN, pestaña Usuarios (guardado y rechazo), vista móvil sin scroll horizontal y ausencia de errores de JavaScript.
 
-## Siguiente: Fase 3
+## Fase 3: datos en Supabase
 
-Cargar proyectos, variantes, plantillas, personas y reglas desde Supabase con `get_app_config()`, guardar con `save_template()` y los upserts, y dejar `localStorage` como caché.
+La app ya no usa `qa-bcr-suite-data.json` ni el archivo vinculado: personas, reglas, proyectos, variantes y plantillas se leen y se guardan en Supabase, y todo el equipo ve lo mismo.
+
+- **Carga**: después del login, `get_app_config()` (los datos con la forma del `DB` de v2) y los ids de grupos, personas, proyectos y variantes. Hasta tenerlos no se muestra la app.
+- **Guardado** (solo ADMIN y QA_LEAD; el RLS lo exige igual):
+
+  | Acción | En Supabase |
+  |---|---|
+  | Agregar / renombrar / quitar persona | `daily_members` insert / update / delete (agregar a alguien inactivo lo reactiva) |
+  | Regla de primeros / fijo al final | upsert en `daily_rule_members` por persona; desmarcar la borra |
+  | Rango del bloque inicial | upsert en `daily_rules` |
+  | Guardar plantilla | `save_template()` |
+  | Proyecto / variante nuevo o eliminado | `projects` / `project_variants` insert / delete (en cascada sus plantillas; el historial conserva el nombre) |
+
+  Después de cada cambio se recarga todo desde la base: si Supabase lo rechaza, se avisa y la pantalla muestra lo guardado.
+- **Copia local**: la última configuración se guarda en `localStorage` con el id del usuario. Si Supabase no responde, se muestra esa copia con un aviso y un botón *Reintentar*; sin copia, no se entra. Se borra al cerrar sesión.
+- **Respaldo**: *Exportar configuración* descarga el JSON actual. Importar y restablecer se quitaron (sobrescribían los datos de todos).
+- **Base vacía**: si no hay proyectos ni personas, un aviso pide cargar `seed.sql` (paso 4).
+- Corrige XSS de v2: nombres, proyectos, variantes, PBIs y respuestas de la IA se muestran como texto.
+
+**Pruebas**: `tests/test-auth.mjs` simula las tablas y las dos RPC en memoria y cubre la carga, cada tipo de guardado, rechazos, permisos de QA, otro usuario viendo los cambios, sin conexión con y sin copia, base vacía y escapado de nombres. Las mismas sentencias se probaron contra Postgres con las migraciones y el RLS reales.
+
+## Siguiente: Fase 4
+
+Edge Function para Claude: la clave de Anthropic queda en Supabase, se registra el uso en `ai_usage_log` y se quita `api.anthropic.com` de la página y de la CSP. Después, guardar el historial del Daily y del QA Generator.
