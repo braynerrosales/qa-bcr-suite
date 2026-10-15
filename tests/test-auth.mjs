@@ -9,7 +9,7 @@ const SUPA = 'https://demo.supabase.co';
 const html = readFileSync(DIR + 'index.html', 'utf8');
 const configured = html
   .replace("const SUPABASE_URL='';", `const SUPABASE_URL='${SUPA}';`)
-  .replace("const SUPABASE_ANON_KEY='';", "const SUPABASE_ANON_KEY='anon-test-key';");
+  .replace(/const SUPABASE_ANON_KEY='[^']*';/, "const SUPABASE_ANON_KEY='anon-test-key';");
 const supabaseJs = readFileSync(DIR + 'package/dist/umd/supabase.js', 'utf8');
 
 const users = {
@@ -31,7 +31,7 @@ const patches = [];
 async function setup(context) {
   await context.route('https://fonts.googleapis.com/**', (r) => r.abort());
   await context.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js',
-    (r) => r.fulfill({ contentType: 'application/javascript', body: supabaseJs }));
+    (r) => r.fulfill({ contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body: supabaseJs }));
   await context.route('http://app.test/**', (r) => {
     const url = r.request().url();
     if (url.endsWith('/index.html')) return r.fulfill({ contentType: 'text/html', body: configured });
@@ -88,6 +88,7 @@ async function newPage(viewport = { width: 1280, height: 800 }) {
   await setup(context);
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => { if (/Content Security Policy|integrity/i.test(m.text())) errors.push(m.text()); });
   return { context, page };
 }
 async function login(page, email, password = 'pw') {
@@ -245,4 +246,4 @@ users['qa@bcr.test'].role = 'QA';
 
 await browser.close();
 assert.deepEqual(errors, [], 'errores de JS en la página: ' + errors.join(' | '));
-ok('sin errores de JavaScript en la página');
+ok('sin errores de JavaScript ni bloqueos de CSP/integridad en la página');

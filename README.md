@@ -115,7 +115,12 @@ Qué hace:
 - Pestaña **Usuarios** solo para ADMIN: cambiar rol y activar/desactivar. No deja cambiarse a uno mismo. Si Supabase rechaza el cambio, avisa y vuelve a mostrar lo guardado.
 - Corrige un scroll horizontal en móvil que venía de v2 (`.main` sin `min-width: 0`).
 
-Librería: `@supabase/supabase-js@2.117.2` desde jsDelivr, versión fija.
+Seguridad de la página publicada:
+
+- Librería `@supabase/supabase-js@2.117.2` desde jsDelivr, versión fija y con `integrity` (SRI): si el archivo cambia, el navegador no lo ejecuta. Al subir de versión hay que recalcular el hash.
+- *Content Security Policy*: solo carga scripts propios y ese archivo, y solo se conecta a `*.supabase.co` y a la API de Anthropic (esta última se quita en la Fase 4).
+- `DEFAULT_DB` no trae nombres de personas. Se cargan con *Administración → Respaldo → Importar datos* hasta la Fase 3.
+- Las claves `sb_secret_...` / `service_role` nunca van en el HTML ni en el repositorio.
 
 **Pruebas** (`tests/test-auth.mjs`): Playwright con el cliente real de supabase-js y un Supabase simulado en la red. Cubre sin configuración, login correcto e incorrecto, sesión persistente, logout, usuario desactivado, usuario eliminado, permisos de QA / QA_LEAD / ADMIN, pestaña Usuarios (guardado y rechazo), vista móvil sin scroll horizontal y ausencia de errores de JavaScript.
 

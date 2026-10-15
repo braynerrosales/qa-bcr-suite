@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QA BCR Suite</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.anthropic.com; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -782,13 +784,12 @@ const STORAGE_KEY='qaBcrSuiteDB_v1';
 const PALETTE=['#4f8ef7','#60a5fa','#f7c948','#818cf8','#4ade80','#fbbf24','#f87171','#00d4ff','#7c3aed','#00c9a7'];
 
 const DEFAULT_DB={
-  people:{
-    daily1:["Ángel Eduardo Romero Acuña","Juliana López Marín","Amos","Keysi Quirós Rojas","Aarón Bustos Peralta","Milagro Ceciliano Ortega","Andrey Morales Vargas","Nectali Pérez Góngora","Ana Yanci Vega Navarro","Josebeth Sevilla Sandi","Brayner Steven Rosales Solís"],
-    daily2:["Laura Masis Brenes","Mónica Castro Soto","Jurguen Tames","Gaby DePass","Viviana Mora","Kendall Mesen Gamboa","Mario Mendoza Hernández","Víctor Manuel Salvatierra Mora","Pablo César Guerrero Abarca","Luis Alonso Carrillo Villarreal","Brayner Steven Rosales Solís"]
-  },
+  // Sin nombres: la página es pública. Las personas se importan desde el JSON
+  // (Administración → Respaldo) y en la Fase 3 vendrán de Supabase.
+  people:{daily1:[],daily2:[]},
   rules:{
-    daily1:{firstGroup:["Ángel Eduardo Romero Acuña","Juliana López Marín"],range:6,lastFixed:["Brayner Steven Rosales Solís"]},
-    daily2:{firstGroup:["Pablo César Guerrero Abarca"],range:4,lastFixed:["Brayner Steven Rosales Solís"]}
+    daily1:{firstGroup:[],range:1,lastFixed:[]},
+    daily2:{firstGroup:[],range:1,lastFixed:[]}
   },
   projects:{
     DATA:{color:'#4f8ef7',variants:[],templates:{'':["QA - {n} - Especificación de Casos de Pruebas.","QA - {n} - Estimación de Casos de Pruebas.","QA - {n} - Pruebas de Smoke.","QA - {n} - Regresión de pruebas.","QA - {n} - Ejecución de casos de pruebas.","QA - {n} - Re ejecución de pruebas."]}},
@@ -1368,7 +1369,7 @@ function calcToggleHolidays(){
 // La anon (publishable) key puede estar en el frontend: la seguridad la da el RLS.
 // NUNCA poner aquí la service_role (secret) key.
 const SUPABASE_URL='';
-const SUPABASE_ANON_KEY='';
+const SUPABASE_ANON_KEY='sb_publishable_1-F7LwzYlWRQFQTlZ6Go4Q_1uwFdQVP';
 
 const ROLE_LABELS={ADMIN:'Admin',QA_LEAD:'QA Lead',QA:'QA'};
 let supabaseClient=null, currentUser=null;
