@@ -23,6 +23,6 @@ grant execute on function auth.uid() to anon, authenticated, service_role;
 grant references on auth.users to postgres;
 
 grant usage on schema public to anon, authenticated, service_role;
-alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
-alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+-- Como un proyecto nuevo de Supabase: sin permisos automáticos sobre las tablas
+-- de public (las migraciones dan los GRANT explícitos). Las funciones sí.
 alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;

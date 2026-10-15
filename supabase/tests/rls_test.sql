@@ -51,6 +51,10 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 do $$
 declare n int;
 begin
+    select count(*) into n from public.profiles where id = '00000000-0000-0000-0000-00000000000c';
+    if n <> 1 then raise exception 'FALLO: QA no lee su perfil'; end if;
+    raise notice 'OK: QA lee su perfil';
+
     select count(*) into n from public.projects;
     if n = 0 then raise exception 'FALLO: QA no ve proyectos'; end if;
     raise notice 'OK: QA lee % proyectos', n;
