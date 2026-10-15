@@ -8,8 +8,14 @@ const DIR = new URL('..', import.meta.url).pathname;
 const SUPA = 'https://demo.supabase.co';
 const html = readFileSync(DIR + 'index.html', 'utf8');
 const configured = html
-  .replace("const SUPABASE_URL='';", `const SUPABASE_URL='${SUPA}';`)
-  .replace(/const SUPABASE_ANON_KEY='[^']*';/, "const SUPABASE_ANON_KEY='anon-test-key';");
+  .replace(/const SUPABASE_URL='[^']*';/, `const SUPABASE_URL='${SUPA}';`)
+  .replace(/const SUPABASE_ANON_KEY='[^']*';/, "const SUPABASE_ANON_KEY='anon-test-key';")
+  .replaceAll(/https:\/\/[a-z0-9]+\.supabase\.co(?=[ ;])/g, SUPA)
+  .replaceAll(/wss:\/\/[a-z0-9]+\.supabase\.co(?=[ ;])/g, SUPA.replace('https', 'wss'));
+// Copia sin configurar: sin URL ni clave.
+const unconfigured = html
+  .replace(/const SUPABASE_URL='[^']*';/, "const SUPABASE_URL='';")
+  .replace(/const SUPABASE_ANON_KEY='[^']*';/, "const SUPABASE_ANON_KEY='';");
 const supabaseJs = readFileSync(DIR + 'package/dist/umd/supabase.js', 'utf8');
 
 const users = {
@@ -35,7 +41,7 @@ async function setup(context) {
   await context.route('http://app.test/**', (r) => {
     const url = r.request().url();
     if (url.endsWith('/index.html')) return r.fulfill({ contentType: 'text/html', body: configured });
-    if (url.endsWith('/sin-config.html')) return r.fulfill({ contentType: 'text/html', body: html });
+    if (url.endsWith('/sin-config.html')) return r.fulfill({ contentType: 'text/html', body: unconfigured });
     return r.fulfill({ status: 404, body: '' });
   });
   await context.route(`${SUPA}/**`, async (r) => {

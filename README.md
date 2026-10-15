@@ -118,7 +118,7 @@ Qué hace:
 Seguridad de la página publicada:
 
 - Librería `@supabase/supabase-js@2.117.2` desde jsDelivr, versión fija y con `integrity` (SRI): si el archivo cambia, el navegador no lo ejecuta. Al subir de versión hay que recalcular el hash.
-- *Content Security Policy*: solo carga scripts propios y ese archivo, y solo se conecta a `*.supabase.co` y a la API de Anthropic (esta última se quita en la Fase 4).
+- *Content Security Policy*: solo carga scripts propios y ese archivo, y solo se conecta al proyecto de Supabase configurado y a la API de Anthropic (esta última se quita en la Fase 4).
 - `DEFAULT_DB` no trae nombres de personas. Se cargan con *Administración → Respaldo → Importar datos* hasta la Fase 3.
 - Las claves `sb_secret_...` / `service_role` nunca van en el HTML ni en el repositorio.
 
