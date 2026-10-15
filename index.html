@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QA BCR Suite</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://aprerrmqsnkeakrjcoxf.supabase.co wss://aprerrmqsnkeakrjcoxf.supabase.co https://api.anthropic.com; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://aprerrmqsnkeakrjcoxf.supabase.co wss://aprerrmqsnkeakrjcoxf.supabase.co; object-src 'none'; base-uri 'none'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -127,8 +127,8 @@
   ::placeholder { color: var(--ink-3); }
   .btn-primary, .crud-btn-add, .btn-generate, .roll-btn, .calc-btn-calc { background: var(--bcr); color: var(--bcr-ink); border: 0; border-radius: var(--r-ctl); font-weight: 700; font-size: 14px; padding: 10px 18px; white-space: nowrap; transition: background 0.15s; }
   .crud-btn-add:hover, .btn-generate:hover, .roll-btn:hover, .calc-btn-calc:hover { background: var(--bcr-strong); }
-  .btn-secondary, .calc-btn-clear, .calc-btn-add, .btn-copy, .btn-extract { background: var(--sheet); color: var(--ink); border: 1px solid var(--rule-2); border-radius: var(--r-ctl); font-weight: 600; font-size: 14px; padding: 9px 16px; white-space: nowrap; }
-  .btn-secondary:hover, .calc-btn-clear:hover, .calc-btn-add:hover, .btn-copy:hover, .btn-extract:hover { border-color: var(--bcr); color: var(--bcr); }
+  .btn-secondary, .calc-btn-clear, .calc-btn-add, .btn-copy { background: var(--sheet); color: var(--ink); border: 1px solid var(--rule-2); border-radius: var(--r-ctl); font-weight: 600; font-size: 14px; padding: 9px 16px; white-space: nowrap; }
+  .btn-secondary:hover, .calc-btn-clear:hover, .calc-btn-add:hover, .btn-copy:hover { border-color: var(--bcr); color: var(--bcr); }
   .crud-btn-del { background: transparent; border: 1px solid var(--rule-2); border-radius: var(--r-ctl); color: var(--bad); font-size: 13px; font-weight: 600; padding: 5px 10px; flex-shrink: 0; }
   .crud-btn-del:hover { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, transparent); }
   .crud-btn-edit { color: var(--bcr); }
@@ -150,20 +150,7 @@
   .proj-btn.active .proj-dot { box-shadow: 0 0 0 2px var(--bcr-ink); }
   #qa-variant-section { margin-top: 18px; }
   .variant-select { width: 100%; }
-  .ai-chip { margin-top: 18px; font-size: 13px; color: var(--ink-3); }
-  .upload-zone { border: 1.5px dashed var(--rule-2); border-radius: var(--r-ctl); padding: 16px; text-align: center; background: var(--sheet-2); margin-bottom: 10px; position: relative; cursor: pointer; }
-  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--bcr); }
-  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-  .upload-text { font-size: 13px; color: var(--ink-2); }
-  .upload-text strong { color: var(--bcr); }
-  .img-preview-wrap { position: relative; margin-bottom: 10px; display: none; }
-  .img-preview-wrap.visible { display: block; }
-  .img-preview { width: 100%; max-height: 140px; object-fit: cover; border-radius: var(--r-ctl); border: 1px solid var(--rule); }
-  .btn-remove-img { position: absolute; top: 6px; right: 6px; background: var(--sheet); border: 1px solid var(--rule-2); border-radius: 50%; width: 26px; height: 26px; display: grid; place-items: center; color: var(--bad); font-size: 15px; line-height: 1; }
-  .btn-extract { width: 100%; margin-bottom: 10px; display: none; }
-  .btn-extract.visible { display: block; }
-  .divider { display: flex; align-items: center; gap: 10px; margin: 12px 0; color: var(--ink-3); font-size: 12px; }
-  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--rule); }
+  .qa-hint { margin-top: 18px; font-size: 13px; color: var(--ink-3); }
   textarea, .task-textarea { width: 100%; font-family: var(--mono); font-size: 13px; line-height: 1.7; resize: vertical; min-height: 170px; }
   .task-textarea { min-height: 150px; }
   .btn-generate { width: 100%; padding: 14px; font-size: 15px; }
@@ -175,6 +162,7 @@
   .output-section.visible { display: block; }
   .output-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--rule); }
   .output-title { font-size: 15px; font-weight: 700; }
+  .output-actions { display: flex; gap: 8px; }
   .btn-copy { padding: 6px 14px; font-size: 13px; }
   .btn-copy.copied { border-color: var(--ok); color: var(--ok); }
   .output-table-wrap { overflow-x: auto; padding: 6px 0 10px; }
@@ -494,20 +482,11 @@
             <div class="variant-label">Variante</div>
             <select class="variant-select" id="variant-select"><option value="">Seleccionar variante...</option></select>
           </div>
-          <p class="ai-chip">Si el proyecto no tiene plantilla, Claude propone las tareas.</p>
+          <p class="qa-hint">Las tareas salen de la plantilla del proyecto (Administración → Proyectos y tareas).</p>
         </div>
         <div class="card">
           <div class="card-label">PBIs, HUs o RTs</div>
-          <div class="img-preview-wrap" id="img-preview-wrap">
-            <img id="img-preview" class="img-preview" src="" alt="preview"/>
-            <button class="btn-remove-img" onclick="removeImage()">×</button>
-          </div>
-          <div class="upload-zone" id="upload-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
-            <input type="file" id="img-input" accept="image/*" onchange="onFileSelected(event)"/>
-            <div class="upload-text"><strong>Subí una captura</strong> de Azure DevOps o Excel y Claude extrae la lista</div>
-          </div>
-          <button class="btn-extract" id="btn-extract" onclick="extractFromImage()">Extraer PBIs de la imagen</button>
-          <div class="divider"><span>o escribilos, uno por línea</span></div>
+          <p class="qa-hint" style="margin:0 0 10px">Uno por línea.</p>
           <textarea id="pbi-input" aria-label="Lista de PBIs" placeholder="12345 - Implementar login con MFA&#10;12346 - Validación de formulario de pago&#10;12347 - Integración con sistema legado"></textarea>
           <div id="status-msg" class="status-msg"></div>
         </div>
@@ -517,7 +496,10 @@
       <div class="output-section" id="output-section" style="margin-top:18px">
         <div class="output-header">
           <h3 class="output-title">Tareas generadas</h3>
-          <button class="btn-copy" id="btn-copy" onclick="copyTable()">Copiar</button>
+          <div class="output-actions">
+            <button class="btn-copy" id="btn-copy" onclick="copyTable()">Copiar</button>
+            <button class="btn-copy" id="btn-clear-qa" onclick="clearQa()">Borrar</button>
+          </div>
         </div>
         <div class="output-table-wrap">
           <table id="output-table">
@@ -910,7 +892,7 @@ function showPage(id) {
 }
 
 /* ============ QA GENERATOR ============ */
-let selectedProject=null, selectedVariant=null, currentImageBase64=null, currentImageType=null;
+let selectedProject=null, selectedVariant=null;
 
 function renderProjectButtons(){
   const grid=document.getElementById('project-grid');
@@ -926,28 +908,6 @@ function refreshQaSelection(){
   selectProject(btn);
   const vsel=document.getElementById('variant-select');
   if(prev&&DB.projects[selectedProject].variants.includes(prev)){vsel.value=prev;selectedVariant=prev;checkReady();}
-}
-
-function onDragOver(e){e.preventDefault();document.getElementById('upload-zone').classList.add('drag-over');}
-function onDragLeave(){document.getElementById('upload-zone').classList.remove('drag-over');}
-function onDrop(e){e.preventDefault();document.getElementById('upload-zone').classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))loadImage(f);}
-function onFileSelected(e){const f=e.target.files[0];if(f)loadImage(f);}
-function loadImage(file){const r=new FileReader();r.onload=e=>{const d=e.target.result;currentImageBase64=d.split(',')[1];currentImageType=file.type;document.getElementById('img-preview').src=d;document.getElementById('img-preview-wrap').classList.add('visible');document.getElementById('upload-zone').style.display='none';document.getElementById('btn-extract').classList.add('visible');};r.readAsDataURL(file);}
-function removeImage(){currentImageBase64=null;currentImageType=null;document.getElementById('img-preview').src='';document.getElementById('img-preview-wrap').classList.remove('visible');document.getElementById('upload-zone').style.display='block';document.getElementById('btn-extract').classList.remove('visible');document.getElementById('img-input').value='';}
-
-async function extractFromImage(){
-  if(!currentImageBase64)return;
-  const btn=document.getElementById('btn-extract'),sm=document.getElementById('status-msg');
-  btn.disabled=true;btn.textContent='🔍 Analizando imagen...';sm.className='status-msg info';sm.textContent='La IA está leyendo la imagen...';
-  try{
-    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:currentImageType,data:currentImageBase64}},{type:"text",text:"Eres asistente del BCR. Extrae todos los PBIs, HUs o RTs.\nDevuelve SOLO la lista, una por línea: NÚMERO - Descripción\nSin explicaciones ni markdown."}]}]})});
-    if(!res.ok)throw new Error(`API Error: ${res.status}`);
-    const data=await res.json();
-    const extracted=data.content.map(i=>i.text||'').join('').trim();
-    if(extracted){document.getElementById('pbi-input').value=extracted;sm.textContent=`✓ Se extrajeron ${extracted.split('\n').filter(l=>l.trim()).length} elemento(s).`;checkReady();}
-    else{sm.className='status-msg error';sm.textContent='⚠ No se encontraron PBIs en la imagen.';}
-  }catch(err){sm.className='status-msg error';sm.textContent='⚠ Error: '+err.message;}
-  finally{btn.disabled=false;btn.textContent='🤖 Extraer PBIs de la imagen';}
 }
 
 function selectProject(btn){
@@ -970,9 +930,9 @@ async function generate(){
     const variantKey=(DB.projects[selectedProject]?.variants?.length)?selectedVariant:'';
     const tasks=DB.projects[selectedProject]?.templates?.[variantKey];
     if(tasks&&tasks.length){const fn=(n)=>tasks.map(t=>t.split('{n}').join(n));renderTable(pbis,fn);}
-    else await generateWithAI(pbis,input);
+    else throw new Error('Este proyecto no tiene plantilla de tareas'+(variantKey?` para la variante "${variantKey}"`:'')+'. Agregala en Administración → Proyectos y tareas.');
     os.classList.add('visible');os.scrollIntoView({behavior:'smooth',block:'start'});
-  }catch(err){sm.className='status-msg error';sm.textContent='⚠ Error: '+err.message;}
+  }catch(err){sm.className='status-msg error';sm.textContent='⚠ '+err.message;}
   finally{btn.disabled=false;lb.classList.remove('active');checkReady();}
 }
 function addRow(tbody,cls,text){const tr=document.createElement('tr'),td=document.createElement('td');tr.className=cls;td.textContent=String(text);tr.appendChild(td);tbody.appendChild(tr);}
@@ -983,13 +943,15 @@ function renderTable(pbis,fn){
     (num?fn(num):fn('####')).forEach(task=>addRow(tbody,'task-row',task));
   });
 }
-async function generateWithAI(pbis,rawInput){
-  const pd=selectedVariant?`${selectedProject} - variante: ${selectedVariant}`:selectedProject;
-  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:`Eres QA Lead del BCR. Genera tareas QA.\nResponde SOLO con JSON: [{"pbi":"texto","tasks":["tarea1",...]}]\nUsa prefijo QA - #### - o AUT- #### -`,messages:[{role:"user",content:`Proyecto: ${pd}\nPBIs:\n${rawInput}`}]})});
-  if(!res.ok)throw new Error(`API Error: ${res.status}`);
-  const data=await res.json(),parsed=JSON.parse(data.content.map(i=>i.text||'').join('').replace(/```json|```/g,'').trim());
-  const tbody=document.getElementById('table-body');tbody.innerHTML='';
-  parsed.forEach(({pbi,tasks})=>{addRow(tbody,'pbi-row',pbi);(tasks||[]).forEach(task=>addRow(tbody,'task-row',task));});
+// Limpia los PBIs y las tareas generadas; el proyecto y la variante quedan elegidos.
+function clearQa(){
+  const input=document.getElementById('pbi-input'),sm=document.getElementById('status-msg');
+  input.value='';
+  document.getElementById('table-body').innerHTML='';
+  document.getElementById('output-section').classList.remove('visible');
+  sm.className='status-msg';sm.textContent='';
+  checkReady();
+  input.focus();
 }
 function copyTable(){
   const text=[...document.querySelectorAll('#table-body tr')].map(r=>r.querySelector('td')?.innerText?.trim()).filter(Boolean).join('\n');

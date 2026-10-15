@@ -404,9 +404,26 @@ const lastWrite = () => writes[writes.length - 1];
   assert.deepEqual(await page.locator('#table-body td').allTextContents(), ['PBI 123 - Algo <b>raro</b>', 'QA - 123 - Smoke.']);
   ok('QA Generator usa la plantilla de Supabase y muestra el texto sin interpretarlo como HTML');
 
+  assert.equal(await page.locator('#upload-zone, #btn-extract').count(), 0);
+  await page.click('#btn-clear-qa');
+  assert.equal(await page.inputValue('#pbi-input'), '');
+  assert.equal(await page.locator('#output-section.visible').count(), 0);
+  assert.equal(await page.locator('#table-body tr').count(), 0);
+  assert.equal(await page.isDisabled('#btn-gen'), true);
+  assert.equal(await page.locator('#project-grid .proj-btn.active').getAttribute('data-type'), 'DATA');
+  ok('Borrar limpia PBIs y tareas y mantiene el proyecto; ya no hay extracción con IA');
+
   await page.click('#project-grid .proj-btn[data-type="COMERCIAL"]');
   assert.deepEqual(await page.locator('#variant-select option').allTextContents(), ['Seleccionar variante...', 'Normal', "X'><b>"]);
   ok('variantes con caracteres especiales se muestran como texto');
+
+  await page.selectOption('#variant-select', "x'><b>");
+  await page.fill('#pbi-input', '77 - Sin plantilla');
+  await page.click('#btn-gen');
+  await page.waitForSelector('#status-msg.error');
+  assert.match(await page.textContent('#status-msg'), /no tiene plantilla de tareas para la variante/);
+  assert.equal(await page.locator('#output-section.visible').count(), 0);
+  ok('sin plantilla avisa que hay que agregarla, sin llamar a ninguna IA');
 
   await page.click('#nav-daily');
   await page.click('#rollBtn');

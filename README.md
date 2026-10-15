@@ -122,7 +122,7 @@ Qué hace:
 Seguridad de la página publicada:
 
 - Librería `@supabase/supabase-js@2.117.2` desde jsDelivr, versión fija y con `integrity` (SRI): si el archivo cambia, el navegador no lo ejecuta. Al subir de versión hay que recalcular el hash.
-- *Content Security Policy*: solo carga scripts propios y ese archivo, y solo se conecta al proyecto de Supabase configurado y a la API de Anthropic (esta última se quita en la Fase 4).
+- *Content Security Policy*: solo carga scripts propios y ese archivo, y solo se conecta al proyecto de Supabase configurado. La página no llama a ninguna IA.
 - El HTML no trae nombres de personas ni datos del equipo: todo se lee de Supabase después del login.
 - Las claves `sb_secret_...` / `service_role` nunca van en el HTML ni en el repositorio.
 
@@ -165,6 +165,10 @@ No hace falta configurar secretos: Supabase pone `SUPABASE_URL` y la clave secre
 
 En la app: *Administración → Usuarios* → nombre, correo, rol y contraseña temporal (*Generar* crea una de 14 caracteres). La persona entra con esa contraseña y la cambia en *Cambiar contraseña* (sidebar) o *Clave* (móvil). Si la función no está publicada, la app lo dice.
 
+## Generar tareas QA
+
+Las tareas salen solo de la plantilla del proyecto (o de la variante). Si no hay plantilla, la app lo avisa y no genera nada: se agrega en Administración → Proyectos y tareas. La extracción de PBIs desde una captura con IA está desactivada. Después de generar, «Borrar» limpia los PBIs y las tareas y deja elegido el proyecto para la siguiente tanda.
+
 ## Daily: «No asistió»
 
 Cada persona del orden tiene un botón **No asistió**: la saca de completados, la tacha y la pasa a la lista *No asistieron*. Se deshace con el mismo botón (*Asistió*) o tocando su fila en esa lista, y se limpia al generar otro orden. Por ahora no se guarda en Supabase (igual que los completados); va con el historial del Daily.
@@ -175,4 +179,4 @@ Hoja de trabajo clara con la tinta azul del banco y un solo acento: el amarillo 
 
 ## Siguiente: Fase 4
 
-Edge Function para Claude: la clave de Anthropic queda en Supabase, se registra el uso en `ai_usage_log` y se quita `api.anthropic.com` de la página y de la CSP. Después, guardar el historial del Daily y del QA Generator.
+Guardar el historial del Daily y del QA Generator. Si más adelante se vuelve a usar IA (extraer PBIs de una captura o proponer tareas), va por una Edge Function: la clave de Anthropic queda en Supabase y se registra el uso en `ai_usage_log`; nunca se llama a `api.anthropic.com` desde el navegador.
