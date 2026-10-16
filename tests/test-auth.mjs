@@ -533,7 +533,7 @@ async function login(page, email, password = 'pw') {
   await qaRow.locator('select').selectOption('QA_LEAD');
   await page.waitForSelector('#users-status.ok');
   assert.equal(users['qa@bcr.test'].role, 'QA_LEAD');
-  ok('ADMIN: cambia el rol y ve "✓ Guardado"');
+  ok('ADMIN: cambia el rol y ve "Guardado"');
 
   rejectNextPatch = true;
   await qaRow.locator('input[type=checkbox]').uncheck();
@@ -863,7 +863,7 @@ resetData();
   await page.fill('#nu-password', 'temporal-123');
   await page.click('#nu-submit');
   await page.waitForSelector('#user-create-status.error');
-  assert.equal(await page.textContent('#user-create-status'), '⚠ Ya existe un usuario con ese correo.');
+  assert.equal(await page.textContent('#user-create-status'), 'Ya existe un usuario con ese correo.');
   ok('correo repetido: muestra el error de la función');
 
   functionMissing = true;

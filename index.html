@@ -139,6 +139,11 @@
   .status-msg { font-size: 14px; padding: 9px 12px; border-radius: var(--r-ctl); margin-top: 10px; display: none; border-left: 3px solid; }
   .status-msg.error { display: block; color: var(--bad); border-color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, var(--sheet)); }
   .status-msg.info { display: block; color: var(--bcr); border-color: var(--bcr); background: color-mix(in srgb, var(--bcr) 7%, var(--sheet)); }
+  .status-msg.error, .status-msg.info, .status-msg.ok { position: relative; padding-left: 36px; }
+  .status-msg.error::before, .status-msg.info::before, .status-msg.ok::before, .data-banner-text::before { content: ''; position: absolute; left: 12px; top: 11px; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--ico) center / contain no-repeat; mask: var(--ico) center / contain no-repeat; }
+  .status-msg.error::before, .data-banner-text::before { --ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5v5.5M12 16.5h.01'/%3E%3C/svg%3E"); }
+  .status-msg.info::before { --ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5M12 7.5h.01'/%3E%3C/svg%3E"); }
+  .status-msg.ok::before { --ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='m8 12.5 2.8 2.8L16.5 9.5'/%3E%3C/svg%3E"); }
   .status-msg.ok { display: block; color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, var(--sheet)); }
 
   /* ── Generar tareas ──────────────────────── */
@@ -170,7 +175,7 @@
   .output-table-wrap { overflow-x: auto; padding: 6px 0 10px; }
   table { width: 100%; border-collapse: collapse; }
   thead { display: none; }
-  td { font-family: var(--mono); font-size: 13px; padding: 7px 18px; line-height: 1.45; color: var(--ink); }
+  td { font-family: var(--font); font-variant-numeric: tabular-nums; font-size: 13px; padding: 7px 18px; line-height: 1.45; color: var(--ink); }
   tr.pbi-row td { font-family: var(--font); font-weight: 700; font-size: 14px; padding-top: 16px; border-top: 1px solid var(--rule); }
   tr.pbi-row:first-child td { border-top: 0; padding-top: 10px; }
   tr.task-row td { padding-left: 34px; color: var(--ink-2); }
@@ -180,7 +185,7 @@
   .sol-page { padding: 44px 32px 88px; }
   .sol-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
   .sol-stat { background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--bcr); border-radius: var(--r-ctl); padding: 8px 14px; min-width: 110px; font-size: 13px; color: var(--ink-2); }
-  .sol-stat b { display: block; font-family: var(--mono); font-size: 20px; color: var(--ink); }
+  .sol-stat b { display: block; font-variant-numeric: tabular-nums; font-size: 20px; color: var(--ink); }
   .sol-stat.is-open { border-left-color: var(--bad); }
   .sol-stat.is-done { border-left-color: var(--ok); }
   .sol-stat.is-late { border-left-color: var(--mark); }
@@ -203,7 +208,7 @@
   .sol-table input:hover, .sol-table textarea:hover { border-color: var(--rule-2); }
   .sol-table input:focus, .sol-table textarea:focus { border-color: var(--bcr); background: var(--sheet); box-shadow: none; outline: none; }
   .sol-table textarea { resize: vertical; min-height: 32px; }
-  .sol-table input[type=number] { text-align: center; font-family: var(--mono); min-width: 68px; }
+  .sol-table input[type=number] { text-align: center; font-variant-numeric: tabular-nums; min-width: 68px; }
   .sol-table input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--bcr); cursor: pointer; }
   .sol-table textarea.sol-name { font-weight: 600; resize: none; min-height: 0; field-sizing: content; }
   .sol-table textarea { field-sizing: content; }
@@ -254,14 +259,14 @@
   .hrs-day-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 14px; background: var(--sheet-2); border-bottom: 1px solid var(--rule); }
   .hrs-day-head h3 { font-size: 14px; margin: 0; }
   .hrs-hol { font-size: 12px; font-weight: 600; color: var(--ink-2); margin-left: 6px; }
-  .hrs-day-tot { font-family: var(--mono); font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .hrs-day-tot { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; white-space: nowrap; }
   .hrs-day-tot.off { color: color-mix(in srgb, var(--bad) 80%, var(--ink)); }
   .hrs-line { display: grid; grid-template-columns: 120px minmax(180px, 1fr) 210px 84px 104px 36px; grid-template-areas: "soli tarea tipo horas fact del" "mod mod mod mod mod mod"; gap: 2px 6px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--rule); }
   .hrs-f { display: block; min-width: 0; }
   .hrs-f > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .hrs-soli { grid-area: soli; } .hrs-tarea { grid-area: tarea; } .hrs-tipo { grid-area: tipo; } .hrs-horas { grid-area: horas; } .hrs-fact { grid-area: fact; }
   .hrs-line input, .hrs-line select { width: 100%; padding: 6px 8px; font-size: 13px; }
-  .hrs-line input[type=number] { text-align: right; font-family: var(--mono); }
+  .hrs-line input[type=number] { text-align: right; font-variant-numeric: tabular-nums; }
   .hrs-line input:disabled { opacity: .5; }
   .hrs-line .bad { border-color: var(--bad); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bad) 25%, transparent); }
   .hrs-line .sol-del { grid-area: del; }
@@ -307,7 +312,7 @@
   .dt-count { font-size: 12px; opacity: 0.8; }
   .roll-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 14px; font-size: 15px; margin-bottom: 20px; }
   .roll-btn.d2 { background: var(--bcr); }
-  .dice-icon { font-size: 18px; }
+  .dice-icon { width: 18px; height: 18px; flex: none; }
   .daily-columns { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
   .list-container, .done-list { overflow: hidden; }
   .dly-save { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 14px; }
@@ -446,7 +451,8 @@
   /* ── Avisos, login y diálogo ─────────────── */
   .data-banner { display: none; align-items: center; gap: 14px; background: color-mix(in srgb, var(--mark) 30%, var(--sheet)); border-bottom: 1px solid color-mix(in srgb, var(--mark) 70%, var(--rule)); color: var(--ink); padding: 10px 20px; flex-wrap: wrap; position: relative; z-index: 60; }
   .data-banner.visible { display: flex; }
-  .data-banner-text { font-size: 14px; flex: 1; min-width: 220px; }
+  .data-banner-text { font-size: 14px; flex: 1; min-width: 220px; position: relative; padding-left: 26px; }
+  .data-banner-text::before { left: 0; top: 2px; }
   .data-banner-btn { background: var(--ink); color: var(--paper); border: 0; border-radius: var(--r-ctl); font-weight: 700; font-size: 13px; padding: 7px 14px; }
   .data-banner-dismiss { background: transparent; border: 0; color: var(--ink-2); font-size: 16px; padding: 2px 6px; }
   body.auth-locked .layout, body.auth-locked .mobile-topbar, body.auth-locked .data-banner { display: none !important; }
@@ -823,7 +829,7 @@
         </button>
       </div>
       <button class="roll-btn d1" id="rollBtn" onclick="roll()">
-        <span class="dice-icon" id="diceIcon">🎲</span>
+        <svg class="dice-icon" id="diceIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/></svg>
         <span id="rollLabel">Sortear el orden del Daily 1</span>
       </button>
       <div class="daily-columns">
@@ -1184,7 +1190,7 @@
 <script>
 /* ============ DATA MODEL (Supabase; localStorage solo como copia de respaldo) ============ */
 const CACHE_KEY='qaBcrSuiteCache_v3';
-const PALETTE=['#4f8ef7','#60a5fa','#f7c948','#818cf8','#4ade80','#fbbf24','#f87171','#00d4ff','#7c3aed','#00c9a7'];
+const PALETTE=['#0a4fa3','#17805a','#c98a0b','#3b8fd4','#6b8e23','#c2563b','#0f8a80','#4a5d7a','#9b3550','#e0b400'];
 const DAILY_KEYS=['daily1','daily2'];
 
 // Forma que usa toda la app (la misma que devuelve get_app_config()).
@@ -1267,8 +1273,8 @@ async function loadConfig(){
 
 async function retryLoadConfig(){
   showNotice('Cargando datos desde Supabase…');
-  try{await loadConfig();setBackupStatus('✓ Datos recargados desde Supabase.');}
-  catch(e){console.error(e);showNotice('⚠ No se pudieron cargar los datos de Supabase'+errorDetail(e)+'.',true);}
+  try{await loadConfig();setBackupStatus('Datos recargados desde Supabase.');}
+  catch(e){console.error(e);showNotice('No se pudieron cargar los datos de Supabase'+errorDetail(e)+'.',true);}
 }
 
 function showNotice(text,retry){
@@ -1298,7 +1304,7 @@ async function persist(action){
   try{await action();}
   catch(e){console.error(e);ok=false;alert('⚠ '+writeErrorMessage(e));}
   try{await loadConfig();}
-  catch(e){console.error(e);showNotice('⚠ El cambio se envió, pero no se pudieron recargar los datos'+errorDetail(e)+'.',true);}
+  catch(e){console.error(e);showNotice('El cambio se envió, pero no se pudieron recargar los datos'+errorDetail(e)+'.',true);}
   finally{saving=false;document.body.classList.remove('saving');}
   return ok;
 }
@@ -1365,7 +1371,7 @@ async function generate(){
     if(tasks&&tasks.length){const fn=(n)=>tasks.map(t=>t.split('{n}').join(n));renderTable(pbis,fn);}
     else throw new Error('Este proyecto no tiene plantilla de tareas'+(variantKey?` para la variante "${variantKey}"`:'')+'. Agregala en Administración → Proyectos y tareas.');
     os.classList.add('visible');os.scrollIntoView({behavior:'smooth',block:'start'});
-  }catch(err){sm.className='status-msg error';sm.textContent='⚠ '+err.message;}
+  }catch(err){sm.className='status-msg error';sm.textContent=err.message;}
   finally{btn.disabled=false;lb.classList.remove('active');checkReady();}
 }
 function addRow(tbody,cls,text){const tr=document.createElement('tr'),td=document.createElement('td');tr.className=cls;td.textContent=String(text);tr.appendChild(td);tbody.appendChild(tr);}
@@ -1513,7 +1519,7 @@ async function saveDailyRun(){
   const dk=`daily${activeDaily}`,grupo=REFS.groups?.[dk],st=document.getElementById('dly-save-status'),btn=document.getElementById('dly-save-btn');
   const items=[...document.querySelectorAll('#listBody .participant-item')];
   if(!items.length)return;
-  if(!grupo){st.className='status-msg error';st.textContent='⚠ No se pudo guardar: falta la configuración del daily. Recargá la página.';return;}
+  if(!grupo){st.className='status-msg error';st.textContent='No se pudo guardar: falta la configuración del daily. Recargá la página.';return;}
   const fecha=calcToISO(new Date());
   btn.disabled=true;st.className='status-msg info';st.textContent='Guardando…';
   // Si ya se guardó hoy, se pregunta antes de reemplazar.
@@ -1524,10 +1530,10 @@ async function saveDailyRun(){
   const miembros=items.map((el,i)=>({daily_member_id:REFS.members[memberKey(dk,el.dataset.name)]||null,name:el.dataset.name,position:i+1,completed:el.classList.contains('done'),absent:el.classList.contains('absent')}));
   const {error}=await supabaseClient.rpc('daily_guardar',{p_grupo:grupo,p_fecha:fecha,p_miembros:miembros});
   btn.disabled=false;
-  if(error){st.className='status-msg error';st.textContent='⚠ No se pudo guardar'+errorDetail(error)+'.';return;}
+  if(error){st.className='status-msg error';st.textContent='No se pudo guardar'+errorDetail(error)+'.';return;}
   const absent=miembros.filter(m=>m.absent).length;
   const verb=n=>n===1?'asistió':'asistieron',came=miembros.length-absent;
-  st.className='status-msg ok';st.textContent=`✓ Guardado el Daily ${activeDaily} de hoy: ${came} ${verb(came)}`+(absent?`, ${absent} no ${verb(absent)}.`:'.');
+  st.className='status-msg ok';st.textContent=`Guardado el Daily ${activeDaily} de hoy: ${came} ${verb(came)}`+(absent?`, ${absent} no ${verb(absent)}.`:'.');
   dlyMonth=null;
   loadDailyHistory();
 }
@@ -1542,7 +1548,7 @@ async function loadDailyHistory(){
   if(!grupo||!supabaseClient){box.replaceChildren();return;}
   const {data,error}=await supabaseClient.rpc('daily_historial',{p_grupo:grupo,desde:calcToISO(a),hasta:calcToISO(b)});
   if(seq!==dlySeq)return;
-  if(error){st.className='status-msg error';st.textContent='⚠ No se pudo cargar el historial'+errorDetail(error)+'.';box.replaceChildren();return;}
+  if(error){st.className='status-msg error';st.textContent='No se pudo cargar el historial'+errorDetail(error)+'.';box.replaceChildren();return;}
   st.className='status-msg';st.textContent='';
   const rows=data||[];
   if(!rows.length){box.innerHTML='<div class="sol-empty">No hay dailies guardados este mes. Al terminar el daily, tocá <strong>Guardar daily de hoy</strong>.</div>';return;}
@@ -1754,7 +1760,7 @@ function exportData(){
   const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download='qa-bcr-suite-config.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-  setBackupStatus('✓ Configuración exportada como qa-bcr-suite-config.json');
+  setBackupStatus('Configuración exportada como qa-bcr-suite-config.json');
 }
 
 /* ============ SOLICITUDES (solo QA Lead y Admin; el RLS lo hace cumplir) ============ */
@@ -1768,7 +1774,7 @@ async function loadSolicitudes(){
     supabaseClient.from('solicitudes').select('*').order('id'),
     supabaseClient.from('profiles').select('id,full_name')
   ]);
-  if(error){setSolStatus('error','⚠ No se pudieron cargar las solicitudes'+errorDetail(error)+'.');return;}
+  if(error){setSolStatus('error','No se pudieron cargar las solicitudes'+errorDetail(error)+'.');return;}
   if(!people.error)SOL_NAMES=new Map((people.data||[]).map(p=>[p.id,p.full_name]));
   SOL=data||[];setSolStatus('');renderSolicitudes();
   solSubscribe();
@@ -1830,7 +1836,7 @@ async function reloadSolicitudes(){
   const btn=document.getElementById('sol-reload');btn.disabled=true;
   const done=await loadSolicitudes();
   btn.disabled=false;
-  if(done)setSolStatus('ok','✓ Lista actualizada a las '+new Date().toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit'})+'.');
+  if(done)setSolStatus('ok','Lista actualizada a las '+new Date().toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit'})+'.');
 }
 // Días desde la fecha de cierre (positivo = ya pasó), o null sin fecha.
 function solDaysSince(date){
@@ -1989,7 +1995,7 @@ async function addSolicitud(event){
   document.getElementById('sol-search').value='';
   if(document.getElementById('sol-filter').value==='done')document.getElementById('sol-filter').value='open';
   await loadSolicitudes();
-  setSolStatus('ok','✓ Solicitud agregada.');
+  setSolStatus('ok','Solicitud agregada.');
 }
 async function deleteSolicitud(id){
   const r=SOL.find(x=>x.id===id);if(!r)return;
@@ -2060,7 +2066,7 @@ async function loadMyHours(){
   const {data,error}=await supabaseClient.from('horas').select('*').eq('user_id',hrsUser)
     .gte('fecha',calcToISO(from)).lte('fecha',calcToISO(to)).order('fecha').order('id');
   if(seq!==hrsSeq)return false;   // ya se pidió otra semana
-  if(error){HRS=[];renderMyHours();setHrsStatus('error','⚠ No se pudieron cargar las horas'+errorDetail(error)+'.');return false;}
+  if(error){HRS=[];renderMyHours();setHrsStatus('error','No se pudieron cargar las horas'+errorDetail(error)+'.');return false;}
   HRS=data||[];renderMyHours();
   return true;
 }
@@ -2136,6 +2142,9 @@ function hrsSyncLine(row){
   const r=row._r,fact=row.querySelector('[data-f=facturable]');
   fact.disabled=r.tipo!=='TRABAJO';
   fact.title=fact.disabled?'Solo el trabajo se factura':'';
+  // Vacaciones, feriado o licencia no llevan Soli ni tarea: no se muestran los ejemplos.
+  row.querySelector('[data-f=soli]').placeholder=fact.disabled?'Sin Soli':'Ej: P3_141';
+  row.querySelector('[data-f=tarea]').placeholder=fact.disabled?'No lleva tarea':'Ej: Ejecución 2317552';
   const mod=row.querySelector('.hrs-edited');
   // Si un lead corrigió la línea de otra persona, queda a la vista.
   if(r.id!=null&&r.updated_by&&r.updated_by!==r.user_id){
@@ -2148,7 +2157,7 @@ function hrsSaveLine(row){
   row.querySelectorAll('.bad').forEach(el=>el.classList.remove('bad'));
   const tipo=get('tipo').value,hv=get('horas').value.trim(),fv=get('facturable').value.trim();
   const horas=hv===''?null:hrsNum(hv),facturable=tipo==='TRABAJO'?(fv===''?0:hrsNum(fv)):0;
-  const bad=(f,msg)=>{get(f).classList.add('bad');setHrsStatus('error','⚠ '+msg);};
+  const bad=(f,msg)=>{get(f).classList.add('bad');setHrsStatus('error',msg);};
   if(horas===null){if(r.id!=null)bad('horas','Las horas no pueden quedar vacías. Para quitar la línea usá ✕.');return;}
   if(!(horas>0&&horas<=24))return bad('horas','Las horas de una línea van de 0.25 a 24.');
   if(!(facturable>=0)||facturable>horas)return bad('facturable','Las horas facturables no pueden ser más que las trabajadas.');
@@ -2240,7 +2249,7 @@ async function loadHrsReport(){
   const canAdjust=lead&&!adj.error&&hrsMode==='week';
   const box=document.getElementById('hrs-report-tables');box.replaceChildren();hrsReport=[];
   const err=res.find(r=>r.error);
-  if(err){setHrsStatus('error','⚠ No se pudo cargar el consolidado'+errorDetail(err.error)+'.');return false;}
+  if(err){setHrsStatus('error','No se pudo cargar el consolidado'+errorDetail(err.error)+'.');return false;}
   setHrsStatus('');
   document.getElementById('hrs-report-note').textContent=!lead
     ?'En amarillo: el total no llega o se pasa de la capacidad.'
@@ -2313,8 +2322,8 @@ async function hrsAdjustWrite(run){
   btn.disabled=true;st.className='status-msg info';st.textContent='Guardando…';
   const {data,error}=await run();
   btn.disabled=false;
-  if(error?.code==='23505'){st.className='status-msg error';st.textContent='⚠ Otra persona ajustó este número recién. Cerrá y volvé a abrirlo.';loadHrsReport();return;}
-  if(error||!data?.length){st.className='status-msg error';st.textContent='⚠ '+(error?writeErrorMessage(error):'No tenés permiso para este cambio.');return;}
+  if(error?.code==='23505'){st.className='status-msg error';st.textContent='Otra persona ajustó este número recién. Cerrá y volvé a abrirlo.';loadHrsReport();return;}
+  if(error||!data?.length){st.className='status-msg error';st.textContent=(error?writeErrorMessage(error):'No tenés permiso para este cambio.');return;}
   document.getElementById('adj-dialog').close();
   loadHrsReport();
 }
@@ -2347,7 +2356,7 @@ async function hrsTogglePicker(open){
   const list=document.getElementById('hrs-picker-list');
   list.textContent='Cargando…';
   const {data,error}=await supabaseClient.from('profiles').select('id,full_name,active,en_informe').order('full_name');
-  if(error){list.textContent='';setHrsStatus('error','⚠ No se pudo cargar la lista de personas'+errorDetail(error)+'.');return;}
+  if(error){list.textContent='';setHrsStatus('error','No se pudo cargar la lista de personas'+errorDetail(error)+'.');return;}
   list.replaceChildren(...(data||[]).map(p=>{
     const label=document.createElement('label'),cb=document.createElement('input');
     cb.type='checkbox';cb.checked=p.en_informe!==false;
@@ -2363,7 +2372,7 @@ async function hrsSetEnInforme(id,cb){
   cb.disabled=false;
   if(error||!data?.length){
     cb.checked=!cb.checked;
-    setHrsStatus('error','⚠ No se pudo guardar'+(error?errorDetail(error):': solo un ADMIN puede elegir quién sale en el informe')+'.');
+    setHrsStatus('error','No se pudo guardar'+(error?errorDetail(error):': solo un ADMIN puede elegir quién sale en el informe')+'.');
     return;
   }
   setHrsStatus('');
@@ -2536,7 +2545,7 @@ async function enterWithSession(){
     // Sin conexión: se muestra la última copia de este usuario, solo para consultar.
     DB=mergeDeep(clone(EMPTY_DB),cache.db);REFS={groups:{},members:{},projects:{},variants:{}};
     renderData();
-    showNotice(`⚠ Sin conexión con Supabase: se muestran los datos guardados el ${new Date(cache.savedAt).toLocaleString()}. Los cambios no se guardarán.`,true);
+    showNotice(`Sin conexión con Supabase: se muestran los datos guardados el ${new Date(cache.savedAt).toLocaleString()}. Los cambios no se guardarán.`,true);
   }
   showApp();
   // Primer ingreso con la contraseña temporal: hay que cambiarla antes de usar la app.
@@ -2629,10 +2638,10 @@ async function sendFeedback(e){
   const {error}=await supabaseClient.from('feedback').insert({mensaje:text});
   if(error){
     btn.disabled=false;st.className='status-msg error';
-    st.textContent='⚠ '+(error.code==='54000'?'Llegaste al máximo de 20 mensajes por día. Probá mañana.':'No se pudo enviar'+errorDetail(error)+'.');
+    st.textContent=(error.code==='54000'?'Llegaste al máximo de 20 mensajes por día. Probá mañana.':'No se pudo enviar'+errorDetail(error)+'.');
     return;
   }
-  st.className='status-msg ok';st.textContent='✓ ¡Gracias! Lo recibieron los ADMIN.';
+  st.className='status-msg ok';st.textContent='¡Gracias! Lo recibieron los ADMIN.';
   document.getElementById('fb-text').value='';
   if(isAdmin())refreshFeedbackBadge();
   setTimeout(()=>document.getElementById('fb-dialog').close(),1400);
@@ -2649,7 +2658,7 @@ async function loadFeedbackAdmin(){
   if(!isAdmin()){box.innerHTML='';return;}
   box.innerHTML='<div class="crud-empty">Cargando…</div>';
   const {data,error}=await supabaseClient.from('feedback').select('id,autor,mensaje,leido,created_at').order('created_at',{ascending:false}).limit(500);
-  if(error){box.innerHTML='<div class="crud-empty">⚠ No se pudo cargar el feedback.</div>';return;}
+  if(error){box.innerHTML='<div class="crud-empty">No se pudo cargar el feedback.</div>';return;}
   FEEDBACK=data||[];
   renderFeedbackAdmin();
 }
@@ -2673,7 +2682,7 @@ async function feedbackWrite(run,btn){
   btn.disabled=true;
   const {data,error}=await run();
   btn.disabled=false;
-  if(error||!data?.length){st.className='status-msg error';st.textContent='⚠ '+(error?writeErrorMessage(error):'No tenés permiso para este cambio.');await loadFeedbackAdmin();return;}
+  if(error||!data?.length){st.className='status-msg error';st.textContent=(error?writeErrorMessage(error):'No tenés permiso para este cambio.');await loadFeedbackAdmin();return;}
   st.className='status-msg';st.textContent='';
   await loadFeedbackAdmin();
 }
@@ -2693,7 +2702,7 @@ async function renderUsersAdmin(){
     supabaseClient.from('profiles').select('id,full_name,email,role,active').order('full_name'),
     supabaseClient.rpc('admin_user_access')
   ]);
-  if(error){box.innerHTML='<div class="crud-empty">⚠ No se pudieron cargar los usuarios.</div>';return;}
+  if(error){box.innerHTML='<div class="crud-empty">No se pudieron cargar los usuarios.</div>';return;}
   USERS=data;
   // Si falta la migración de accesos, la lista se muestra igual, sin el estado.
   const acc=new Map((access.error?[]:access.data||[]).map(a=>[a.id,a]));
@@ -2734,11 +2743,11 @@ async function updateUser(id,changes,input){
   if(error||!data||!data.length){
     // Supabase rechazó el cambio: se vuelve a mostrar lo que hay en la base.
     st.className='status-msg error';
-    st.textContent='⚠ No se pudo guardar.'+(error?' '+error.message:' No tenés permiso para este cambio.');
+    st.textContent='No se pudo guardar.'+(error?' '+error.message:' No tenés permiso para este cambio.');
     await renderUsersAdmin();
     return;
   }
-  st.className='status-msg ok';st.textContent='✓ Guardado';
+  st.className='status-msg ok';st.textContent='Guardado';
   return true;
 }
 
@@ -2803,7 +2812,7 @@ async function functionErrorMessage(error){
 async function createUser(event){
   event.preventDefault();
   const st=document.getElementById('user-create-status'),btn=document.getElementById('nu-submit');
-  if(!isAdmin()){st.className='status-msg error';st.textContent='⚠ Solo un ADMIN puede crear usuarios.';return;}
+  if(!isAdmin()){st.className='status-msg error';st.textContent='Solo un ADMIN puede crear usuarios.';return;}
   const body={
     full_name:document.getElementById('nu-name').value.trim(),
     email:document.getElementById('nu-email').value.trim(),
@@ -2814,11 +2823,11 @@ async function createUser(event){
   st.className='status-msg info';st.textContent='Creando usuario…';btn.disabled=true;
   const {data,error}=await supabaseClient.functions.invoke('admin-create-user',{body});
   btn.disabled=false;
-  if(error){st.className='status-msg error';st.textContent='⚠ '+await functionErrorMessage(error);return;}
+  if(error){st.className='status-msg error';st.textContent=await functionErrorMessage(error);return;}
   document.getElementById('user-create-form').reset();
   setPasswordVisible(false);
   st.className='status-msg ok';
-  st.textContent=`✓ Usuario creado: ${data.email} (${ROLE_LABELS[data.role]||data.role}). Copiá el mensaje de abajo y compartilo por un canal privado; la contraseña no se vuelve a mostrar.`;
+  st.textContent=`Usuario creado: ${data.email} (${ROLE_LABELS[data.role]||data.role}). Copiá el mensaje de abajo y compartilo por un canal privado; la contraseña no se vuelve a mostrar.`;
   showInvite({name:body.full_name,email:data.email,role:ROLE_LABELS[data.role]||data.role,password:body.password});
   await renderUsersAdmin();
 }
@@ -2832,8 +2841,8 @@ async function deleteUser(id,btn){
   st.className='status-msg info';st.textContent='Eliminando…';btn.disabled=true;
   const {error}=await supabaseClient.functions.invoke('admin-create-user',{body:{action:'delete_user',id}});
   btn.disabled=false;
-  if(error){st.className='status-msg error';st.textContent='⚠ '+await functionErrorMessage(error);return;}
-  st.className='status-msg ok';st.textContent=`✓ ${u.full_name} fue eliminado.`;
+  if(error){st.className='status-msg error';st.textContent=await functionErrorMessage(error);return;}
+  st.className='status-msg ok';st.textContent=`${u.full_name} fue eliminado.`;
   hrsPeople=null;
   await renderUsersAdmin();
 }
@@ -2845,9 +2854,9 @@ async function resetUserPassword(id,btn){
   st.className='status-msg info';st.textContent='Generando contraseña…';btn.disabled=true;
   const {error}=await supabaseClient.functions.invoke('admin-create-user',{body:{action:'reset_password',id,password}});
   btn.disabled=false;
-  if(error){st.className='status-msg error';st.textContent='⚠ '+await functionErrorMessage(error);st.scrollIntoView({block:'nearest'});return;}
+  if(error){st.className='status-msg error';st.textContent=await functionErrorMessage(error);st.scrollIntoView({block:'nearest'});return;}
   st.className='status-msg ok';
-  st.textContent=`✓ Contraseña temporal nueva para ${u.email}. Copiá el mensaje y compartilo por un canal privado; no se vuelve a mostrar.`;
+  st.textContent=`Contraseña temporal nueva para ${u.email}. Copiá el mensaje y compartilo por un canal privado; no se vuelve a mostrar.`;
   showInvite({name:u.full_name,email:u.email,role:ROLE_LABELS[u.role]||u.role,password,reset:true});
   st.scrollIntoView({block:'nearest'});
   await renderUsersAdmin();
@@ -2922,7 +2931,7 @@ async function changePassword(event){
     st.textContent=error.code==='same_password'?'La contraseña nueva debe ser distinta de la actual.':error.code==='weak_password'?'La contraseña es demasiado débil.':'No se pudo cambiar: '+error.message;
     return;
   }
-  st.className='status-msg ok';st.textContent='✓ Contraseña actualizada.';
+  st.className='status-msg ok';st.textContent='Contraseña actualizada.';
   if(currentUser)currentUser.must_change_password=false;
   const d=document.getElementById('pw-dialog');d.dataset.forced='';
   setTimeout(()=>d.close(),1200);
