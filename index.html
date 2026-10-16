@@ -245,7 +245,7 @@
   .hrs-tab[aria-selected=true] { background: var(--bcr); color: var(--bcr-ink); }
   .hrs-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
   .hrs-period { font-weight: 700; font-size: 15px; padding: 0 6px; }
-  .hrs-bar .hrs-spacer { flex: 1; }
+  .hrs-bar .hrs-spacer, .pw-dialog-actions .hrs-spacer { flex: 1; }
   .hrs-person { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
   .hrs-days { display: grid; gap: 12px; }
   .hrs-day { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); overflow: hidden; }
@@ -280,6 +280,13 @@
   .hrs-table td.off { background: color-mix(in srgb, var(--mark) 30%, var(--sheet)); }
   .hrs-who { background: none; border: 0; padding: 0; font: inherit; color: var(--bcr); text-decoration: underline; text-align: left; cursor: pointer; }
   .hrs-note { font-size: 13px; color: var(--ink-2); margin: -6px 0 14px; }
+  .hrs-table td.adj { box-shadow: inset 3px 0 0 var(--bcr); font-weight: 700; }
+  .hrs-adj-btn { background: none; border: 0; padding: 2px 4px; margin: -2px -4px; font: inherit; color: inherit; cursor: pointer; border-radius: 4px; text-decoration: underline dotted; text-underline-offset: 3px; }
+  .hrs-adj-btn:hover { background: var(--sheet-2); color: var(--bcr); }
+  .adj-what { font-weight: 600; margin: 0; }
+  .adj-raw, .adj-hint { font-size: 13px; color: var(--ink-2); margin: 0; }
+  .adj-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; }
+  .adj-field .crud-input { font-weight: 400; }
   .hrs-picker { border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 14px 16px 10px; margin: 0 0 18px; background: var(--sheet); }
   .hrs-picker legend { font-weight: 600; padding: 0 6px; }
   .hrs-picker .hrs-note { margin: 0 0 10px; }
@@ -592,6 +599,28 @@
       <button type="button" class="btn-secondary" id="pw-cancel" onclick="document.getElementById('pw-dialog').close()">Cancelar</button>
       <button type="button" class="btn-secondary" id="pw-logout" hidden onclick="closeForcedAndLogout()">Cerrar sesión</button>
       <button type="submit" class="crud-btn-add" id="pw-submit">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="pw-dialog" id="adj-dialog" aria-labelledby="adj-title">
+  <form onsubmit="hrsSaveAdjust(event)">
+    <div class="admin-card-title" id="adj-title">Ajustar consolidado</div>
+    <p class="adj-what" id="adj-what"></p>
+    <p class="adj-raw" id="adj-raw"></p>
+    <label class="adj-field">Número final (h)
+      <input class="crud-input" id="adj-value" type="number" min="0" max="500" step="0.25" required inputmode="decimal">
+    </label>
+    <label class="adj-field">Motivo
+      <input class="crud-input" id="adj-motivo" type="text" maxlength="200" required placeholder="Ej: Azure dice 8 pero se cobran 7">
+    </label>
+    <p class="adj-hint">Las líneas del QA no cambian. Los QA ven solo el número final.</p>
+    <div class="status-msg" id="adj-status" role="status"></div>
+    <div class="pw-dialog-actions">
+      <button type="button" class="btn-secondary" id="adj-remove" onclick="hrsRemoveAdjust()">Quitar ajuste</button>
+      <span class="hrs-spacer"></span>
+      <button type="button" class="btn-secondary" onclick="document.getElementById('adj-dialog').close()">Cancelar</button>
+      <button type="submit" class="crud-btn-add" id="adj-save">Guardar</button>
     </div>
   </form>
 </dialog>
@@ -1820,7 +1849,7 @@ const HRS_TIPOS=[['TRABAJO','Trabajo'],['FERIADO','Feriado'],['LICENCIA','Licenc
 const HRS_DAY_CAP=8;
 const HRS_DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes'];
 const HRS_MONTHS=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-let HRS=[],hrsWeek=null,hrsUser=null,hrsPeople=null,hrsTab='mine',hrsMode='week',hrsRef=null,hrsSeq=0,hrsReport=[];
+let HRS=[],hrsWeek=null,hrsUser=null,hrsPeople=null,hrsTab='mine',hrsMode='week',hrsRef=null,hrsSeq=0,hrsReport=[],hrsAdj=[],hrsAdjCtx=null;
 function setHrsStatus(kind,text){const st=document.getElementById('hrs-status');st.className=kind?'status-msg '+kind:'status-msg';st.textContent=text||'';}
 function hrsMonday(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-(x.getDay()+6)%7);return x;}
 function hrsAddDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
@@ -2038,15 +2067,24 @@ async function loadHrsReport(){
   const first=ranges[0][0],last=ranges[ranges.length-1][1];
   document.getElementById('hrs-report-label').textContent=hrsMode==='month'?hrsCaption(first,last):'Semana del '+hrsRangeLabel(first,last);
   await hrsLoadPeople();
-  const res=await Promise.all(ranges.map(([a,b])=>supabaseClient.rpc('horas_resumen',{desde:calcToISO(a),hasta:calcToISO(b)})));
+  const lead=canManageConfig();
+  const [res,adj]=await Promise.all([
+    Promise.all(ranges.map(([a,b])=>supabaseClient.rpc('horas_resumen',{desde:calcToISO(a),hasta:calcToISO(b)}))),
+    // El detalle de los ajustes solo lo leen QA_LEAD y ADMIN. Sin la migración de ajustes, el consolidado se ve igual pero no se puede ajustar.
+    lead?supabaseClient.from('horas_ajustes').select('*').gte('fecha',calcToISO(first)).lte('fecha',calcToISO(last)):Promise.resolve({data:[]})
+  ]);
   if(seq!==hrsSeq)return false;
+  hrsAdj=adj.error?[]:adj.data||[];
+  const canAdjust=lead&&!adj.error&&hrsMode==='week';
   const box=document.getElementById('hrs-report-tables');box.replaceChildren();hrsReport=[];
   const err=res.find(r=>r.error);
   if(err){setHrsStatus('error','⚠ No se pudo cargar el consolidado'+errorDetail(err.error)+'.');return false;}
   setHrsStatus('');
-  document.getElementById('hrs-report-note').textContent=canManageConfig()
-    ?'Tocá un nombre para ver y corregir sus líneas. En amarillo: el total no llega o se pasa de la capacidad.'
-    :'En amarillo: el total no llega o se pasa de la capacidad.';
+  document.getElementById('hrs-report-note').textContent=!lead
+    ?'En amarillo: el total no llega o se pasa de la capacidad.'
+    :canAdjust
+      ?'Tocá un nombre para ver y corregir sus líneas, o un número para ajustarlo. Con raya azul: número ajustado. En amarillo: el total no llega o se pasa de la capacidad.'
+      :'Tocá un nombre para ver y corregir sus líneas. Con raya azul: incluye ajustes de alguna semana (se ajusta en la vista Semana). En amarillo: el total no llega o se pasa de la capacidad.';
   ranges.forEach(([a,b],i)=>{
     const cap=hrsWorkdays(a,b)*HRS_DAY_CAP,caption=hrsCaption(a,b);
     const rows=(res[i].data||[]).map(r=>({...r,cap}));
@@ -2063,8 +2101,24 @@ async function loadHrsReport(){
         btn.addEventListener('click',()=>{hrsUser=r.user_id;hrsWeek=hrsMonday(a);hrsShowTab('mine');});
         name.appendChild(btn);
       }else name.textContent=r.full_name;
-      HRS_COLS.forEach(([k])=>{
+      HRS_COLS.forEach(([k,label])=>{
         const td=tr.insertCell();td.textContent=hrsFmt(r[k]);
+        if(HRS_ADJ_COLS.includes(k)&&lead){
+          const list=hrsAdj.filter(x=>x.user_id===r.user_id&&x.columna===k&&x.fecha>=calcToISO(a)&&x.fecha<=calcToISO(b));
+          const delta=hrsNum(list.reduce((s,x)=>s+(+x.delta||0),0));
+          if(list.length){
+            td.classList.add('adj');
+            td.title=list.length===1&&hrsMode==='week'
+              ?`Ajustado por ${hrsName(list[0].updated_by)||'—'}: ${hrsFmt(r[k]-delta)} → ${hrsFmt(r[k])} · ${list[0].motivo}`
+              :`Incluye ajustes por ${delta>0?'+':''}${hrsFmt(delta)} h (sin ajustes: ${hrsFmt(r[k]-delta)})`;
+          }
+          if(canAdjust){
+            const btn=Object.assign(document.createElement('button'),{type:'button',className:'hrs-adj-btn',textContent:hrsFmt(r[k])});
+            btn.setAttribute('aria-label',`Ajustar ${label} de ${r.full_name}: ${hrsFmt(r[k])}`);
+            btn.addEventListener('click',()=>hrsOpenAdjust({r,k,label,fecha:calcToISO(a),caption,existing:list[0]||null}));
+            td.replaceChildren(btn);
+          }
+        }
         if(k==='total'&&hrsNum(r.total)!==cap){td.classList.add('off');td.title=r.total<cap?'Faltan '+hrsFmt(cap-r.total)+' h':'Sobran '+hrsFmt(r.total-cap)+' h';}
       });
     });
@@ -2076,6 +2130,52 @@ async function loadHrsReport(){
   });
   return true;
 }
+// QA_LEAD y ADMIN ajustan un número de la semana: se guarda la diferencia con lo calculado
+// de las líneas (horas_ajustes), así las líneas del QA no cambian y el mes suma los ajustes.
+const HRS_ADJ_COLS=['feriado','facturable','no_facturable','licencia','vacaciones'];
+function hrsOpenAdjust(ctx){
+  hrsAdjCtx={...ctx,raw:hrsNum(ctx.r[ctx.k]-(ctx.existing?+ctx.existing.delta:0))};
+  const d=document.getElementById('adj-dialog');
+  d.querySelector('form').reset();
+  document.getElementById('adj-what').textContent=`${ctx.r.full_name} · ${ctx.label} · ${ctx.caption}`;
+  document.getElementById('adj-raw').textContent=`Calculado de sus líneas: ${hrsFmt(hrsAdjCtx.raw)} h`+(ctx.existing?` · Ajustado por ${hrsName(ctx.existing.updated_by)||'—'}`:'');
+  document.getElementById('adj-value').value=hrsFmt(ctx.r[ctx.k]);
+  document.getElementById('adj-motivo').value=ctx.existing?.motivo||'';
+  document.getElementById('adj-remove').hidden=!ctx.existing;
+  const st=document.getElementById('adj-status');st.className='status-msg';st.textContent='';
+  d.showModal();
+  document.getElementById('adj-value').select();
+}
+async function hrsAdjustWrite(run){
+  const st=document.getElementById('adj-status'),btn=document.getElementById('adj-save');
+  btn.disabled=true;st.className='status-msg info';st.textContent='Guardando...';
+  const {data,error}=await run();
+  btn.disabled=false;
+  if(error?.code==='23505'){st.className='status-msg error';st.textContent='⚠ Otra persona ajustó este número recién. Cerrá y volvé a abrirlo.';loadHrsReport();return;}
+  if(error||!data?.length){st.className='status-msg error';st.textContent='⚠ '+(error?writeErrorMessage(error):'No tenés permiso para este cambio.');return;}
+  document.getElementById('adj-dialog').close();
+  loadHrsReport();
+}
+function hrsSaveAdjust(e){
+  e.preventDefault();
+  const c=hrsAdjCtx;if(!c)return;
+  const value=hrsNum(document.getElementById('adj-value').value),motivo=document.getElementById('adj-motivo').value.trim();
+  const delta=hrsNum(value-c.raw);
+  if(!motivo&&delta!==0){document.getElementById('adj-motivo').focus();return;}
+  if(delta===0){
+    if(c.existing)return hrsRemoveAdjust();
+    document.getElementById('adj-dialog').close();return;
+  }
+  const t=supabaseClient.from('horas_ajustes');
+  hrsAdjustWrite(()=>c.existing
+    ?t.update({delta,motivo}).eq('id',c.existing.id).select('id')
+    :t.insert({user_id:c.r.user_id,fecha:c.fecha,columna:c.k,delta,motivo}).select('id'));
+}
+function hrsRemoveAdjust(){
+  const c=hrsAdjCtx;if(!c?.existing)return;
+  hrsAdjustWrite(()=>supabaseClient.from('horas_ajustes').delete().eq('id',c.existing.id).select('id'));
+}
+
 // ADMIN: elige quién sale en el consolidado (profiles.en_informe).
 async function hrsTogglePicker(open){
   const box=document.getElementById('hrs-picker'),btn=document.getElementById('hrs-pick-btn');

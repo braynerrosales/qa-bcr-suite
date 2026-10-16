@@ -193,6 +193,7 @@ Reemplaza el libro «Horas semanales» (una pestaña por QA) y el informe «Hora
 - **Consolidado:** por semana o por mes, una fila por persona con Feriado, Facturable, No facturable, Licencia, Vacaciones, Total y Capacidad (días hábiles × 8). En amarillo, quien no llega o se pasa. Una semana que cruza de mes se parte en dos tablas, como el Excel. «Copiar para Excel» copia las tablas para pegarlas en una hoja.
 - **Permisos (RLS):** un QA ve y cambia solo sus líneas. QA_LEAD y ADMIN ven y corrigen las de todos (selector «Horas de» o tocando un nombre en el consolidado), y la línea queda marcada «Corregido por…». El consolidado lo ven todos los usuarios activos, pero `horas_resumen()` solo devuelve totales: nunca las tareas de otros.
 - **Personas del informe (solo ADMIN):** en Consolidado, un ADMIN marca quién sale en el informe (`profiles.en_informe`, requiere `20261018000002_horas_informe.sql`). Quien queda fuera puede seguir cargando sus horas; solo deja de salir en el consolidado.
+- **Ajustes al consolidado (QA_LEAD y ADMIN):** en la vista *Semana*, tocar un número (Feriado, Facturable, No facturable, Licencia o Vacaciones) abre una ventana para poner el número final y un motivo. Se guarda la diferencia en `horas_ajustes` (requiere `20261018000003_horas_ajustes.sql`): las líneas del QA no cambian, el Total se recalcula y el mes suma los ajustes de sus semanas (en *Mes* no se ajusta). Leads y ADMIN ven la celda con raya azul y, al pasar el mouse, quién ajustó, de cuánto a cuánto y por qué; los QA ven solo el número final.
 
 ## Daily: «No asistió»
 

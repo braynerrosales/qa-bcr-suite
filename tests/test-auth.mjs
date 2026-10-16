@@ -49,9 +49,10 @@ const solicitudesIniciales = () => [
   { id: 4, nombre: 'Solicitud P2_191 TPSISTAR cerrada', informe_semanal: false, encargados: [], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: false, cierre_enviado: true, cierra: '2026-01-23', observaciones: '', cerrada: true },
 ];
 function resetData(empty = false) {
-  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [], solicitudes: [], horas: [] } : {
+  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [], solicitudes: [], horas: [], horas_ajustes: [] } : {
     solicitudes: solicitudesIniciales(),
     horas: [],
+    horas_ajustes: [],
     daily_groups: [{ id: 1, code: 'daily1', active: true }, { id: 2, code: 'daily2', active: true }],
     daily_members: [
       { id: 1, daily_group_id: 1, name: 'Ana <img src=x onerror=alert(1)>', active: true },
@@ -176,14 +177,38 @@ function horasRequest(req, url, me, json) {
   }
   if (method === 'DELETE') { tables.horas = tables.horas.filter((r) => !visible.includes(r)); return json(200, visible.map((r) => ({ id: r.id }))); }
 }
-// Igual que public.horas_resumen(): totales por persona, para cualquier usuario activo.
+// Igual que public.horas_ajustes (20261018000003_horas_ajustes.sql): solo QA_LEAD y ADMIN.
+function ajustesRequest(req, url, me, json) {
+  const ops = { eq: (a, b) => String(a) === b, gte: (a, b) => String(a) >= b, lte: (a, b) => String(a) <= b };
+  const filters = [...url.searchParams].filter(([k]) => !['select', 'order', 'columns'].includes(k))
+    .map(([k, v]) => { const [op, ...rest] = v.split('.'); return [k, op, rest.join('.')]; });
+  const lead = !!me?.active && isLead(me);
+  const visible = lead ? tables.horas_ajustes.filter((r) => filters.every(([k, op, v]) => ops[op](r[k], v))) : [];
+  const method = req.method();
+  if (method === 'GET') return json(200, visible.map((r) => ({ ...r })));
+  const body = req.postDataJSON();
+  writes.push({ method, name: 'horas_ajustes', body });
+  if (method === 'POST') {
+    if (!lead) return json(403, { code: '42501', message: 'new row violates row-level security policy for table "horas_ajustes"' });
+    if (tables.horas_ajustes.some((r) => r.user_id === body.user_id && r.fecha === body.fecha && r.columna === body.columna)) return json(409, { code: '23505', message: 'duplicate key' });
+    const r = { id: Math.max(0, ...tables.horas_ajustes.map((x) => x.id)) + 1, ...body, updated_by: me.id, updated_at: new Date().toISOString() };
+    tables.horas_ajustes.push(r);
+    return json(201, [{ id: r.id }]);
+  }
+  if (method === 'PATCH') { visible.forEach((r) => Object.assign(r, body, { updated_by: me.id })); return json(200, visible.map((r) => ({ id: r.id }))); }
+  if (method === 'DELETE') { tables.horas_ajustes = tables.horas_ajustes.filter((r) => !visible.includes(r)); return json(200, visible.map((r) => ({ id: r.id }))); }
+}
+// Igual que public.horas_resumen(): totales por persona (con ajustes), para cualquier usuario activo.
 function horasResumen(me, { desde, hasta }) {
   const sum = (rows, f) => Math.round(rows.reduce((s, r) => s + f(r), 0) * 100) / 100;
   return Object.values(users).map((u) => {
     const rs = tables.horas.filter((h) => h.user_id === u.id && h.fecha >= desde && h.fecha <= hasta);
     const t = (tipo) => sum(rs.filter((h) => h.tipo === tipo), (h) => h.horas);
     const w = rs.filter((h) => h.tipo === 'TRABAJO');
-    return { user_id: u.id, full_name: u.full_name, active: u.active, n: rs.length, feriado: t('FERIADO'), facturable: sum(w, (h) => h.facturable), no_facturable: sum(w, (h) => h.horas - h.facturable), licencia: t('LICENCIA'), vacaciones: t('VACACIONES'), total: sum(rs, (h) => h.horas) };
+    const aj = tables.horas_ajustes.filter((x) => x.user_id === u.id && x.fecha >= desde && x.fecha <= hasta);
+    const d = (c) => sum(aj.filter((x) => x.columna === c), (x) => x.delta);
+    const r = { user_id: u.id, full_name: u.full_name, active: u.active, n: rs.length + aj.length, feriado: t('FERIADO') + d('feriado'), facturable: sum(w, (h) => h.facturable) + d('facturable'), no_facturable: sum(w, (h) => h.horas - h.facturable) + d('no_facturable'), licencia: t('LICENCIA') + d('licencia'), vacaciones: t('VACACIONES') + d('vacaciones') };
+    return { ...r, total: Math.round((r.feriado + r.facturable + r.no_facturable + r.licencia + r.vacaciones) * 100) / 100 };
   }).filter((r) => users[Object.keys(users).find((e) => users[e].id === r.user_id)].en_informe !== false && (r.active || r.n)).sort((a, b) => a.full_name.localeCompare(b.full_name))
     .map(({ active, n, ...r }) => r);
 }
@@ -293,6 +318,7 @@ async function setup(context) {
       return json(200, Object.values(users).map((u) => ({ id: u.id, first_sign_in_at: u.first_sign_in_at ?? null, last_sign_in_at: u.last_sign_in_at ?? null, password_changed_at: u.password_changed_at ?? null, must_change_password: !!u.must_change_password })));
     }
     if (url.pathname === '/rest/v1/horas') return horasRequest(req, url, byId(subOf(req))?.[1], json);
+    if (url.pathname === '/rest/v1/horas_ajustes') return ajustesRequest(req, url, byId(subOf(req))?.[1], json);
     if (url.pathname === '/rest/v1/rpc/horas_resumen') {
       const me = byId(subOf(req))?.[1];
       if (!me?.active) return json(403, { code: '42501', message: 'Usuario sin acceso' });
@@ -1232,6 +1258,59 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   assert.equal(q.facturable, 6.5); assert.equal(q.updated_by, ids.lead);
   ok('Horas (Lead): desde el consolidado abre las líneas de un QA, las corrige y queda marcado quién corrigió');
 
+  // Ajuste del consolidado: la línea no cambia, se guarda la diferencia con motivo.
+  await page.click('#hrs-tab-report');
+  const qRow = () => page.locator('#hrs-report-tables tbody tr', { hasText: 'Quique' });
+  const factCell = () => qRow().locator('td').nth(2);
+  await page.waitForSelector('#hrs-report-tables .hrs-adj-btn');
+  const totalBefore = +(await qRow().locator('td').nth(6).textContent());
+  assert.equal(await factCell().textContent(), '6.5');
+  await factCell().locator('.hrs-adj-btn').click();
+  await page.waitForSelector('#adj-dialog[open]');
+  assert.match(await page.textContent('#adj-what'), /Quique QA <b> · Facturable · Semana/);
+  assert.match(await page.textContent('#adj-raw'), /Calculado de sus líneas: 6\.5 h/);
+  assert.equal(await page.isVisible('#adj-remove'), false);
+  await page.fill('#adj-value', '6');
+  await page.click('#adj-save');
+  assert.equal(await page.isVisible('#adj-dialog'), true, 'sin motivo no guarda');
+  await page.fill('#adj-motivo', 'Azure dice 6.5, se cobran 6');
+  await page.click('#adj-save');
+  await page.waitForSelector('#adj-dialog', { state: 'hidden' });
+  await until(page, () => [...document.querySelectorAll('#hrs-report-tables tbody tr')].find((tr) => tr.textContent.includes('Quique'))?.cells[2].textContent === '6');
+  const aj = tables.horas_ajustes[0];
+  assert.deepEqual([aj.user_id, aj.columna, aj.delta, aj.updated_by, new Date(aj.fecha + 'T00:00:00').getDay()], [ids.qa, 'facturable', -0.5, ids.lead, 1]);
+  assert.equal(tables.horas.find((h) => h.user_id === ids.qa).facturable, 6.5, 'la línea del QA no cambia');
+  assert.equal(+(await qRow().locator('td').nth(6).textContent()), totalBefore - 0.5);
+  assert.equal(await factCell().getAttribute('class'), 'adj');
+  assert.match(await factCell().getAttribute('title'), /Ajustado por Laura Lead: 6\.5 → 6 · Azure dice 6\.5, se cobran 6/);
+  await page.screenshot({ path: DIR + 'tests/shot-horas-ajuste.png', fullPage: true });
+
+  await factCell().locator('.hrs-adj-btn').click();
+  await page.waitForSelector('#adj-dialog[open]');
+  assert.equal(await page.inputValue('#adj-motivo'), 'Azure dice 6.5, se cobran 6');
+  assert.equal(await page.isVisible('#adj-remove'), true);
+  await page.fill('#adj-value', '7');
+  await page.click('#adj-save');
+  await until(page, () => [...document.querySelectorAll('#hrs-report-tables tbody tr')].find((tr) => tr.textContent.includes('Quique'))?.cells[2].textContent === '7');
+  assert.equal(tables.horas_ajustes.length, 1); assert.equal(tables.horas_ajustes[0].delta, 0.5);
+  ok('Horas (Lead): ajusta un número del consolidado con motivo; queda marcado y la línea del QA no cambia');
+
+  await page.selectOption('#hrs-mode', 'month');
+  await page.waitForSelector('#hrs-report-tables caption:has-text("Octubre")');
+  assert.equal(await page.locator('#hrs-report-tables .hrs-adj-btn').count(), 0, 'en el mes no se ajusta');
+  assert.equal(await factCell().textContent(), '7');
+  assert.equal(await factCell().getAttribute('class'), 'adj');
+  ok('Horas: el mes suma los ajustes de las semanas y no se ajusta ahí');
+  await page.selectOption('#hrs-mode', 'week');
+  await page.waitForSelector('#hrs-report-tables .hrs-adj-btn');
+  await factCell().locator('.hrs-adj-btn').click();
+  await page.click('#adj-remove');
+  await until(page, () => [...document.querySelectorAll('#hrs-report-tables tbody tr')].find((tr) => tr.textContent.includes('Quique'))?.cells[2].textContent === '6.5');
+  assert.equal(tables.horas_ajustes.length, 0);
+  ok('Horas (Lead): quitar el ajuste vuelve al número calculado');
+  await page.click('#hrs-tab-mine');
+  await page.waitForSelector('#hrs-days .hrs-line');
+
   // Otra semana: no hay líneas; feriado de Costa Rica con botón para cargarlo.
   await page.evaluate(() => { hrsWeek = new Date(2026, 8, 14); return loadMyHours(); });
   const tueHol = page.locator('#hrs-days .hrs-day[data-date="2026-09-15"]');
@@ -1292,8 +1371,16 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   assert.ok(overflow <= 0, 'scroll horizontal en Horas móvil: ' + overflow);
   assert.equal(await page.isVisible('#hrs-days .hrs-line .hrs-f > span'), true, 'en móvil cada campo muestra su etiqueta');
   await page.screenshot({ path: DIR + 'tests/shot-horas-movil.png', fullPage: true });
+  const monday = await page.evaluate(() => calcToISO(hrsMonday(new Date())));
+  tables.horas_ajustes.push({ id: 99, user_id: ids.qa, fecha: monday, columna: 'licencia', delta: 3, motivo: 'secreto del lead', updated_by: ids.lead });
   await page.click('#hrs-tab-report');
   await page.waitForSelector('#hrs-report-tables table');
+  const qaRow = page.locator('#hrs-report-tables tbody tr', { hasText: 'Quique' });
+  assert.equal(await qaRow.locator('td').nth(4).textContent(), '3');
+  assert.equal(await page.locator('#hrs-report-tables td.adj, #hrs-report-tables .hrs-adj-btn').count(), 0);
+  assert.ok(!(await page.content()).includes('secreto del lead'));
+  tables.horas_ajustes = [];
+  ok('Horas (QA): ve el número final ajustado, sin marca ni motivo');
   overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(overflow <= 0, 'scroll horizontal en consolidado móvil: ' + overflow);
   ok('Horas en móvil: líneas en tarjetas con etiquetas; el consolidado se desplaza dentro de su recuadro');
