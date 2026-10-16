@@ -41,8 +41,16 @@ const created = [];           // cuerpos enviados a admin-create-user
 let failConfig = false;      // get_app_config responde 500
 let failNextWrite = null;    // código de error para la próxima escritura
 let tables;
+const isoDay = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('en-CA'); };
+const solicitudesIniciales = () => [
+  { id: 1, nombre: 'Solicitud P3_081 Gobierno <b>Digital</b>', informe_semanal: true, encargados: ['Beto Uno'], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: true, cierre_enviado: false, cierra: isoDay(5), observaciones: '', cerrada: false },
+  { id: 2, nombre: 'Solicitud P3_070 Tucan vencida', informe_semanal: false, encargados: [], horas: 4, pend_plan: false, pend_actualizar: false, plan_enviado: false, cierre_enviado: false, cierra: isoDay(-3), observaciones: 'Entró tarde', cerrada: false },
+  { id: 3, nombre: 'QA_OPC_47 Proyecto Digitalizacion', informe_semanal: false, encargados: [], horas: null, pend_plan: true, pend_actualizar: false, plan_enviado: false, cierre_enviado: false, cierra: null, observaciones: '', cerrada: false },
+  { id: 4, nombre: 'Solicitud P2_191 TPSISTAR cerrada', informe_semanal: false, encargados: [], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: false, cierre_enviado: true, cierra: '2026-01-23', observaciones: '', cerrada: true },
+];
 function resetData(empty = false) {
-  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [] } : {
+  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [], solicitudes: [] } : {
+    solicitudes: solicitudesIniciales(),
     daily_groups: [{ id: 1, code: 'daily1', active: true }, { id: 2, code: 'daily2', active: true }],
     daily_members: [
       { id: 1, daily_group_id: 1, name: 'Ana <img src=x onerror=alert(1)>', active: true },
@@ -92,12 +100,14 @@ const writes = [];
 function tableRequest(req, url, me, json) {
   const name = url.pathname.replace('/rest/v1/', '');
   const rows = tables[name];
-  const filters = [...url.searchParams].filter(([k]) => !['select', 'on_conflict', 'columns'].includes(k))
+  const filters = [...url.searchParams].filter(([k]) => !['select', 'on_conflict', 'columns', 'order'].includes(k))
     .map(([k, v]) => [k, v.replace(/^eq\./, '')]);
   const match = (r) => filters.every(([k, v]) => String(r[k]) === v);
-  const pick = (r) => Object.fromEntries((url.searchParams.get('select') || '*').split(',').map((c) => [c, r[c]]));
+  const cols = url.searchParams.get('select') || '*';
+  const pick = (r) => cols === '*' ? { ...r } : Object.fromEntries(cols.split(',').map((c) => [c, r[c]]));
   const method = req.method();
-  if (method === 'GET') return json(200, rows.filter(match).map(pick));
+  // RLS de solicitudes: solo ADMIN y QA_LEAD activos la ven.
+  if (method === 'GET') return json(200, name === 'solicitudes' && !isLead(me) ? [] : rows.filter(match).map(pick));
   const body = req.postDataJSON();
   writes.push({ method, name, filters: Object.fromEntries(filters), body });
   if (failNextWrite) { const code = failNextWrite; failNextWrite = null; return json(409, { code, message: 'duplicate key value violates unique constraint' }); }
@@ -376,7 +386,6 @@ users['qa@bcr.test'].role = 'QA';
   assert.equal(await page.isVisible('#mnav-admin'), false);
   assert.equal(await page.isVisible('#mobile-logout'), true);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  if (overflow > 0) console.log(await page.evaluate(() => [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > innerWidth + 1 && e.offsetParent !== null).slice(0, 8).map(e => `${e.tagName}.${e.className}#${e.id} w=${Math.round(e.getBoundingClientRect().width)} right=${Math.round(e.getBoundingClientRect().right)}`)));
   assert.ok(overflow <= 0, 'scroll horizontal: ' + overflow);
   await page.screenshot({ path: DIR + 'tests/shot-movil.png' });
   ok('móvil: botón Salir visible, Admin oculto para QA, sin scroll horizontal');
@@ -746,6 +755,109 @@ resetData();
   await page.waitForTimeout(800);
   await page.screenshot({ path: DIR + 'tests/shot-daily-movil.png' });
   ok('Daily en móvil con el botón No asistió: sin scroll horizontal');
+  await context.close();
+}
+
+// 19. Solicitudes: solo QA Lead y Admin; lista compartida que se guarda en Supabase
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'qa@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  for (const sel of ['#nav-solicitudes', '#mnav-solicitudes', '#home-solicitudes']) assert.equal(await page.isVisible(sel), false, sel);
+  await page.evaluate(() => showPage('solicitudes'));
+  assert.equal(await page.isVisible('#page-solicitudes'), false);
+  ok('QA: no ve Solicitudes ni puede abrir la página');
+  await context.close();
+}
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'lead@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#home-solicitudes');
+  await page.waitForSelector('#sol-body tr');
+  const names = () => page.locator('#sol-body .sol-name').evaluateAll((els) => els.map((e) => e.value));
+  assert.deepEqual(await names(), ['Solicitud P3_070 Tucan vencida', 'Solicitud P3_081 Gobierno <b>Digital</b>', 'QA_OPC_47 Proyecto Digitalizacion']);
+  assert.equal(await page.locator('#sol-body b').count(), 0);
+  assert.deepEqual(await page.locator('#sol-stats b').allTextContents(), ['4', '3', '1', '1']);
+  assert.equal(await page.locator('#sol-body tr.sol-late').count(), 1);
+  assert.equal(await page.locator('#sol-body tr[data-id="2"] .sol-dot.blink').count(), 1);
+  assert.equal(await page.locator('#sol-body tr[data-id="3"] .sol-dot-blue').count(), 1);
+  ok('Solicitudes: abiertas ordenadas por P y OPC, nombres como texto, vencida resaltada');
+
+  await page.selectOption('#sol-filter', 'all');
+  assert.equal(await page.locator('#sol-body tr').count(), 4);
+  await page.fill('#sol-search', 'tucan');
+  assert.deepEqual(await names(), ['Solicitud P3_070 Tucan vencida']);
+  await page.fill('#sol-search', '');
+  await page.selectOption('#sol-filter', 'open');
+  ok('Solicitudes: buscador y filtro por estado');
+
+  const row = page.locator('#sol-body tr[data-id="1"]');
+  await row.locator('input[aria-label="Cierre enviado"]').check();
+  await page.waitForFunction(() => document.querySelector('#sol-body tr[data-id="1"] .sol-badge').textContent === 'Cerrada');
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(tables.solicitudes[0].cierre_enviado, true);
+  assert.equal(tables.solicitudes[0].cerrada, true);
+  await row.locator('textarea').fill('Pendiente <script>x</script>');
+  await row.locator('input[type=number]').fill('6.5');
+  await row.locator('input[type=date]').fill('2026-12-01');
+  await row.locator('.sol-name').fill('Solicitud P3_081 Renombrada');
+  await page.locator('#sol-search').focus();
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(tables.solicitudes[0].observaciones, 'Pendiente <script>x</script>');
+  assert.equal(tables.solicitudes[0].horas, 6.5);
+  assert.equal(tables.solicitudes[0].cierra, '2026-12-01');
+  assert.equal(tables.solicitudes[0].nombre, 'Solicitud P3_081 Renombrada');
+  ok('Solicitudes: casillas, horas, fecha, nombre y notas se guardan; cierre enviado la cierra');
+
+  await row.locator('.sol-enc select').selectOption('Caro Dos');
+  await page.waitForSelector('#sol-body tr[data-id="1"] .sol-chip:has-text("Caro Dos")');
+  await new Promise((r) => setTimeout(r, 200));
+  assert.deepEqual(tables.solicitudes[0].encargados, ['Beto Uno', 'Caro Dos']);
+  const opts = await row.locator('.sol-enc select option').allTextContents();
+  assert.ok(!opts.includes('Beto Uno') && !opts.includes('Dani Viejo') && opts.includes('Ana <img src=x onerror=alert(1)>'), opts.join('|'));
+  await row.locator('button[aria-label="Quitar a Beto Uno"]').click();
+  await new Promise((r) => setTimeout(r, 200));
+  assert.deepEqual(tables.solicitudes[0].encargados, ['Caro Dos']);
+  ok('Solicitudes: encargado se elige de las personas activas del Daily y se puede quitar');
+
+  await page.fill('#sol-new-name', 'Solicitud P3_090 Nueva <i>x</i>');
+  await page.click('#sol-new-btn');
+  await page.waitForSelector('#sol-status.ok');
+  assert.ok(tables.solicitudes.some((s) => s.nombre === 'Solicitud P3_090 Nueva <i>x</i>'));
+  assert.equal(await page.locator('#sol-body .sol-name').evaluateAll((els) => els.some((e) => e.value === 'Solicitud P3_090 Nueva <i>x</i>')), true);
+  ok('Solicitudes: agregar una nueva');
+
+  answers.push(false);
+  await page.locator('#sol-body tr[data-id="3"] .sol-del').click();
+  assert.equal(tables.solicitudes.some((s) => s.id === 3), true);
+  answers.push(true);
+  await page.locator('#sol-body tr[data-id="3"] .sol-del').click();
+  await page.waitForFunction(() => !document.querySelector('#sol-body tr[data-id="3"]'));
+  assert.equal(tables.solicitudes.some((s) => s.id === 3), false);
+  ok('Solicitudes: eliminar pide confirmación');
+
+  failNextWrite = '42501';
+  await page.locator('#sol-body tr[data-id="2"] input[aria-label="Plan enviado"]').check();
+  await page.waitForFunction(() => !document.querySelector('#sol-body tr[data-id="2"] input[aria-label="Plan enviado"]').checked);
+  assert.equal(tables.solicitudes.find((s) => s.id === 2).plan_enviado, false);
+  ok('Solicitudes: si Supabase rechaza el cambio, avisa y vuelve a mostrar lo guardado');
+  await page.screenshot({ path: DIR + 'tests/shot-solicitudes.png', fullPage: true });
+  await context.close();
+}
+{
+  const { context, page } = await newPage({ width: 375, height: 760 });
+  await page.goto('http://app.test/index.html');
+  await login(page, 'admin@bcr.test');
+  await page.waitForSelector('.mobile-topbar', { state: 'visible' });
+  await page.click('#mnav-solicitudes');
+  await page.waitForSelector('#sol-body tr');
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert.ok(overflow <= 0, 'scroll horizontal en Solicitudes móvil: ' + overflow);
+  await page.screenshot({ path: DIR + 'tests/shot-solicitudes-movil.png' });
+  ok('ADMIN en móvil: ve la misma lista, la tabla se desplaza dentro de su recuadro');
   await context.close();
 }
 

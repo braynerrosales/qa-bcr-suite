@@ -173,6 +173,60 @@
   tr.pbi-row:first-child td { border-top: 0; padding-top: 10px; }
   tr.task-row td { padding-left: 34px; color: var(--ink-2); }
 
+  /* ── Solicitudes ─────────────────────────── */
+  .sol-page { padding: 44px 48px 88px; max-width: 1320px; }
+  .sol-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .sol-stat { background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--bcr); border-radius: var(--r-ctl); padding: 8px 14px; min-width: 110px; font-size: 13px; color: var(--ink-2); }
+  .sol-stat b { display: block; font-family: var(--mono); font-size: 20px; color: var(--ink); }
+  .sol-stat.is-open { border-left-color: var(--bad); }
+  .sol-stat.is-done { border-left-color: var(--ok); }
+  .sol-stat.is-late { border-left-color: var(--mark); }
+  .sol-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .sol-toolbar .crud-input { flex: 1 1 200px; min-width: 0; }
+  .sol-new { display: flex; gap: 10px; margin-bottom: 12px; }
+  .sol-new .crud-input { flex: 1; min-width: 0; }
+  .sol-table-wrap { position: relative; overflow-x: auto; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); }
+  .sol-table { min-width: 1180px; }
+  .sol-table thead { display: table-header-group; }
+  .sol-table th { background: var(--sidebar-bg); color: var(--sidebar-ink); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 10px 6px; text-align: center; vertical-align: bottom; }
+  .sol-table th:first-child { text-align: left; padding-left: 14px; }
+  .sol-table td { font-family: var(--font); font-size: 13px; padding: 6px; border-top: 1px solid var(--rule); text-align: center; vertical-align: middle; }
+  .sol-table td:first-child { text-align: left; padding-left: 10px; }
+  .sol-table input[type=text], .sol-table input[type=number], .sol-table input[type=date], .sol-table textarea { width: 100%; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 5px 6px; font-size: 13px; min-height: 0; line-height: 1.4; font-family: var(--font); color: var(--ink); }
+  .sol-table input:hover, .sol-table textarea:hover { border-color: var(--rule-2); }
+  .sol-table input:focus, .sol-table textarea:focus { border-color: var(--bcr); background: var(--sheet); box-shadow: none; outline: none; }
+  .sol-table textarea { resize: vertical; min-height: 32px; }
+  .sol-table input[type=number] { text-align: center; font-family: var(--mono); }
+  .sol-table input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--bcr); cursor: pointer; }
+  .sol-name { font-weight: 600; }
+  .sol-name.urgent { color: var(--bad); font-weight: 700; }
+  tr.sol-done { background: color-mix(in srgb, var(--ok) 6%, var(--sheet)); }
+  tr.sol-done .sol-name { color: var(--ink-3); text-decoration: line-through; font-weight: 500; }
+  tr.sol-late { background: color-mix(in srgb, var(--bad) 16%, var(--sheet)); animation: solPulse 1.4s ease-in-out infinite; }
+  /* La columna del nombre queda fija al desplazar la tabla. */
+  .sol-table th:first-child, .sol-table td:first-child { position: sticky; left: 0; z-index: 1; box-shadow: 1px 0 0 var(--rule); }
+  .sol-table th:first-child { background: var(--sidebar-bg); }
+  .sol-table td:first-child { background: var(--sheet); }
+  tr.sol-done td:first-child { background: color-mix(in srgb, var(--ok) 6%, var(--sheet)); }
+  tr.sol-late td:first-child { background: color-mix(in srgb, var(--bad) 16%, var(--sheet)); box-shadow: inset 4px 0 0 var(--bad), 1px 0 0 var(--rule); animation: solPulse 1.4s ease-in-out infinite; }
+  @keyframes solPulse { 50% { background: color-mix(in srgb, var(--bad) 30%, var(--sheet)); } }
+  .sol-cierra { display: flex; align-items: center; gap: 4px; }
+  .sol-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .sol-dot-red { background: #e0463b; } .sol-dot-yellow { background: #e8b93d; } .sol-dot-green { background: #3fae6a; } .sol-dot-blue { background: #3d7ee8; }
+  .sol-dot.blink { animation: solBlink 1s ease-in-out infinite; }
+  @keyframes solBlink { 50% { opacity: .25; } }
+  .sol-enc { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 150px; }
+  .sol-chip { display: inline-flex; align-items: center; gap: 2px; background: var(--sheet-2); border: 1px solid var(--rule-2); border-radius: 999px; padding: 1px 4px 1px 9px; font-size: 12px; white-space: nowrap; }
+  .sol-chip button { background: none; border: 0; color: var(--ink-3); font-size: 14px; line-height: 1; padding: 0 4px; }
+  .sol-chip button:hover { color: var(--bad); }
+  .sol-enc select { font-size: 12px; padding: 3px 4px; border: 1px dashed var(--rule-2); border-radius: var(--r-ctl); background: transparent; color: var(--ink-2); max-width: 130px; }
+  .sol-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: .03em; color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--sheet)); }
+  .sol-badge.done { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, var(--sheet)); }
+  .sol-del { background: none; border: 0; color: var(--ink-3); font-size: 16px; padding: 2px 6px; }
+  .sol-del:hover { color: var(--bad); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .sol-empty { padding: 36px; text-align: center; color: var(--ink-3); font-size: 14px; }
+
   /* ── Daily ───────────────────────────────── */
   .daily-tabs-selector { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); margin-bottom: 18px; min-width: min(420px, 100%); }
   .daily-tab-btn { background: transparent; border: 0; border-radius: var(--r-ctl); padding: 10px 16px; text-align: left; color: var(--ink-2); }
@@ -331,7 +385,7 @@
     .home-title { margin-bottom: 28px; }
     .home-tool { grid-template-columns: 1fr auto; padding: 18px 2px; }
     .home-tool-desc { grid-column: 1 / -1; grid-row: 2; }
-    .qa-page, .daily-page, .admin-page, .calc-page { padding: 24px 16px 64px; }
+    .qa-page, .daily-page, .admin-page, .calc-page, .sol-page { padding: 24px 16px 64px; }
     .page-title { font-size: 24px; }
     .main-grid, .daily-columns, .admin-daily-cols, .user-create { grid-template-columns: 1fr; }
     .daily-tabs-selector { display: grid; }
@@ -379,6 +433,7 @@
     <button class="mobile-nav-btn active" onclick="showPage('home')">Inicio</button>
     <button class="mobile-nav-btn" onclick="showPage('qa')">Tareas</button>
     <button class="mobile-nav-btn" onclick="showPage('daily')">Daily</button>
+    <button class="mobile-nav-btn" onclick="showPage('solicitudes')" id="mnav-solicitudes">Solicitudes</button>
     <button class="mobile-nav-btn" onclick="showPage('admin')" id="mnav-admin">Admin</button>
     <button class="mobile-nav-btn" onclick="showPage('calc')">Días</button>
     <button class="mobile-logout-btn" id="mobile-password" onclick="openPasswordDialog()" title="Cambiar contraseña">Clave</button>
@@ -419,6 +474,7 @@
       <button class="nav-item item-home active" onclick="showPage('home')" id="nav-home">Inicio</button>
       <button class="nav-item item-qa" onclick="showPage('qa')" id="nav-qa">Generar tareas</button>
       <button class="nav-item item-daily" onclick="showPage('daily')" id="nav-daily">Daily</button>
+      <button class="nav-item item-solicitudes" onclick="showPage('solicitudes')" id="nav-solicitudes">Solicitudes</button>
       <button class="nav-item item-admin" onclick="showPage('admin')" id="nav-admin">Administración</button>
       <button class="nav-item item-calc" onclick="showPage('calc')" id="nav-calc">Días hábiles</button>
     </nav>
@@ -451,6 +507,11 @@
         <button class="home-tool" onclick="showPage('daily')">
           <span class="home-tool-name">Ordenar el Daily</span>
           <span class="home-tool-desc">Sorteá quién habla primero en el Daily 1 o el Daily 2, respetando las reglas del equipo.</span>
+          <span class="home-tool-go" aria-hidden="true">›</span>
+        </button>
+        <button class="home-tool" onclick="showPage('solicitudes')" id="home-solicitudes">
+          <span class="home-tool-name">Control de solicitudes</span>
+          <span class="home-tool-desc">Seguí el plan, el cierre y el informe de cada solicitud. Solo para QA Lead y Admin.</span>
           <span class="home-tool-go" aria-hidden="true">›</span>
         </button>
         <button class="home-tool" onclick="showPage('calc')">
@@ -708,6 +769,48 @@
     </div>
     </div>
 
+    <!-- SOLICITUDES (QA Lead y Admin) -->
+    <div class="page" id="page-solicitudes">
+    <div class="sol-page">
+      <div class="page-header">
+        <div class="page-header-left">
+          <button class="page-back" onclick="showPage('home')" aria-label="Volver al inicio">←</button>
+          <div>
+            <h2 class="page-title">Control de solicitudes</h2>
+            <p class="page-subtitle">Lista compartida entre QA Lead y Admin. Los cambios se guardan solos al salir de cada campo.</p>
+          </div>
+        </div>
+      </div>
+      <div class="sol-stats" id="sol-stats"></div>
+      <form class="sol-new" onsubmit="addSolicitud(event)">
+        <input class="crud-input" id="sol-new-name" placeholder="Nueva solicitud: 2270726 - Solicitud P3_081 ..." maxlength="300" required aria-label="Nombre de la nueva solicitud">
+        <button type="submit" class="crud-btn-add" id="sol-new-btn">Agregar</button>
+      </form>
+      <div class="sol-toolbar">
+        <input class="crud-input" id="sol-search" type="search" placeholder="Buscar solicitud..." aria-label="Buscar solicitud" oninput="renderSolicitudes()">
+        <select class="user-role-select" id="sol-filter" aria-label="Filtrar por estado" onchange="renderSolicitudes()">
+          <option value="open" selected>Abiertas</option>
+          <option value="done">Cerradas</option>
+          <option value="all">Todas</option>
+        </select>
+        <button class="btn-secondary" onclick="loadSolicitudes()">Recargar</button>
+        <button class="btn-secondary" onclick="exportSolicitudes()">Exportar JSON</button>
+      </div>
+      <div class="status-msg" id="sol-status" role="status"></div>
+      <div class="sol-table-wrap">
+        <table class="sol-table">
+          <thead><tr>
+            <th style="min-width:250px">Solicitud</th><th>Informe sem.</th><th>Encargado</th><th style="width:72px">Horas</th>
+            <th>Pend. plan</th><th>Pend. actualizar</th><th>Plan enviado</th><th>Cierre enviado</th>
+            <th style="width:150px">Cierra</th><th style="min-width:180px">Observaciones</th><th>Estado</th><th><span class="sr-only">Eliminar</span></th>
+          </tr></thead>
+          <tbody id="sol-body"></tbody>
+        </table>
+        <div class="sol-empty" id="sol-empty" hidden>No hay solicitudes con este filtro.</div>
+      </div>
+    </div>
+    </div>
+
     <!-- CALC DÍAS HÁBILES -->
     <div class="page" id="page-calc">
     <div class="calc-page">
@@ -882,13 +985,14 @@ function check(res,needRows){
 
 /* ============ NAVIGATION ============ */
 function showPage(id) {
-  if(id==='admin'&&!canManageConfig())id='home';
+  if((id==='admin'||id==='solicitudes')&&!canManageConfig())id='home';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll('.mobile-nav-btn').forEach((b,i) => { b.classList.remove('active'); if(['home','qa','daily','admin','calc'][i]===id) b.classList.add('active'); });
+  document.querySelectorAll('.mobile-nav-btn').forEach((b,i) => { b.classList.remove('active'); if(['home','qa','daily','solicitudes','admin','calc'][i]===id) b.classList.add('active'); });
   document.getElementById('page-'+id).classList.add('active');
   document.getElementById('nav-'+id).classList.add('active');
   if(id==='admin')renderAdmin();
+  if(id==='solicitudes')loadSolicitudes();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1242,6 +1346,164 @@ function exportData(){
   setBackupStatus('✓ Configuración exportada como qa-bcr-suite-config.json');
 }
 
+/* ============ SOLICITUDES (solo QA Lead y Admin; el RLS lo hace cumplir) ============ */
+let SOL=[];
+const SOL_CHECKS=[['informe_semanal','Informe semanal'],['pend_plan','Pendiente de plan'],['pend_actualizar','Pendiente de actualizar'],['plan_enviado','Plan enviado'],['cierre_enviado','Cierre enviado']];
+function setSolStatus(kind,text){const st=document.getElementById('sol-status');st.className=kind?'status-msg '+kind:'status-msg';st.textContent=text||'';}
+async function loadSolicitudes(){
+  if(!canManageConfig())return;
+  const {data,error}=await supabaseClient.from('solicitudes').select('*').order('id');
+  if(error){setSolStatus('error','⚠ No se pudieron cargar las solicitudes'+errorDetail(error)+'.');return;}
+  SOL=data||[];setSolStatus('');renderSolicitudes();
+}
+// Días desde la fecha de cierre (positivo = ya pasó), o null sin fecha.
+function solDaysSince(date){
+  if(!date)return null;
+  const t=new Date();t.setHours(0,0,0,0);
+  const d=new Date(date+'T00:00:00');
+  return isNaN(d)?null:Math.round((t-d)/86400000);
+}
+function solDot(r){
+  if(r.cerrada)return null;
+  const d=solDaysSince(r.cierra);
+  if(d===null)return {color:'blue',title:'Sin fecha de cierre'};
+  if(d===0)return {color:'red',title:'Cierra hoy'};
+  if(d===1)return {color:'yellow',title:'El cierre fue ayer'};
+  if(d>1)return {color:'green',blink:true,title:'Fecha de cierre vencida'};
+  return {color:'green',title:'Sin urgencia'};
+}
+function solLate(r){const d=solDaysSince(r.cierra);return !r.cerrada&&d!==null&&d>=1;}
+// Abiertas primero; luego P2_/P3_ por número, las sueltas y al final OPC.
+function solSortKey(r){
+  const n=r.nombre||'',p=n.match(/P\d+_\s?(\d+)/i),o=n.match(/OPC_?(\d+)/i);
+  return [r.cerrada?1:0,p?0:o?2:1,p?+p[1]:o?+o[1]:0,r.id];
+}
+function solCompare(a,b){const x=solSortKey(a),y=solSortKey(b);for(let i=0;i<x.length;i++)if(x[i]!==y[i])return x[i]-y[i];return 0;}
+function solPeople(){return [...new Set([...DB.people.daily1,...DB.people.daily2])].sort((a,b)=>a.localeCompare(b,'es'));}
+function renderSolStats(){
+  const open=SOL.filter(r=>!r.cerrada).length;
+  const items=[['',SOL.length,'Total'],['is-open',open,'Abiertas'],['is-done',SOL.length-open,'Cerradas'],['is-late',SOL.filter(solLate).length,'Vencidas']];
+  const box=document.getElementById('sol-stats');box.replaceChildren();
+  items.forEach(([cls,n,label])=>{const d=document.createElement('div');d.className='sol-stat '+cls;const b=document.createElement('b');b.textContent=n;d.append(b,label);box.appendChild(d);});
+}
+function renderSolicitudes(){
+  const q=document.getElementById('sol-search').value.trim().toLowerCase();
+  const f=document.getElementById('sol-filter').value;
+  const rows=SOL.filter(r=>(!q||r.nombre.toLowerCase().includes(q))&&(f==='all'||(f==='open')===!r.cerrada)).sort(solCompare);
+  const body=document.getElementById('sol-body');body.replaceChildren(...rows.map(solRow));
+  document.getElementById('sol-empty').hidden=rows.length>0;
+  renderSolStats();
+}
+function solCell(...children){const td=document.createElement('td');td.append(...children);return td;}
+function solRow(r){
+  const tr=document.createElement('tr');tr.dataset.id=r.id;
+  const name=Object.assign(document.createElement('input'),{type:'text',value:r.nombre,maxLength:300,className:'sol-name'});
+  name.setAttribute('aria-label','Nombre de la solicitud');
+  name.addEventListener('change',()=>{
+    const v=name.value.trim();
+    if(!v){name.value=r.nombre;alert('El nombre no puede quedar vacío.');return;}
+    saveSolicitud(r.id,{nombre:v});
+  });
+  const checks={};
+  SOL_CHECKS.forEach(([field,label])=>{
+    const c=Object.assign(document.createElement('input'),{type:'checkbox',checked:!!r[field]});
+    c.setAttribute('aria-label',label);
+    // Marcar "Cierre enviado" cierra la solicitud (igual que el tracker anterior).
+    c.addEventListener('change',()=>saveSolicitud(r.id,field==='cierre_enviado'?{cierre_enviado:c.checked,cerrada:c.checked}:{[field]:c.checked}));
+    checks[field]=c;
+  });
+  const horas=Object.assign(document.createElement('input'),{type:'number',min:'0',step:'0.5',placeholder:'0',value:r.horas??''});
+  horas.setAttribute('aria-label','Horas aproximadas');
+  horas.addEventListener('change',()=>{
+    const v=horas.value===''?null:Number(horas.value);
+    if(v!==null&&!(v>=0)){horas.value=r.horas??'';return;}
+    saveSolicitud(r.id,{horas:v});
+  });
+  const dot=document.createElement('span');
+  const cierra=Object.assign(document.createElement('input'),{type:'date',value:r.cierra||''});
+  cierra.setAttribute('aria-label','Fecha de cierre');
+  cierra.addEventListener('change',()=>saveSolicitud(r.id,{cierra:cierra.value||null}));
+  const wrapCierra=document.createElement('div');wrapCierra.className='sol-cierra';wrapCierra.append(dot,cierra);
+  const obs=Object.assign(document.createElement('textarea'),{rows:1,maxLength:2000,placeholder:'Notas...',value:r.observaciones||''});
+  obs.setAttribute('aria-label','Observaciones');
+  obs.addEventListener('change',()=>saveSolicitud(r.id,{observaciones:obs.value}));
+  const badge=document.createElement('span');
+  const del=Object.assign(document.createElement('button'),{type:'button',className:'sol-del',textContent:'✕',title:'Eliminar'});
+  del.setAttribute('aria-label','Eliminar solicitud');
+  del.addEventListener('click',()=>deleteSolicitud(r.id));
+  const enc=document.createElement('div');enc.className='sol-enc';
+  tr.append(solCell(name),solCell(checks.informe_semanal),solCell(enc),solCell(horas),solCell(checks.pend_plan),solCell(checks.pend_actualizar),
+    solCell(checks.plan_enviado),solCell(checks.cierre_enviado),solCell(wrapCierra),solCell(obs),solCell(badge),solCell(del));
+  renderSolEncargados(enc,r);
+  updateSolRow(tr,r);
+  return tr;
+}
+// Actualiza lo que depende del estado sin rehacer la fila (no se pierde el foco).
+function updateSolRow(tr,r){
+  const d=solDot(r),dot=tr.querySelector('.sol-cierra span');
+  dot.className=d?`sol-dot sol-dot-${d.color}${d.blink?' blink':''}`:'';
+  dot.title=d?d.title:'';
+  tr.classList.toggle('sol-done',!!r.cerrada);
+  tr.classList.toggle('sol-late',solLate(r));
+  tr.querySelector('.sol-name').classList.toggle('urgent',!!d&&d.color==='red');
+  const badge=tr.querySelector('td:nth-last-child(2) span');
+  badge.className='sol-badge'+(r.cerrada?' done':'');badge.textContent=r.cerrada?'Cerrada':'Abierta';
+  tr.querySelector('input[aria-label="Cierre enviado"]').checked=!!r.cierre_enviado;
+}
+function renderSolEncargados(box,r){
+  box.replaceChildren();
+  (r.encargados||[]).forEach(n=>{
+    const chip=document.createElement('span');chip.className='sol-chip';chip.append(n);
+    const x=Object.assign(document.createElement('button'),{type:'button',textContent:'×'});
+    x.setAttribute('aria-label','Quitar a '+n);
+    x.addEventListener('click',()=>saveSolicitud(r.id,{encargados:r.encargados.filter(e=>e!==n)},()=>renderSolEncargados(box,r)));
+    chip.appendChild(x);box.appendChild(chip);
+  });
+  const free=solPeople().filter(n=>!(r.encargados||[]).includes(n));
+  if(!free.length||(r.encargados||[]).length>=10)return;
+  const sel=document.createElement('select');sel.setAttribute('aria-label','Agregar encargado del informe');
+  sel.appendChild(new Option('+ Encargado',''));
+  free.forEach(n=>sel.appendChild(new Option(n,n)));
+  sel.addEventListener('change',()=>{if(sel.value)saveSolicitud(r.id,{encargados:[...(r.encargados||[]),sel.value]},()=>renderSolEncargados(box,r));});
+  box.appendChild(sel);
+}
+async function saveSolicitud(id,patch,after){
+  const r=SOL.find(x=>x.id===id);if(!r)return;
+  Object.assign(r,patch);
+  const tr=document.querySelector(`#sol-body tr[data-id="${CSS.escape(String(id))}"]`);
+  if(tr)updateSolRow(tr,r);
+  if(after)after();
+  renderSolStats();
+  const {data,error}=await supabaseClient.from('solicitudes').update(patch).eq('id',id).select('id');
+  if(error||!data||!data.length){alert('⚠ '+writeErrorMessage(error||{code:'42501'}));await loadSolicitudes();}
+}
+async function addSolicitud(event){
+  event.preventDefault();
+  const input=document.getElementById('sol-new-name'),btn=document.getElementById('sol-new-btn'),nombre=input.value.trim();
+  if(!nombre)return;
+  btn.disabled=true;
+  const {error}=await supabaseClient.from('solicitudes').insert({nombre});
+  btn.disabled=false;
+  if(error){alert('⚠ '+writeErrorMessage(error));return;}
+  input.value='';
+  document.getElementById('sol-search').value='';
+  if(document.getElementById('sol-filter').value==='done')document.getElementById('sol-filter').value='open';
+  await loadSolicitudes();
+  setSolStatus('ok','✓ Solicitud agregada.');
+}
+async function deleteSolicitud(id){
+  const r=SOL.find(x=>x.id===id);if(!r)return;
+  if(!confirm(`¿Eliminar la solicitud "${r.nombre}"? No se puede deshacer.`))return;
+  const {data,error}=await supabaseClient.from('solicitudes').delete().eq('id',id).select('id');
+  if(error||!data||!data.length)alert('⚠ '+writeErrorMessage(error||{code:'42501'}));
+  await loadSolicitudes();
+}
+function exportSolicitudes(){
+  const blob=new Blob([JSON.stringify(SOL,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='solicitudes.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
 /* ============ CALC DÍAS HÁBILES ============ */
 const HOLIDAYS_CR=[
   {date:'2026-01-01',name:'Año Nuevo'},{date:'2026-04-02',name:'Jueves Santo'},{date:'2026-04-03',name:'Viernes Santo'},{date:'2026-04-11',name:'Día de Juan Santamaría'},{date:'2026-05-01',name:'Día del Trabajo'},{date:'2026-07-25',name:'Anexión de Guanacaste'},{date:'2026-08-02',name:'Virgen de los Ángeles'},{date:'2026-08-15',name:'Día de la Madre'},{date:'2026-08-31',name:'Día de la Persona Negra'},{date:'2026-09-15',name:'Día de la Independencia'},{date:'2026-12-01',name:'Abolición del Ejército'},{date:'2026-12-25',name:'Navidad'},
@@ -1446,9 +1708,10 @@ function applyPermissions(){
   const lead=canManageConfig();
   document.getElementById('nav-admin').hidden=!lead;
   document.getElementById('mnav-admin').hidden=!lead;
+  ['nav-solicitudes','mnav-solicitudes','home-solicitudes'].forEach(id=>document.getElementById(id).hidden=!lead);
   document.getElementById('atab-users').hidden=!isAdmin();
   if(!isAdmin()&&document.getElementById('asec-users').classList.contains('active'))selectAdminTab('people');
-  if(!lead&&document.getElementById('page-admin').classList.contains('active'))showPage('home');
+  if(!lead&&(document.getElementById('page-admin').classList.contains('active')||document.getElementById('page-solicitudes').classList.contains('active')))showPage('home');
 }
 
 /* ============ ADMIN: USUARIOS ============ */
