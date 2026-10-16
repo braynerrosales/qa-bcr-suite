@@ -20,7 +20,7 @@
     --sheet-2: #f7f9fb;
     --ink: #13233f;
     --ink-2: #4e5e77;
-    --ink-3: #7c8aa0;
+    --ink-3: #5f6d84;
     --rule: #d9dfe8;
     --rule-2: #c3ccd9;
     --bcr: #0a4fa3;
@@ -47,7 +47,7 @@
       --sheet-2: #18263d;
       --ink: #e6ecf5;
       --ink-2: #a3b1c6;
-      --ink-3: #7686a0;
+      --ink-3: #8a9ab3;
       --rule: #24344d;
       --rule-2: #31445f;
       --bcr: #5d9bea;
@@ -188,6 +188,8 @@
   .sol-new .crud-input { flex: 1; min-width: 0; }
   .sol-table-wrap { position: relative; overflow-x: auto; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); }
   .sol-table { min-width: 1270px; }
+  .sol-table-outer { position: relative; }
+  .sol-table-outer.more-right::after { content: ""; position: absolute; top: 1px; right: 1px; bottom: 1px; width: 28px; pointer-events: none; border-radius: 0 var(--r-sheet) var(--r-sheet) 0; background: linear-gradient(to right, transparent, color-mix(in srgb, var(--ink) 16%, transparent)); }
   .sol-table td:first-child { min-width: 340px; max-width: 420px; }
   .sol-table thead { display: table-header-group; }
   .sol-table th { background: var(--sidebar-bg); color: var(--sidebar-ink); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 10px 6px; text-align: center; vertical-align: bottom; }
@@ -223,9 +225,9 @@
   .sol-chip button { background: none; border: 0; color: var(--ink-3); font-size: 14px; line-height: 1; padding: 0 4px; }
   .sol-chip button:hover { color: var(--bad); }
   .sol-enc select { font-size: 12px; padding: 3px 4px; border: 1px dashed var(--rule-2); border-radius: var(--r-ctl); background: transparent; color: var(--ink-2); max-width: 130px; }
-  .sol-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: .03em; color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--sheet)); }
-  .sol-badge.done { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, var(--sheet)); }
-  .sol-del { background: none; border: 0; color: var(--ink-3); font-size: 16px; padding: 2px 6px; }
+  .sol-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: .03em; color: color-mix(in srgb, var(--bad) 78%, var(--ink)); background: color-mix(in srgb, var(--bad) 12%, var(--sheet)); }
+  .sol-badge.done { color: color-mix(in srgb, var(--ok) 78%, var(--ink)); background: color-mix(in srgb, var(--ok) 12%, var(--sheet)); }
+  .sol-del { background: none; border: 0; color: var(--ink-2); font-size: 16px; padding: 2px 6px; }
   .sol-del:hover { color: var(--bad); }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .sol-empty { padding: 36px; text-align: center; color: var(--ink-3); font-size: 14px; }
@@ -378,10 +380,15 @@
   .pw-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
 
   /* ── Móvil ───────────────────────────────── */
-  .mobile-topbar { display: none; position: sticky; top: 0; z-index: 100; background: var(--sidebar-bg); color: var(--sidebar-ink); padding: 8px 16px; min-height: 52px; gap: 10px; align-items: center; justify-content: space-between; }
+  .mobile-topbar { display: none; position: sticky; top: 0; z-index: 100; background: var(--sidebar-bg); color: var(--sidebar-ink); padding: 8px 16px 0; gap: 6px 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
   .mobile-logo { font-size: 15px; font-weight: 800; white-space: nowrap; }
-  .mobile-nav-btns { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
-  .mobile-nav-btn, .mobile-logout-btn { padding: 6px 9px; border-radius: var(--r-ctl); border: 0; background: transparent; color: var(--sidebar-ink-2); font-size: 13px; font-weight: 600; }
+  .mobile-account { display: flex; gap: 6px; }
+  /* Una sola fila que se desplaza de lado si no entra (no se parte en dos líneas). */
+  .mobile-nav-btns { order: 3; flex: 1 0 100%; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 12px; }
+  .mobile-nav-btns::-webkit-scrollbar { display: none; }
+  .mobile-nav-btn { flex-shrink: 0; min-height: 44px; }
+  .mobile-logout-btn { min-height: 36px; }
+  .mobile-nav-btn, .mobile-logout-btn { padding: 6px 10px; border-radius: var(--r-ctl); border: 0; background: transparent; color: var(--sidebar-ink-2); font-size: 13px; font-weight: 600; }
   .mobile-nav-btn.active { color: var(--sidebar-ink); box-shadow: inset 0 -3px 0 var(--mark); border-radius: 0; }
   .mobile-logout-btn { border: 1px solid rgba(255,255,255,0.25); }
 
@@ -402,6 +409,44 @@
     .calc-breakdown { grid-template-columns: repeat(2, 1fr); }
     .calc-row, .calc-off-entry { flex-direction: column; align-items: stretch; }
     .calc-field { min-width: 100%; }
+    .admin-daily-cols > * { min-width: 0; }
+    [id^=list-people] .crud-item { flex-wrap: nowrap; gap: 8px; }
+    [id^=list-people] .crud-item-name { min-width: 0; overflow-wrap: anywhere; }
+    /* 16px evita que iOS haga zoom al tocar un campo. */
+    input:not([type=checkbox]):not([type=radio]), select, textarea, .crud-input, .user-role-select, .user-create select, .range-input, .sol-table textarea, .sol-table input[type=number], .sol-table input[type=date], .sol-enc select { font-size: 16px; }
+    .crud-btn-del, .crud-btn-add, .btn-secondary, .user-role-select, .calc-holidays-toggle { min-height: 40px; }
+    .crud-checkbox { width: 22px; height: 22px; }
+    .admin-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 18px; }
+    .admin-tab-btn { flex-shrink: 0; white-space: nowrap; min-height: 44px; }
+    .user-create-pw { flex-wrap: wrap; }
+    .user-create-pw .crud-input { flex: 1 1 100%; }
+    .user-create-pw .btn-secondary { flex: 1; }
+    .sol-header .btn-secondary { width: 100%; }
+    /* Solicitudes en móvil: cada fila es una tarjeta (sin tabla de 1270px). */
+    .sol-table-outer.more-right::after { display: none; }
+    .sol-table-wrap { overflow: visible; background: transparent; border: 0; }
+    .sol-table { min-width: 0; width: 100%; }
+    .sol-table thead { display: none; }
+    .sol-table, .sol-table tbody { display: block; }
+    .sol-table tr { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; padding: 12px 14px; margin-bottom: 10px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); }
+    .sol-table td, .sol-table td:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; max-width: none; padding: 6px 0; border: 0; text-align: left; position: static; box-shadow: none; background: transparent !important; }
+    .sol-table td::before { content: attr(data-label); font-size: 13px; color: var(--ink-2); font-weight: 600; }
+    .sol-table td:first-child, .sol-table td.sol-wide { grid-column: 1 / -1; }
+    .sol-table td:first-child::before, .sol-table td.sol-plain::before { content: none; }
+    .sol-table td.sol-wide { flex-direction: column; align-items: stretch; gap: 4px; }
+    .sol-table td.sol-plain:last-child { justify-content: flex-end; }
+    .sol-table td:first-child { padding: 0 0 6px; border-bottom: 1px solid var(--rule) !important; }
+    .sol-table textarea.sol-name { font-size: 16px; padding: 4px 0; }
+    .sol-table input[type=checkbox] { width: 22px; height: 22px; }
+    .sol-table input[type=number] { width: 90px; text-align: right; border-color: var(--rule-2); }
+    .sol-table input[type=date], .sol-table textarea { border-color: var(--rule-2); }
+    .sol-enc { min-width: 0; }
+    .sol-enc select { max-width: none; flex: 1 1 100%; min-height: 40px; }
+    .sol-chip { font-size: 14px; padding: 4px 4px 4px 12px; }
+    .sol-chip button { min-width: 32px; min-height: 32px; font-size: 18px; }
+    .sol-del { min-width: 44px; min-height: 44px; font-size: 18px; }
+    tr.sol-late { box-shadow: inset 4px 0 0 var(--bad); }
+    tr.sol-late td:first-child { box-shadow: none; animation: none; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -444,6 +489,8 @@
     <button class="mobile-nav-btn" onclick="showPage('solicitudes')" id="mnav-solicitudes">Solicitudes</button>
     <button class="mobile-nav-btn" onclick="showPage('admin')" id="mnav-admin">Admin</button>
     <button class="mobile-nav-btn" onclick="showPage('calc')">Días</button>
+  </div>
+  <div class="mobile-account">
     <button class="mobile-logout-btn" id="mobile-password" onclick="openPasswordDialog()" title="Cambiar contraseña">Clave</button>
     <button class="mobile-logout-btn" id="mobile-logout" onclick="logout()" title="Cerrar sesión">Salir</button>
   </div>
@@ -674,7 +721,7 @@
             <div class="admin-card-title">Daily 1</div>
             <div class="admin-card-desc">Agregar o quitar personas de la lista de Daily 1.</div>
             <div class="crud-row">
-              <input class="crud-input" id="newp-daily1" placeholder="Nombre completo..." onkeydown="if(event.key==='Enter')addPerson('daily1')">
+              <input class="crud-input" id="newp-daily1" aria-label="Nueva persona del Daily 1" placeholder="Nombre completo..." onkeydown="if(event.key==='Enter')addPerson('daily1')">
               <button class="crud-btn-add" onclick="addPerson('daily1')">Agregar</button>
             </div>
             <div class="crud-list" id="list-people-daily1"></div>
@@ -683,7 +730,7 @@
             <div class="admin-card-title">Daily 2</div>
             <div class="admin-card-desc">Agregar o quitar personas de la lista de Daily 2.</div>
             <div class="crud-row">
-              <input class="crud-input" id="newp-daily2" placeholder="Nombre completo..." onkeydown="if(event.key==='Enter')addPerson('daily2')">
+              <input class="crud-input" id="newp-daily2" aria-label="Nueva persona del Daily 2" placeholder="Nombre completo..." onkeydown="if(event.key==='Enter')addPerson('daily2')">
               <button class="crud-btn-add" onclick="addPerson('daily2')">Agregar</button>
             </div>
             <div class="crud-list" id="list-people-daily2"></div>
@@ -699,7 +746,7 @@
             <div class="admin-card-desc">Marcá quiénes deben salir dentro del bloque inicial, definí el rango (tamaño del bloque) y quién queda fijo al final.</div>
             <div class="range-row">
               <span class="crud-label-small">Rango del bloque inicial</span>
-              <input type="number" min="1" class="range-input" id="range-daily1" onchange="setRange('daily1',this.value)">
+              <input type="number" min="1" class="range-input" id="range-daily1" aria-label="Rango del bloque inicial del Daily 1" onchange="setRange('daily1',this.value)">
             </div>
             <div class="crud-list" id="list-rules-daily1"></div>
           </div>
@@ -708,7 +755,7 @@
             <div class="admin-card-desc">Marcá quiénes deben salir dentro del bloque inicial, definí el rango (tamaño del bloque) y quién queda fijo al final.</div>
             <div class="range-row">
               <span class="crud-label-small">Rango del bloque inicial</span>
-              <input type="number" min="1" class="range-input" id="range-daily2" onchange="setRange('daily2',this.value)">
+              <input type="number" min="1" class="range-input" id="range-daily2" aria-label="Rango del bloque inicial del Daily 2" onchange="setRange('daily2',this.value)">
             </div>
             <div class="crud-list" id="list-rules-daily2"></div>
           </div>
@@ -720,7 +767,7 @@
         <div class="admin-card-title">Proyectos</div>
         <div class="admin-card-desc">Agregá un proyecto nuevo o eliminá uno existente. Cada proyecto puede tener variantes (opcional).</div>
         <div class="crud-row">
-          <input class="crud-input" id="new-project" placeholder="Nombre del proyecto (ej. NUEVO_PROYECTO)...">
+          <input class="crud-input" id="new-project" aria-label="Nombre del nuevo proyecto" placeholder="Nombre del proyecto (ej. NUEVO_PROYECTO)...">
           <button class="crud-btn-add" onclick="addProject()">Agregar proyecto</button>
         </div>
         <div class="task-project-grid" id="task-project-list"></div>
@@ -814,7 +861,8 @@
         <button class="btn-secondary" onclick="exportSolicitudes()">Exportar JSON</button>
       </div>
       <div class="status-msg" id="sol-status" role="status"></div>
-      <div class="sol-table-wrap">
+      <div class="sol-table-outer" id="sol-table-outer">
+      <div class="sol-table-wrap" id="sol-table-wrap">
         <table class="sol-table">
           <thead><tr>
             <th style="min-width:340px">Solicitud</th><th>Informe sem.</th><th>Encargado</th><th style="width:72px">Horas</th>
@@ -824,6 +872,7 @@
           <tbody id="sol-body"></tbody>
         </table>
         <div class="sol-empty" id="sol-empty" hidden>No hay solicitudes con este filtro.</div>
+      </div>
       </div>
     </div>
     </div>
@@ -844,8 +893,8 @@
       <div class="calc-section">
         <div class="calc-section-title">Rango de trabajo</div>
         <div class="calc-row">
-          <div class="calc-field"><label>Desde</label><input type="date" id="calcWorkStart" min="2026-01-01" max="2028-12-31"></div>
-          <div class="calc-field"><label>Hasta</label><input type="date" id="calcWorkEnd" min="2026-01-01" max="2028-12-31"></div>
+          <div class="calc-field"><label for="calcWorkStart">Desde</label><input type="date" id="calcWorkStart" min="2026-01-01" max="2028-12-31"></div>
+          <div class="calc-field"><label for="calcWorkEnd">Hasta</label><input type="date" id="calcWorkEnd" min="2026-01-01" max="2028-12-31"></div>
         </div>
       </div>
 
@@ -1005,7 +1054,7 @@ function showPage(id) {
   if((id==='admin'||id==='solicitudes')&&!canManageConfig())id='home';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll('.mobile-nav-btn').forEach((b,i) => { b.classList.remove('active'); if(['home','qa','daily','solicitudes','admin','calc'][i]===id) b.classList.add('active'); });
+  document.querySelectorAll('.mobile-nav-btn').forEach((b,i) => { b.classList.remove('active'); if(['home','qa','daily','solicitudes','admin','calc'][i]===id){b.classList.add('active');if(b.offsetParent)b.scrollIntoView({block:'nearest',inline:'nearest'});} });
   document.getElementById('page-'+id).classList.add('active');
   document.getElementById('nav-'+id).classList.add('active');
   if(id==='admin')renderAdmin();
@@ -1192,7 +1241,8 @@ function toggleAbsent(el){
 function selectAdminTab(tab){
   document.querySelectorAll('.admin-tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('atab-'+tab).classList.add('active');
+  const tb=document.getElementById('atab-'+tab);tb.classList.add('active');
+  if(tb.offsetParent)tb.scrollIntoView({block:'nearest',inline:'nearest'});
   document.getElementById('asec-'+tab).classList.add('active');
   if(tab==='users')renderUsersAdmin();
 }
@@ -1417,8 +1467,16 @@ function renderSolicitudes(){
   const body=document.getElementById('sol-body');body.replaceChildren(...rows.map(solRow));
   document.getElementById('sol-empty').hidden=rows.length>0;
   renderSolStats();
+  solScrollHint();
 }
-function solCell(...children){const td=document.createElement('td');td.append(...children);return td;}
+// Sombra a la derecha mientras haya columnas ocultas (la tabla se desplaza de lado).
+function solScrollHint(){
+  const w=document.getElementById('sol-table-wrap');
+  document.getElementById('sol-table-outer').classList.toggle('more-right',w.scrollWidth-w.clientWidth-w.scrollLeft>4);
+}
+document.getElementById('sol-table-wrap').addEventListener('scroll',solScrollHint,{passive:true});
+window.addEventListener('resize',()=>{if(document.getElementById('page-solicitudes').classList.contains('active'))solScrollHint();});
+function solCell(label,cls,...children){const td=document.createElement('td');if(label)td.dataset.label=label;if(cls)td.className=cls;td.append(...children);return td;}
 function solRow(r){
   const tr=document.createElement('tr');tr.dataset.id=r.id;
   // textarea para que el nombre completo se lea en varias líneas (Enter no agrega saltos).
@@ -1462,8 +1520,10 @@ function solRow(r){
   del.setAttribute('aria-label','Eliminar solicitud');
   del.addEventListener('click',()=>deleteSolicitud(r.id));
   const enc=document.createElement('div');enc.className='sol-enc';
-  tr.append(solCell(name),solCell(checks.informe_semanal),solCell(enc),solCell(horas),solCell(checks.pend_plan),solCell(checks.pend_actualizar),
-    solCell(checks.plan_enviado),solCell(checks.cierre_enviado),solCell(wrapCierra),solCell(obs),solCell(badge),solCell(del));
+  tr.append(solCell('','',name),solCell('Informe semanal','',checks.informe_semanal),solCell('Encargado','sol-wide',enc),solCell('Horas','',horas),
+    solCell('Pend. plan','',checks.pend_plan),solCell('Pend. actualizar','',checks.pend_actualizar),solCell('Plan enviado','',checks.plan_enviado),
+    solCell('Cierre enviado','',checks.cierre_enviado),solCell('Cierra','sol-wide',wrapCierra),solCell('Observaciones','sol-wide',obs),
+    solCell('','sol-plain',badge),solCell('','sol-plain',del));
   renderSolEncargados(enc,r);
   updateSolRow(tr,r);
   return tr;
