@@ -614,7 +614,7 @@ const lastWrite = () => writes[writes.length - 1];
   ok('Borrar limpia PBIs y tareas y mantiene el proyecto; ya no hay extracción con IA');
 
   await page.click('#project-grid .proj-btn[data-type="COMERCIAL"]');
-  assert.deepEqual(await page.locator('#variant-select option').allTextContents(), ['Seleccionar variante...', 'Normal', "X'><b>"]);
+  assert.deepEqual(await page.locator('#variant-select option').allTextContents(), ['Seleccionar variante…', 'Normal', "X'><b>"]);
   ok('variantes con caracteres especiales se muestran como texto');
 
   await page.selectOption('#variant-select', "x'><b>");

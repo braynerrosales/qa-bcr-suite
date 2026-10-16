@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a3d7e">
 <title>QA BCR Suite</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://aprerrmqsnkeakrjcoxf.supabase.co wss://aprerrmqsnkeakrjcoxf.supabase.co; object-src 'none'; base-uri 'none'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -63,14 +64,15 @@
     }
   }
 
-  body { font-family: var(--font); font-size: 15px; line-height: 1.5; background: var(--paper); color: var(--ink); min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+  body { font-family: var(--font); font-size: 15px; line-height: 1.5; background: var(--paper); color: var(--ink); min-height: 100vh; min-height: 100dvh; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
   button, input, select, textarea { font: inherit; color: inherit; }
   button { cursor: pointer; }
   :focus-visible { outline: 2px solid var(--bcr); outline-offset: 2px; }
+  button, a, select, label, input[type=checkbox], input[type=radio] { touch-action: manipulation; }
   [hidden] { display: none !important; }
   strong { font-weight: 700; }
 
-  .layout { display: flex; min-height: 100vh; }
+  .layout { display: flex; min-height: 100vh; min-height: 100dvh; }
 
   /* ── Sidebar ─────────────────────────────── */
   .sidebar { width: var(--sidebar-w); background: var(--sidebar-bg); color: var(--sidebar-ink); display: flex; flex-direction: column; position: fixed; inset: 0 auto 0 0; z-index: 50; }
@@ -95,7 +97,7 @@
   .sidebar-footer-text { font-size: 11px; color: var(--sidebar-ink-2); }
 
   /* ── Estructura de página ────────────────── */
-  .main { margin-left: var(--sidebar-w); flex: 1; min-width: 0; min-height: 100vh; }
+  .main { margin-left: var(--sidebar-w); flex: 1; min-width: 0; min-height: 100vh; min-height: 100dvh; }
   .page { display: none; }
   .page.active { display: block; }
   .qa-page, .daily-page, .admin-page, .calc-page { padding: 44px 48px 88px; max-width: 1040px; }
@@ -201,7 +203,7 @@
   .sol-table input:hover, .sol-table textarea:hover { border-color: var(--rule-2); }
   .sol-table input:focus, .sol-table textarea:focus { border-color: var(--bcr); background: var(--sheet); box-shadow: none; outline: none; }
   .sol-table textarea { resize: vertical; min-height: 32px; }
-  .sol-table input[type=number] { text-align: center; font-family: var(--mono); }
+  .sol-table input[type=number] { text-align: center; font-family: var(--mono); min-width: 68px; }
   .sol-table input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--bcr); cursor: pointer; }
   .sol-table textarea.sol-name { font-weight: 600; resize: none; min-height: 0; field-sizing: content; }
   .sol-table textarea { field-sizing: content; }
@@ -226,7 +228,7 @@
   .sol-chip { display: inline-flex; align-items: center; gap: 2px; background: var(--sheet-2); border: 1px solid var(--rule-2); border-radius: 999px; padding: 1px 4px 1px 9px; font-size: 12px; white-space: nowrap; }
   .sol-chip button { background: none; border: 0; color: var(--ink-3); font-size: 14px; line-height: 1; padding: 0 4px; }
   .sol-chip button:hover { color: var(--bad); }
-  .sol-enc select { font-size: 12px; padding: 3px 4px; border: 1px dashed var(--rule-2); border-radius: var(--r-ctl); background: transparent; color: var(--ink-2); max-width: 130px; }
+  .sol-enc select { font-size: 12px; padding: 3px 4px; border: 1px dashed var(--rule-2); border-radius: var(--r-ctl); background: var(--sheet); color: var(--ink-2); max-width: 130px; }
   .sol-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: .03em; color: color-mix(in srgb, var(--bad) 78%, var(--ink)); background: color-mix(in srgb, var(--bad) 12%, var(--sheet)); }
   .sol-badge.done { color: color-mix(in srgb, var(--ok) 78%, var(--ink)); background: color-mix(in srgb, var(--ok) 12%, var(--sheet)); }
   .sol-mod { display: block; margin-top: 4px; font-size: 11px; color: var(--ink-2); white-space: nowrap; }
@@ -338,7 +340,7 @@
   .pos-num { width: 64px; flex-shrink: 0; text-align: right; font-size: 30px; font-weight: 800; letter-spacing: -1px; line-height: 1; color: var(--ink-3); font-variant-numeric: tabular-nums; }
   .pos-first { color: var(--mark-ink); background: linear-gradient(transparent 18%, var(--mark) 18%, var(--mark) 88%, transparent 88%); padding-right: 6px; width: 64px; }
   .p-avatar { display: none; }
-  .p-name { font-size: 16px; font-weight: 600; flex: 1; min-width: 0; }
+  .p-name { font-size: 16px; font-weight: 600; flex: 1; min-width: 0; background: none; border: 0; padding: 0; color: inherit; font-family: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
   .name-last { color: var(--ink-2); }
   .p-tag { font-size: 12px; font-weight: 600; color: var(--ink-3); flex-shrink: 0; }
   .tag-first { color: var(--ink); }
@@ -448,7 +450,7 @@
   .data-banner-btn { background: var(--ink); color: var(--paper); border: 0; border-radius: var(--r-ctl); font-weight: 700; font-size: 13px; padding: 7px 14px; }
   .data-banner-dismiss { background: transparent; border: 0; color: var(--ink-2); font-size: 16px; padding: 2px 6px; }
   body.auth-locked .layout, body.auth-locked .mobile-topbar, body.auth-locked .data-banner { display: none !important; }
-  .auth-screen { display: none; min-height: 100vh; align-items: center; justify-content: center; padding: 24px 16px; background: linear-gradient(var(--sidebar-bg) 0 38%, var(--paper) 38%); }
+  .auth-screen { display: none; min-height: 100vh; min-height: 100dvh; align-items: center; justify-content: center; padding: 24px 16px; background: linear-gradient(var(--sidebar-bg) 0 38%, var(--paper) 38%); }
   body.auth-locked .auth-screen { display: flex; }
   .auth-card { width: 100%; max-width: 400px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 32px 30px; box-shadow: 0 20px 40px -24px rgba(10,30,60,0.35); }
   .auth-card .brand-icon { background: var(--bcr); color: var(--bcr-ink); margin-bottom: 16px; }
@@ -582,7 +584,7 @@
     <div class="brand-icon" aria-hidden="true">QA</div>
     <div class="auth-title">QA BCR Suite</div>
     <div class="auth-sub">Equipo QA del Banco de Costa Rica</div>
-    <div class="auth-msg" id="auth-loading">Verificando sesión...</div>
+    <div class="auth-msg" id="auth-loading">Verificando sesión…</div>
     <form id="auth-form" hidden onsubmit="onLoginSubmit(event)">
       <div class="auth-field">
         <label for="auth-email">Correo</label>
@@ -674,7 +676,7 @@
 <div class="data-banner" id="data-banner" role="status">
   <span class="data-banner-text" id="data-banner-text"></span>
   <button class="data-banner-btn" id="data-banner-btn" hidden onclick="retryLoadConfig()">Reintentar</button>
-  <button class="data-banner-dismiss" onclick="hideNotice()" title="Cerrar">✕</button>
+  <button class="data-banner-dismiss" onclick="hideNotice()" title="Cerrar" aria-label="Cerrar aviso">✕</button>
 </div>
 
 <div class="layout">
@@ -764,8 +766,8 @@
           <div class="card-label">Proyecto</div>
           <div class="project-grid" id="project-grid"></div>
           <div id="qa-variant-section" style="display:none">
-            <div class="variant-label">Variante</div>
-            <select class="variant-select" id="variant-select"><option value="">Seleccionar variante...</option></select>
+            <label class="variant-label" for="variant-select">Variante</label>
+            <select class="variant-select" id="variant-select"><option value="">Seleccionar variante…</option></select>
           </div>
           <p class="qa-hint">Las tareas salen de la plantilla del proyecto (Administración → Proyectos y tareas).</p>
         </div>
@@ -773,7 +775,7 @@
           <div class="card-label">PBIs, HUs o RTs</div>
           <p class="qa-hint" style="margin:0 0 10px">Uno por línea.</p>
           <textarea id="pbi-input" aria-label="Lista de PBIs" placeholder="12345 - Implementar login con MFA&#10;12346 - Validación de formulario de pago&#10;12347 - Integración con sistema legado"></textarea>
-          <div id="status-msg" class="status-msg"></div>
+          <div id="status-msg" class="status-msg" role="status"></div>
         </div>
       </div>
       <button class="btn-generate" id="btn-gen" onclick="generate()" disabled>Generar tareas</button>
@@ -908,7 +910,7 @@
             <div class="admin-card-title">Daily 1</div>
             <div class="admin-card-desc">Agregar o quitar personas de la lista de Daily 1.</div>
             <div class="crud-row">
-              <input class="crud-input" id="newp-daily1" aria-label="Nueva persona del Daily 1" placeholder="Nombre completo..." onkeydown="if(event.key==='Enter')addPerson('daily1')">
+              <input class="crud-input" id="newp-daily1" aria-label="Nueva persona del Daily 1" placeholder="Nombre completo…" onkeydown="if(event.key==='Enter')addPerson('daily1')">
               <button class="crud-btn-add" onclick="addPerson('daily1')">Agregar</button>
             </div>
             <div class="crud-list" id="list-people-daily1"></div>
@@ -917,7 +919,7 @@
             <div class="admin-card-title">Daily 2</div>
             <div class="admin-card-desc">Agregar o quitar personas de la lista de Daily 2.</div>
             <div class="crud-row">
-              <input class="crud-input" id="newp-daily2" aria-label="Nueva persona del Daily 2" placeholder="Nombre completo..." onkeydown="if(event.key==='Enter')addPerson('daily2')">
+              <input class="crud-input" id="newp-daily2" aria-label="Nueva persona del Daily 2" placeholder="Nombre completo…" onkeydown="if(event.key==='Enter')addPerson('daily2')">
               <button class="crud-btn-add" onclick="addPerson('daily2')">Agregar</button>
             </div>
             <div class="crud-list" id="list-people-daily2"></div>
@@ -954,7 +956,7 @@
         <div class="admin-card-title">Proyectos</div>
         <div class="admin-card-desc">Agregá un proyecto nuevo o eliminá uno existente. Cada proyecto puede tener variantes (opcional).</div>
         <div class="crud-row">
-          <input class="crud-input" id="new-project" aria-label="Nombre del nuevo proyecto" placeholder="Nombre del proyecto (ej. NUEVO_PROYECTO)...">
+          <input class="crud-input" id="new-project" aria-label="Nombre del nuevo proyecto" placeholder="Nombre del proyecto (ej. NUEVO_PROYECTO)…">
           <button class="crud-btn-add" onclick="addProject()">Agregar proyecto</button>
         </div>
         <div class="task-project-grid" id="task-project-list"></div>
@@ -963,13 +965,13 @@
           <div class="task-select-row">
             <select class="variant-select" id="task-variant-select" aria-label="Variante" onchange="renderTaskEditor()"></select>
             <div class="crud-row" style="flex:1;min-width:240px;margin-bottom:0">
-              <input class="crud-input" id="new-variant" placeholder="Nombre de variante nueva (opcional)...">
+              <input class="crud-input" id="new-variant" aria-label="Nombre de la variante nueva" placeholder="Nombre de variante nueva (opcional)…">
               <button class="crud-btn-add" onclick="addVariant()">Agregar variante</button>
             </div>
             <button class="crud-btn-del" onclick="removeVariant()" title="Eliminar variante seleccionada">Eliminar variante</button>
           </div>
           <div class="admin-card-desc">Una tarea por línea. Escribí <code>{n}</code> donde va el número del PBI o HU.</div>
-          <textarea class="task-textarea" id="task-textarea"></textarea>
+          <textarea class="task-textarea" id="task-textarea" aria-label="Tareas de la plantilla, una por línea"></textarea>
           <div class="backup-btns">
             <button class="crud-btn-add" onclick="saveTaskEditor(this)">Guardar plantilla</button>
             <button class="crud-btn-del" onclick="removeProject()">Eliminar proyecto</button>
@@ -1050,11 +1052,11 @@
       </div>
       <div class="sol-stats" id="sol-stats"></div>
       <form class="sol-new" onsubmit="addSolicitud(event)">
-        <input class="crud-input" id="sol-new-name" placeholder="Nueva solicitud: 2270726 - Solicitud P3_081 ..." maxlength="300" required aria-label="Nombre de la nueva solicitud">
+        <input class="crud-input" id="sol-new-name" placeholder="Nueva solicitud: 2270726 - Solicitud P3_081…" maxlength="300" required aria-label="Nombre de la nueva solicitud">
         <button type="submit" class="crud-btn-add" id="sol-new-btn">Agregar</button>
       </form>
       <div class="sol-toolbar">
-        <input class="crud-input" id="sol-search" type="search" placeholder="Buscar solicitud..." aria-label="Buscar solicitud" oninput="renderSolicitudes()">
+        <input class="crud-input" id="sol-search" type="search" placeholder="Buscar solicitud…" aria-label="Buscar solicitud" oninput="renderSolicitudes()">
         <select class="user-role-select" id="sol-filter" aria-label="Filtrar por estado" onchange="renderSolicitudes()">
           <option value="open" selected>Abiertas</option>
           <option value="done">Cerradas</option>
@@ -1067,7 +1069,7 @@
       <div class="sol-table-wrap" id="sol-table-wrap">
         <table class="sol-table">
           <thead><tr>
-            <th style="min-width:240px">Solicitud</th><th>Informe sem.</th><th>Encargado</th><th style="width:64px">Horas</th>
+            <th style="min-width:240px">Solicitud</th><th>Informe sem.</th><th>Encargado</th><th style="width:80px">Horas</th>
             <th>Pend. plan</th><th>Pend. actualizar</th><th>Plan enviado</th><th>Cierre enviado</th>
             <th style="width:130px">Cierra</th><th style="min-width:160px">Observaciones</th><th>Estado</th><th><span class="sr-only">Eliminar</span></th>
           </tr></thead>
@@ -1264,7 +1266,7 @@ async function loadConfig(){
 }
 
 async function retryLoadConfig(){
-  showNotice('Cargando datos desde Supabase...');
+  showNotice('Cargando datos desde Supabase…');
   try{await loadConfig();setBackupStatus('✓ Datos recargados desde Supabase.');}
   catch(e){console.error(e);showNotice('⚠ No se pudieron cargar los datos de Supabase'+errorDetail(e)+'.',true);}
 }
@@ -1345,7 +1347,7 @@ function selectProject(btn){
   document.querySelectorAll('.proj-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
   selectedProject=btn.dataset.type;selectedVariant=null;
   const vs=document.getElementById('qa-variant-section'),vsel=document.getElementById('variant-select'),variants=DB.projects[selectedProject]?.variants||[];
-  if(variants.length>0){vs.style.display='block';vsel.innerHTML='<option value="">Seleccionar variante...</option>'+variants.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v.charAt(0).toUpperCase()+v.slice(1))}</option>`).join('');vsel.onchange=()=>{selectedVariant=vsel.value;checkReady();};}
+  if(variants.length>0){vs.style.display='block';vsel.innerHTML='<option value="">Seleccionar variante…</option>'+variants.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v.charAt(0).toUpperCase()+v.slice(1))}</option>`).join('');vsel.onchange=()=>{selectedVariant=vsel.value;checkReady();};}
   else{vs.style.display='none';selectedVariant=null;}
   checkReady();
 }
@@ -1444,11 +1446,12 @@ function roll(){
   document.getElementById('listBody').innerHTML=order.map((name,i)=>{
     const pos=i+1,isFirst=pos===1,isLast=pos===n,short=name.split(' ').slice(0,2).join(' ');
     const tag=isFirst?'<span class="p-tag tag-first">Empieza</span>':isLast?'<span class="p-tag tag-last">Cierra</span>':'';
-    return `<div class="participant-item" style="animation-delay:${i*40}ms" data-name="${escapeHtml(name)}" data-short="${escapeHtml(short)}" data-color="${color}" onclick="toggleDone(this)"><span class="pos-num ${isFirst?'pos-first':''}">${pos}</span><div class="p-avatar ${color}">${escapeHtml(getInitials(name))}</div><span class="p-name ${isLast?'name-last':''}">${escapeHtml(short)}</span>${tag}<button type="button" class="p-absent-btn" onclick="event.stopPropagation();toggleAbsent(this.closest('.participant-item'))">No asistió</button></div>`;
+    return `<div class="participant-item" style="animation-delay:${i*40}ms" data-name="${escapeHtml(name)}" data-short="${escapeHtml(short)}" data-color="${color}" onclick="toggleDone(this)"><span class="pos-num ${isFirst?'pos-first':''}">${pos}</span><div class="p-avatar ${color}">${escapeHtml(getInitials(name))}</div><button type="button" class="p-name ${isLast?'name-last':''}" aria-pressed="false" title="Marcar que ya habló">${escapeHtml(short)}</button>${tag}<button type="button" class="p-absent-btn" onclick="event.stopPropagation();toggleAbsent(this.closest('.participant-item'))">No asistió</button></div>`;
   }).join('');
 }
 function toggleDone(el){
   if(el.classList.contains('absent'))return;
+  el.querySelector('.p-name')?.setAttribute('aria-pressed',String(!el.classList.contains('done')));
   const name=el.dataset.name, short=el.dataset.short, color=el.dataset.color;
   const doneBody=document.getElementById('doneBody');
   const existingEmpty=doneBody.querySelector('.done-empty');
@@ -1463,7 +1466,7 @@ function toggleDone(el){
     div.className='done-item';
     div.dataset.done=name;
     div.innerHTML=`<div class="done-avatar">${escapeHtml(getInitials(name))}</div><span class="done-name">${escapeHtml(short)}</span><span class="done-check">✓</span>`;
-    div.onclick=()=>{ el.classList.remove('done'); div.remove(); updateDoneCount(); };
+    div.onclick=()=>{ el.classList.remove('done'); el.querySelector('.p-name')?.setAttribute('aria-pressed','false'); div.remove(); updateDoneCount(); };
     doneBody.appendChild(div);
   }
   updateDoneCount();
@@ -1512,7 +1515,7 @@ async function saveDailyRun(){
   if(!items.length)return;
   if(!grupo){st.className='status-msg error';st.textContent='⚠ No se pudo guardar: falta la configuración del daily. Recargá la página.';return;}
   const fecha=calcToISO(new Date());
-  btn.disabled=true;st.className='status-msg info';st.textContent='Guardando...';
+  btn.disabled=true;st.className='status-msg info';st.textContent='Guardando…';
   // Si ya se guardó hoy, se pregunta antes de reemplazar.
   const prev=await supabaseClient.rpc('daily_historial',{p_grupo:grupo,desde:fecha,hasta:fecha});
   if(!prev.error&&prev.data?.length&&!confirm(`El Daily ${activeDaily} de hoy ya lo guardó ${prev.data[0].guardado_por||'alguien'}. ¿Reemplazarlo con este?`)){
@@ -1911,7 +1914,7 @@ function solRow(r){
   cierra.setAttribute('aria-label','Fecha de cierre');
   cierra.addEventListener('change',()=>saveSolicitud(r.id,{cierra:cierra.value||null}));
   const wrapCierra=document.createElement('div');wrapCierra.className='sol-cierra';wrapCierra.append(dot,cierra);
-  const obs=Object.assign(document.createElement('textarea'),{rows:1,maxLength:2000,placeholder:'Notas...',value:r.observaciones||''});
+  const obs=Object.assign(document.createElement('textarea'),{rows:1,maxLength:2000,placeholder:'Notas…',value:r.observaciones||''});
   obs.setAttribute('aria-label','Observaciones');
   obs.addEventListener('change',()=>saveSolicitud(r.id,{observaciones:obs.value}));
   const badge=document.createElement('span');
@@ -2307,7 +2310,7 @@ function hrsOpenAdjust(ctx){
 }
 async function hrsAdjustWrite(run){
   const st=document.getElementById('adj-status'),btn=document.getElementById('adj-save');
-  btn.disabled=true;st.className='status-msg info';st.textContent='Guardando...';
+  btn.disabled=true;st.className='status-msg info';st.textContent='Guardando…';
   const {data,error}=await run();
   btn.disabled=false;
   if(error?.code==='23505'){st.className='status-msg error';st.textContent='⚠ Otra persona ajustó este número recién. Cerrá y volvé a abrirlo.';loadHrsReport();return;}
@@ -2392,7 +2395,7 @@ function calcAddOff(){
   calcOffCounter++;
   const id=calcOffCounter,c=document.getElementById('calcOffContainer'),d=document.createElement('div');
   d.className='calc-off-entry';d.id='calcOff-'+id;
-  d.innerHTML=`<div class="calc-field"><label>Desde</label><input type="date" id="calcOffS-${id}" min="2026-01-01" max="2028-12-31"></div><div class="calc-field"><label>Hasta</label><input type="date" id="calcOffE-${id}" min="2026-01-01" max="2028-12-31"></div><button class="crud-btn-del" onclick="document.getElementById('calcOff-${id}').remove()">✕</button>`;
+  d.innerHTML=`<div class="calc-field"><label for="calcOffS-${id}">Desde</label><input type="date" id="calcOffS-${id}" min="2026-01-01" max="2028-12-31"></div><div class="calc-field"><label for="calcOffE-${id}">Hasta</label><input type="date" id="calcOffE-${id}" min="2026-01-01" max="2028-12-31"></div><button type="button" class="crud-btn-del" aria-label="Quitar este período" onclick="document.getElementById('calcOff-${id}').remove()">✕</button>`;
   c.appendChild(d);
 }
 
@@ -2564,7 +2567,7 @@ async function onLoginSubmit(event){
   const btn=document.getElementById('auth-submit');
   const email=document.getElementById('auth-email').value.trim();
   const password=document.getElementById('auth-password').value;
-  btn.disabled=true;btn.textContent='Ingresando...';
+  btn.disabled=true;btn.textContent='Ingresando…';
   let error=null;
   try{({error}=await supabaseClient.auth.signInWithPassword({email,password}));}
   catch(e){error=e;}
@@ -2621,7 +2624,7 @@ async function sendFeedback(e){
   e.preventDefault();
   const text=document.getElementById('fb-text').value.trim(),st=document.getElementById('fb-status'),btn=document.getElementById('fb-send');
   if(!text){document.getElementById('fb-text').focus();return;}
-  btn.disabled=true;st.className='status-msg info';st.textContent='Enviando...';
+  btn.disabled=true;st.className='status-msg info';st.textContent='Enviando…';
   // Sin .select(): quien envía no puede leer el feedback.
   const {error}=await supabaseClient.from('feedback').insert({mensaje:text});
   if(error){
@@ -2644,7 +2647,7 @@ async function refreshFeedbackBadge(){
 async function loadFeedbackAdmin(){
   const box=document.getElementById('list-feedback');
   if(!isAdmin()){box.innerHTML='';return;}
-  box.innerHTML='<div class="crud-empty">Cargando...</div>';
+  box.innerHTML='<div class="crud-empty">Cargando…</div>';
   const {data,error}=await supabaseClient.from('feedback').select('id,autor,mensaje,leido,created_at').order('created_at',{ascending:false}).limit(500);
   if(error){box.innerHTML='<div class="crud-empty">⚠ No se pudo cargar el feedback.</div>';return;}
   FEEDBACK=data||[];
@@ -2685,7 +2688,7 @@ let USERS=[];
 async function renderUsersAdmin(){
   const box=document.getElementById('list-users');
   if(!isAdmin()){box.innerHTML='';return;}
-  box.innerHTML='<div class="crud-empty">Cargando usuarios...</div>';
+  box.innerHTML='<div class="crud-empty">Cargando usuarios…</div>';
   const [{data,error},access]=await Promise.all([
     supabaseClient.from('profiles').select('id,full_name,email,role,active').order('full_name'),
     supabaseClient.rpc('admin_user_access')
@@ -2724,7 +2727,7 @@ function userAccessBadge(a){
 
 async function updateUser(id,changes,input){
   const st=document.getElementById('users-status');
-  st.className='status-msg info';st.textContent='Guardando...';
+  st.className='status-msg info';st.textContent='Guardando…';
   input.disabled=true;
   const {data,error}=await supabaseClient.from('profiles').update(changes).eq('id',id).select('id');
   input.disabled=false;
@@ -2808,7 +2811,7 @@ async function createUser(event){
     password:document.getElementById('nu-password').value
   };
   closeInvite();
-  st.className='status-msg info';st.textContent='Creando usuario...';btn.disabled=true;
+  st.className='status-msg info';st.textContent='Creando usuario…';btn.disabled=true;
   const {data,error}=await supabaseClient.functions.invoke('admin-create-user',{body});
   btn.disabled=false;
   if(error){st.className='status-msg error';st.textContent='⚠ '+await functionErrorMessage(error);return;}
@@ -2826,7 +2829,7 @@ async function deleteUser(id,btn){
   const u=USERS.find(x=>x.id===id);if(!u||!isAdmin()||id===currentUser.id)return;
   if(!confirm(`¿Eliminar a ${u.full_name} (${u.email||'sin correo'})?\n\nSe borran su usuario y sus horas registradas, y no se puede deshacer.\nSi solo querés que no entre más, cancelá y desmarcá "Activo".`))return;
   const st=document.getElementById('users-status');
-  st.className='status-msg info';st.textContent='Eliminando...';btn.disabled=true;
+  st.className='status-msg info';st.textContent='Eliminando…';btn.disabled=true;
   const {error}=await supabaseClient.functions.invoke('admin-create-user',{body:{action:'delete_user',id}});
   btn.disabled=false;
   if(error){st.className='status-msg error';st.textContent='⚠ '+await functionErrorMessage(error);return;}
@@ -2839,7 +2842,7 @@ async function resetUserPassword(id,btn){
   if(!confirm(`¿Generar una contraseña temporal nueva para ${u.full_name}? La contraseña actual deja de servir.`))return;
   const st=document.getElementById('user-create-status'),password=randomPassword();
   closeInvite();
-  st.className='status-msg info';st.textContent='Generando contraseña...';btn.disabled=true;
+  st.className='status-msg info';st.textContent='Generando contraseña…';btn.disabled=true;
   const {error}=await supabaseClient.functions.invoke('admin-create-user',{body:{action:'reset_password',id,password}});
   btn.disabled=false;
   if(error){st.className='status-msg error';st.textContent='⚠ '+await functionErrorMessage(error);st.scrollIntoView({block:'nearest'});return;}
@@ -2911,7 +2914,7 @@ async function changePassword(event){
   event.preventDefault();
   const pw=document.getElementById('pw-new').value,st=document.getElementById('pw-status'),btn=document.getElementById('pw-submit');
   if(pw!==document.getElementById('pw-confirm').value){st.className='status-msg error';st.textContent='Las contraseñas no coinciden.';return;}
-  btn.disabled=true;st.className='status-msg info';st.textContent='Guardando...';
+  btn.disabled=true;st.className='status-msg info';st.textContent='Guardando…';
   const {error}=await supabaseClient.auth.updateUser({password:pw});
   btn.disabled=false;
   if(error){
