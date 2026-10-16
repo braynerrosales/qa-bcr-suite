@@ -95,6 +95,10 @@
   .sidebar-logout:hover { background: rgba(255,255,255,0.1); }
   .sidebar-logout:focus-visible { outline-color: var(--mark); }
   .sidebar-footer-text { font-size: 11px; color: var(--sidebar-ink-2); }
+  .sidebar-credit { margin-bottom: 4px; line-height: 1.6; }
+  .invader { width: 14px; height: 10px; vertical-align: -1px; color: var(--sidebar-ink); }
+  .invader-claude { color: #d97757; }
+  .sidebar-credit .nowrap { white-space: nowrap; }
 
   /* ── Estructura de página ────────────────── */
   .main { margin-left: var(--sidebar-w); flex: 1; min-width: 0; min-height: 100vh; min-height: 100dvh; }
@@ -718,6 +722,7 @@
           <button class="sidebar-logout" onclick="logout()">Cerrar sesión</button>
         </div>
       </div>
+      <div class="sidebar-footer-text sidebar-credit">Made by <span class="nowrap"><svg class="invader" viewBox="0 0 11 8" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M2 0h1v1h-1zM8 0h1v1h-1zM3 1h1v1h-1zM7 1h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM0 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM0 6h1v1h-1zM2 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1z"/></svg> Ing. Brayner Rosales Solís</span> <span class="nowrap">x <svg class="invader invader-claude" viewBox="0 0 11 8" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M2 0h1v1h-1zM8 0h1v1h-1zM3 1h1v1h-1zM7 1h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM0 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM0 6h1v1h-1zM2 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1z"/></svg> Claude</span></div>
       <div class="sidebar-footer-text">Versión 3</div>
     </div>
   </aside>
