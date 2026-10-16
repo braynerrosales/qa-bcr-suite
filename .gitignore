@@ -5,3 +5,5 @@ tests/shot-*.png
 package/
 node_modules/
 graphify-out/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
