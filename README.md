@@ -165,6 +165,8 @@ No hace falta configurar secretos: Supabase pone `SUPABASE_URL` y la clave secre
 
 En la app: *Administración → Usuarios* → nombre, correo, rol y contraseña temporal (*Generar* crea una de 14 caracteres). La persona entra con esa contraseña y la cambia en *Cambiar contraseña* (sidebar) o *Clave* (móvil). Al crear el usuario aparece un mensaje listo para copiar (enlace, usuario, contraseña temporal y rol); en pantalla la contraseña se ve oculta y *Listo* la borra. Mandalo por chat directo. Al entrar por primera vez la app obliga a cambiar la contraseña temporal (sin Cancelar; puede cerrar sesión). En la lista, cada usuario muestra *Nunca entró*, *Entró, falta cambiar la contraseña* o su último ingreso; lo registra la base desde Supabase Auth con `supabase/migrations/20261017000001_acceso_usuarios.sql` (pruebas en `supabase/tests/acceso_test.sql`). Las fechas de ingreso solo las ve un ADMIN. Si la función no está publicada, la app lo dice.
 
+**Contraseña olvidada:** en la lista, *Nueva contraseña* (no aparece en tu propio usuario) genera una contraseña temporal de 14 caracteres, la función la cambia en Supabase Auth (`action: 'reset_password'`) y vuelve a marcar que la persona debe cambiarla al entrar. Aparece el mismo mensaje para copiar. La contraseña anterior deja de servir. Si actualizás la función, volvé a pegar `index.ts` y *Deploy* (mismo nombre, *Verify JWT* desactivado).
+
 ## Generar tareas QA
 
 Las tareas salen solo de la plantilla del proyecto (o de la variante). Si no hay plantilla, la app lo avisa y no genera nada: se agrega en Administración → Proyectos y tareas. La extracción de PBIs desde una captura con IA está desactivada. Después de generar, «Borrar» limpia los PBIs y las tareas y deja elegido el proyecto para la siguiente tanda.
@@ -177,7 +179,9 @@ Reemplaza a `solicitudes_tracker.html`: una lista compartida en Supabase, en lug
 2. (Opcional) `supabase/tests/solicitudes_test.sql`: imprime solo «OK» y termina en ROLLBACK.
 3. Cargar las solicitudes existentes con `cargar-solicitudes.sql` (no está en el repo porque tiene nombres). Se niega a correr si la tabla ya tiene datos y al final muestra `iguales = true`.
 
-Los cambios se guardan al salir de cada campo; marcar «Cierre enviado» cierra la solicitud y la saca del informe semanal (quita sus encargados; un trigger lo garantiza en la base). «↻ Recargar» trae los cambios que hicieron otros leads. El encargado del informe se elige de las personas activas del Daily. La base registra quién hizo el último cambio (`updated_by`).
+Los cambios se guardan al salir de cada campo; marcar «Cierre enviado» cierra la solicitud y la saca del informe semanal (quita sus encargados; un trigger lo garantiza en la base). «↻ Recargar» trae los cambios que hicieron otros leads. El encargado del informe se elige de las personas activas del Daily. La base registra quién hizo el último cambio (`updated_by`) y la lista lo muestra en cada fila («Laura · hace 2 h»; el detalle al pasar el mouse).
+
+**En vivo:** con `supabase/migrations/20261017000002_solicitudes_realtime.sql` la tabla se publica en Supabase Realtime y los cambios de otros leads aparecen solos (indicador «● En vivo»). Realtime respeta el RLS: solo reciben cambios QA_LEAD y ADMIN activos. En la fila que estás editando solo se actualiza el estado, para no pisar lo que escribís. El plan gratuito incluye 200 conexiones simultáneas y 2 millones de mensajes por mes. Sin esa migración la app funciona igual con «↻ Recargar».
 
 ## Daily: «No asistió»
 

@@ -227,6 +227,9 @@
   .sol-enc select { font-size: 12px; padding: 3px 4px; border: 1px dashed var(--rule-2); border-radius: var(--r-ctl); background: transparent; color: var(--ink-2); max-width: 130px; }
   .sol-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: .03em; color: color-mix(in srgb, var(--bad) 78%, var(--ink)); background: color-mix(in srgb, var(--bad) 12%, var(--sheet)); }
   .sol-badge.done { color: color-mix(in srgb, var(--ok) 78%, var(--ink)); background: color-mix(in srgb, var(--ok) 12%, var(--sheet)); }
+  .sol-mod { display: block; margin-top: 4px; font-size: 11px; color: var(--ink-2); white-space: nowrap; }
+  .sol-header-actions { display: flex; align-items: center; gap: 10px; }
+  .sol-live { font-size: 12px; font-weight: 600; color: color-mix(in srgb, var(--ok) 78%, var(--ink)); white-space: nowrap; }
   .sol-del { background: none; border: 0; color: var(--ink-2); font-size: 16px; padding: 2px 6px; }
   .sol-del:hover { color: var(--bad); }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -309,6 +312,7 @@
   .backup-note { font-size: 14px; color: var(--ink-2); margin-top: 12px; }
   .user-email { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2); }
   .user-role-select { padding: 6px 10px; font-size: 13px; }
+  .user-reset { padding: 6px 10px; font-size: 13px; }
   .user-role-select:disabled, .crud-checkbox:disabled { opacity: 0.5; cursor: not-allowed; }
   .user-create { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; padding: 18px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); }
   .user-create .crud-input, .user-create select { width: 100%; min-width: 0; }
@@ -426,7 +430,8 @@
     .user-create-pw { flex-wrap: wrap; }
     .user-create-pw .crud-input { flex: 1 1 100%; }
     .user-create-pw .btn-secondary { flex: 1; }
-    .sol-header .btn-secondary { width: 100%; }
+    .sol-header-actions { width: 100%; }
+    .sol-header .btn-secondary { flex: 1; }
     /* Solicitudes en móvil: cada fila es una tarjeta (sin tabla de 1270px). */
     .sol-table-outer.more-right::after { display: none; }
     .sol-table-wrap { overflow: visible; background: transparent; border: 0; }
@@ -812,7 +817,7 @@
       <!-- USUARIOS (solo ADMIN) -->
       <div class="admin-section" id="asec-users">
         <div class="admin-card-title">Usuarios</div>
-        <div class="admin-card-desc">Creá el usuario con una contraseña temporal y compartila por un canal privado: al entrar por primera vez la app le pide cambiarla. Abajo ves quién ya entró y podés cambiar roles o desactivar usuarios.</div>
+        <div class="admin-card-desc">Creá el usuario con una contraseña temporal y compartila por un canal privado: al entrar por primera vez la app le pide cambiarla. Abajo ves quién ya entró y podés cambiar roles, desactivar usuarios o darle una contraseña temporal nueva a quien olvidó la suya.</div>
         <form class="user-create" id="user-create-form" onsubmit="createUser(event)" autocomplete="off">
           <input class="crud-input" id="nu-name" placeholder="Nombre completo" required maxlength="120" aria-label="Nombre completo">
           <input class="crud-input" id="nu-email" type="email" placeholder="Correo" required maxlength="254" aria-label="Correo">
@@ -851,7 +856,10 @@
             <p class="page-subtitle">Lista compartida entre QA Lead y Admin. Los cambios se guardan solos al salir de cada campo. Al cerrar una solicitud se quitan sus encargados del informe semanal.</p>
           </div>
         </div>
-        <button class="btn-secondary" id="sol-reload" onclick="reloadSolicitudes()">↻ Recargar</button>
+        <div class="sol-header-actions">
+          <span class="sol-live" id="sol-live" title="Los cambios de otros leads aparecen solos" hidden>● En vivo</span>
+          <button class="btn-secondary" id="sol-reload" onclick="reloadSolicitudes()">↻ Recargar</button>
+        </div>
       </div>
       <div class="sol-stats" id="sol-stats"></div>
       <form class="sol-new" onsubmit="addSolicitud(event)">
@@ -1424,12 +1432,70 @@ function exportData(){
 let SOL=[];
 const SOL_CHECKS=[['informe_semanal','Informe semanal'],['pend_plan','Pendiente de plan'],['pend_actualizar','Pendiente de actualizar'],['plan_enviado','Plan enviado'],['cierre_enviado','Cierre enviado']];
 function setSolStatus(kind,text){const st=document.getElementById('sol-status');st.className=kind?'status-msg '+kind:'status-msg';st.textContent=text||'';}
+let SOL_NAMES=new Map(),solChannel=null,solLiveOnce=false;
 async function loadSolicitudes(){
   if(!canManageConfig())return;
-  const {data,error}=await supabaseClient.from('solicitudes').select('*').order('id');
+  const [{data,error},people]=await Promise.all([
+    supabaseClient.from('solicitudes').select('*').order('id'),
+    supabaseClient.from('profiles').select('id,full_name')
+  ]);
   if(error){setSolStatus('error','⚠ No se pudieron cargar las solicitudes'+errorDetail(error)+'.');return;}
+  if(!people.error)SOL_NAMES=new Map((people.data||[]).map(p=>[p.id,p.full_name]));
   SOL=data||[];setSolStatus('');renderSolicitudes();
+  solSubscribe();
   return true;
+}
+// Tiempo real: los cambios de otros leads llegan solos (Supabase Realtime, con el
+// mismo RLS que la tabla). Si la conexión se corta, al volver se recarga la lista
+// para no perder lo que cambió mientras tanto.
+function solSubscribe(){
+  if(solChannel||!canManageConfig())return;
+  solChannel=supabaseClient.channel('solicitudes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'solicitudes'},solOnChange)
+    .subscribe(status=>{
+      const live=status==='SUBSCRIBED';
+      document.getElementById('sol-live').hidden=!live;
+      if(live){if(solLiveOnce)loadSolicitudes();solLiveOnce=true;}
+    });
+}
+function solEditing(){return document.getElementById('sol-body').contains(document.activeElement);}
+function solOnChange(p){
+  const body=document.getElementById('sol-body');
+  if(p.eventType==='DELETE'){
+    const id=p.old&&p.old.id;
+    SOL=SOL.filter(r=>r.id!==id);
+    body.querySelector(`tr[data-id="${CSS.escape(String(id))}"]`)?.remove();
+    document.getElementById('sol-empty').hidden=body.rows.length>0;
+    renderSolStats();
+    return;
+  }
+  const n=p.new;if(!n||n.id==null)return;
+  const r=SOL.find(x=>x.id===n.id);
+  if(!r){SOL.push(n);if(!solEditing())renderSolicitudes();else renderSolStats();return;}
+  Object.assign(r,n);
+  const tr=body.querySelector(`tr[data-id="${CSS.escape(String(n.id))}"]`);
+  // En la fila que estás editando solo se actualiza el estado, para no pisar lo que escribís.
+  if(tr){if(tr.contains(document.activeElement))updateSolRow(tr,r);else tr.replaceWith(solRow(r));}
+  renderSolStats();
+}
+// "Modificado por Laura · hace 2 h" (updated_by y updated_at los pone la base).
+function solAgo(iso){
+  const m=Math.round((Date.now()-new Date(iso))/60000);
+  if(m<1)return 'recién';
+  if(m<60)return 'hace '+m+' min';
+  if(m<1440)return 'hace '+Math.round(m/60)+' h';
+  if(m<10080)return 'hace '+Math.round(m/1440)+' d';
+  return new Date(iso).toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+setInterval(()=>{
+  if(!document.getElementById('page-solicitudes').classList.contains('active'))return;
+  document.querySelectorAll('#sol-body tr').forEach(tr=>{const r=SOL.find(x=>String(x.id)===tr.dataset.id);if(r)solModified(tr.querySelector('.sol-mod'),r);});
+},60000);
+function solModified(el,r){
+  const who=r.updated_by&&(r.updated_by===currentUser?.id?'vos':(SOL_NAMES.get(r.updated_by)||'').trim().split(/\s+/)[0]);
+  if(!r.updated_at||!who){el.textContent='';el.title='';return;}
+  el.textContent=who+' · '+solAgo(r.updated_at);
+  el.title='Último cambio: '+(SOL_NAMES.get(r.updated_by)||who)+', '+fmtDateTime(r.updated_at);
 }
 async function reloadSolicitudes(){
   const btn=document.getElementById('sol-reload');btn.disabled=true;
@@ -1523,6 +1589,7 @@ function solRow(r){
   obs.setAttribute('aria-label','Observaciones');
   obs.addEventListener('change',()=>saveSolicitud(r.id,{observaciones:obs.value}));
   const badge=document.createElement('span');
+  const mod=document.createElement('small');mod.className='sol-mod';
   const del=Object.assign(document.createElement('button'),{type:'button',className:'sol-del',textContent:'✕',title:'Eliminar'});
   del.setAttribute('aria-label','Eliminar solicitud');
   del.addEventListener('click',()=>deleteSolicitud(r.id));
@@ -1530,7 +1597,7 @@ function solRow(r){
   tr.append(solCell('','',name),solCell('Informe semanal','',checks.informe_semanal),solCell('Encargado','sol-wide',enc),solCell('Horas','',horas),
     solCell('Pend. plan','',checks.pend_plan),solCell('Pend. actualizar','',checks.pend_actualizar),solCell('Plan enviado','',checks.plan_enviado),
     solCell('Cierre enviado','',checks.cierre_enviado),solCell('Cierra','sol-wide',wrapCierra),solCell('Observaciones','sol-wide',obs),
-    solCell('','sol-plain',badge),solCell('','sol-plain',del));
+    solCell('','sol-plain',badge,mod),solCell('','sol-plain',del));
   renderSolEncargados(enc,r);
   updateSolRow(tr,r);
   return tr;
@@ -1545,6 +1612,7 @@ function updateSolRow(tr,r){
   tr.querySelector('.sol-name').classList.toggle('urgent',!!d&&d.color==='red');
   const badge=tr.querySelector('td:nth-last-child(2) span');
   badge.className='sol-badge'+(r.cerrada?' done':'');badge.textContent=r.cerrada?'Cerrada':'Abierta';
+  solModified(tr.querySelector('.sol-mod'),r);
   tr.querySelector('input[aria-label="Cierre enviado"]').checked=!!r.cierre_enviado;
   const inf=tr.querySelector('input[aria-label="Informe semanal"]');
   inf.checked=!!r.informe_semanal;inf.disabled=!!r.cerrada;
@@ -1572,7 +1640,7 @@ function renderSolEncargados(box,r){
 }
 async function saveSolicitud(id,patch,after){
   const r=SOL.find(x=>x.id===id);if(!r)return;
-  Object.assign(r,patch);
+  Object.assign(r,patch,{updated_by:currentUser.id,updated_at:new Date().toISOString()});
   const tr=document.querySelector(`#sol-body tr[data-id="${CSS.escape(String(id))}"]`);
   if(tr)updateSolRow(tr,r);
   if(after)after();
@@ -1821,6 +1889,7 @@ function applyPermissions(){
 }
 
 /* ============ ADMIN: USUARIOS ============ */
+let USERS=[];
 async function renderUsersAdmin(){
   const box=document.getElementById('list-users');
   if(!isAdmin()){box.innerHTML='';return;}
@@ -1830,6 +1899,7 @@ async function renderUsersAdmin(){
     supabaseClient.rpc('admin_user_access')
   ]);
   if(error){box.innerHTML='<div class="crud-empty">⚠ No se pudieron cargar los usuarios.</div>';return;}
+  USERS=data;
   // Si falta la migración de accesos, la lista se muestra igual, sin el estado.
   const acc=new Map((access.error?[]:access.data||[]).map(a=>[a.id,a]));
   box.innerHTML=data.length?data.map(u=>{
@@ -1840,6 +1910,7 @@ async function renderUsersAdmin(){
       <span class="crud-item-name">${escapeHtml(u.full_name)}${self?' (vos)':''}<span class="user-email">${escapeHtml(u.email||'')}</span>${userAccessBadge(acc.get(u.id))}</span>
       <select class="user-role-select" aria-label="Rol de ${escapeHtml(u.full_name)}" data-id="${u.id}"${lock} onchange="updateUser(this.dataset.id,{role:this.value},this)">${options}</select>
       <label class="crud-label-small"><input type="checkbox" class="crud-checkbox" data-id="${u.id}"${u.active?' checked':''}${lock} onchange="updateUser(this.dataset.id,{active:this.checked},this)"> Activo</label>
+      ${self?'':`<button type="button" class="btn-secondary user-reset" data-id="${u.id}" onclick="resetUserPassword(this.dataset.id,this)">Nueva contraseña</button>`}
     </div>`;
   }).join(''):'<div class="crud-empty">No hay usuarios.</div>';
 }
@@ -1880,10 +1951,26 @@ function setPasswordVisible(show){
   b.textContent=show?'Ocultar':'Ver';b.setAttribute('aria-pressed',String(show));
 }
 function togglePasswordVisible(){setPasswordVisible(document.getElementById('nu-password').type==='password');}
-function generatePassword(){
+function randomPassword(){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*';
   const bytes=crypto.getRandomValues(new Uint32Array(14));
-  document.getElementById('nu-password').value=[...bytes].map(b=>chars[b%chars.length]).join('');
+  return [...bytes].map(b=>chars[b%chars.length]).join('');
+}
+function generatePassword(){document.getElementById('nu-password').value=randomPassword();}
+// Mensaje legible para un error de la Edge Function.
+async function functionErrorMessage(error){
+  let msg=error.message;
+  const res=error.context;
+  // FunctionsFetchError: el navegador no recibió respuesta (función sin publicar, con "Verify JWT"
+  // activado o caída al arrancar; en esos casos la respuesta llega sin CORS y el navegador la bloquea).
+  if(error.name==='FunctionsFetchError')msg='No se pudo contactar la función admin-create-user. Revisá en Supabase → Edge Functions que esté publicada con ese nombre exacto y con "Verify JWT" desactivado (ver README).';
+  if(res&&typeof res.json==='function'){
+    // Un 404 sin {error} es de Supabase: la función no existe.
+    let b=null;try{b=await res.json();}catch(e){}
+    if(b&&b.error)msg=b.error;
+    else if(res.status===404)msg='La función admin-create-user no está publicada en Supabase (ver README).';
+  }
+  return msg;
 }
 
 // Crear usuarios necesita la clave secreta de Supabase: lo hace la Edge Function
@@ -1902,19 +1989,7 @@ async function createUser(event){
   st.className='status-msg info';st.textContent='Creando usuario...';btn.disabled=true;
   const {data,error}=await supabaseClient.functions.invoke('admin-create-user',{body});
   btn.disabled=false;
-  if(error){
-    let msg=error.message;
-    const res=error.context;
-    // FunctionsFetchError: el navegador no recibió respuesta (función sin publicar, con "Verify JWT"
-    // activado o caída al arrancar; en esos casos la respuesta llega sin CORS y el navegador la bloquea).
-    if(error.name==='FunctionsFetchError')msg='No se pudo contactar la función admin-create-user. Revisá en Supabase → Edge Functions que esté publicada con ese nombre exacto y con "Verify JWT" desactivado (ver README).';
-    if(res&&typeof res.json==='function'){
-      if(res.status===404)msg='La función admin-create-user no está publicada en Supabase (ver README).';
-      else{try{msg=(await res.json()).error||msg;}catch(e){}}
-    }
-    st.className='status-msg error';st.textContent='⚠ '+msg;
-    return;
-  }
+  if(error){st.className='status-msg error';st.textContent='⚠ '+await functionErrorMessage(error);return;}
   document.getElementById('user-create-form').reset();
   setPasswordVisible(false);
   st.className='status-msg ok';
@@ -1922,11 +1997,35 @@ async function createUser(event){
   showInvite({name:body.full_name,email:data.email,role:ROLE_LABELS[data.role]||data.role,password:body.password});
   await renderUsersAdmin();
 }
+// Contraseña olvidada: el ADMIN genera una temporal nueva (la Edge Function la
+// cambia en Auth y vuelve a pedir el cambio al entrar) y la comparte con el mensaje.
+async function resetUserPassword(id,btn){
+  const u=USERS.find(x=>x.id===id);if(!u||!isAdmin())return;
+  if(!confirm(`¿Generar una contraseña temporal nueva para ${u.full_name}? La contraseña actual deja de servir.`))return;
+  const st=document.getElementById('user-create-status'),password=randomPassword();
+  closeInvite();
+  st.className='status-msg info';st.textContent='Generando contraseña...';btn.disabled=true;
+  const {error}=await supabaseClient.functions.invoke('admin-create-user',{body:{action:'reset_password',id,password}});
+  btn.disabled=false;
+  if(error){st.className='status-msg error';st.textContent='⚠ '+await functionErrorMessage(error);st.scrollIntoView({block:'nearest'});return;}
+  st.className='status-msg ok';
+  st.textContent=`✓ Contraseña temporal nueva para ${u.email}. Copiá el mensaje y compartilo por un canal privado; no se vuelve a mostrar.`;
+  showInvite({name:u.full_name,email:u.email,role:ROLE_LABELS[u.role]||u.role,password,reset:true});
+  st.scrollIntoView({block:'nearest'});
+  await renderUsersAdmin();
+}
 // Mensaje de bienvenida con los datos de acceso. La contraseña solo vive en
 // inviteText (para copiarla) y en pantalla se ve oculta.
 let inviteText='';
 function inviteMessage(d,pw){
   const first=d.name.split(/\s+/)[0]||d.name;
+  if(d.reset)return `Hola ${first}, te generé una contraseña temporal nueva para QA BCR Suite.
+
+Enlace: ${location.origin}${location.pathname}
+Usuario: ${d.email}
+Contraseña temporal: ${pw}
+
+Al entrar te va a pedir que elijas una contraseña nueva; la temporal deja de servir. No compartas tu contraseña con nadie.`;
   return `Hola ${first}, ya tenés acceso a QA BCR Suite.
 
 Enlace: ${location.origin}${location.pathname}

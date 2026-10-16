@@ -1,4 +1,5 @@
-// QA BCR Suite — crea un usuario desde Administración → Usuarios.
+// QA BCR Suite — crea un usuario desde Administración → Usuarios, o le pone
+// una contraseña temporal nueva (action: 'reset_password') a quien olvidó la suya.
 // Solo un ADMIN activo puede llamarla. La clave secreta la pone Supabase
 // en el entorno de la función: nunca llega al navegador.
 // Publicar con "Verify JWT" desactivado: la función valida la sesión ella misma
@@ -8,6 +9,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.117.2';
 const ALLOWED_ORIGINS = ['https://braynerrosales.github.io'];
 const ROLES = ['ADMIN', 'QA_LEAD', 'QA'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') ?? '';
@@ -48,17 +50,36 @@ Deno.serve(async (req) => {
   if (meError) return reply(500, { error: 'No se pudo comprobar tu perfil.' });
   if (!me || !me.active || me.role !== 'ADMIN') return reply(403, { error: 'Solo un ADMIN puede crear usuarios.' });
 
-  // 2. Datos del usuario nuevo.
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return reply(400, { error: 'Datos inválidos.' }); }
+  const password = String(body.password ?? '');
+  if (password.length < 10 || password.length > 72) return reply(400, { error: 'La contraseña temporal debe tener entre 10 y 72 caracteres.' });
+
+  // Contraseña temporal nueva para un usuario que ya existe.
+  if (body.action === 'reset_password') {
+    const id = String(body.id ?? '');
+    if (!UUID_RE.test(id)) return reply(400, { error: 'Usuario inválido.' });
+    if (id === auth.user.id) return reply(400, { error: 'Para tu propia contraseña usá "Clave".' });
+    const { data: target, error: targetError } = await admin.from('profiles').select('id').eq('id', id).maybeSingle();
+    if (targetError) return reply(500, { error: 'No se pudo buscar el usuario.' });
+    if (!target) return reply(404, { error: 'El usuario no existe.' });
+    const { error: pwError } = await admin.auth.admin.updateUserById(id, { password });
+    if (pwError) return reply(400, { error: 'No se pudo cambiar la contraseña: ' + pwError.message });
+    // Después del cambio: el trigger on_auth_user_access apaga el aviso al cambiar
+    // la contraseña de alguien que ya entró, y acá se vuelve a pedir el cambio.
+    const { error: flagError } = await admin.from('profiles')
+      .update({ must_change_password: true, password_changed_at: null }).eq('id', id);
+    if (flagError) return reply(500, { error: 'La contraseña se cambió, pero no se pudo pedir que la cambie al entrar.' });
+    return reply(200, { id });
+  }
+
+  // 2. Datos del usuario nuevo.
   const email = String(body.email ?? '').trim().toLowerCase();
   const fullName = String(body.full_name ?? '').trim();
   const role = String(body.role ?? 'QA');
-  const password = String(body.password ?? '');
   if (!EMAIL_RE.test(email) || email.length > 254) return reply(400, { error: 'El correo no es válido.' });
   if (!fullName || fullName.length > 120) return reply(400, { error: 'Falta el nombre completo (máximo 120 caracteres).' });
   if (!ROLES.includes(role)) return reply(400, { error: 'Rol inválido.' });
-  if (password.length < 10 || password.length > 72) return reply(400, { error: 'La contraseña temporal debe tener entre 10 y 72 caracteres.' });
 
   // 3. Crear en Auth (confirmado: no depende del correo). El trigger crea el perfil como QA.
   const { data: created, error: createError } = await admin.auth.admin.createUser({

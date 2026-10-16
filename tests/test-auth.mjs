@@ -121,13 +121,15 @@ function tableRequest(req, url, me, json) {
       else {
         const dup = name === 'daily_members' && rows.find((r) => r.daily_group_id === item.daily_group_id && r.name === item.name);
         if (dup) return json(409, { code: '23505', message: 'duplicate key value violates unique constraint' });
-        rows.push({ id: nextId(rows), active: true, ...item });
+        rows.push({ id: nextId(rows), active: true, ...item, ...(name === 'solicitudes' ? { updated_by: me.id, updated_at: new Date().toISOString() } : {}) });
       }
     }
     return r201(json);
   }
   const target = lead ? rows.filter(match) : [];   // el RLS filtra: 0 filas, sin error
-  if (method === 'PATCH') target.forEach((r) => Object.assign(r, body));
+  // Igual que el trigger solicitudes_touch: registra quién y cuándo.
+  const stamp = name === 'solicitudes' ? { updated_by: me.id, updated_at: new Date().toISOString() } : {};
+  if (method === 'PATCH') target.forEach((r) => Object.assign(r, body, stamp));
   if (method === 'DELETE') {
     tables[name] = rows.filter((r) => !target.includes(r));
     // ON DELETE CASCADE del esquema
@@ -139,7 +141,30 @@ function tableRequest(req, url, me, json) {
 }
 const r201 = (json) => json(201, null);
 
+// Supabase Realtime simulado (protocolo Phoenix 2.0.0: [join_ref, ref, topic, event, payload]).
+const rtSockets = [];
+function rtPush(type, record, old = {}) {
+  for (const s of rtSockets) {
+    if (!s.topic) continue;
+    s.ws.send(JSON.stringify([null, null, s.topic, 'postgres_changes', { ids: [s.bindingId], data: {
+      type, schema: 'public', table: 'solicitudes', commit_timestamp: new Date().toISOString(),
+      record: type === 'DELETE' ? undefined : record, old_record: old, columns: [], errors: null } }]));
+  }
+}
 async function setup(context) {
+  await context.routeWebSocket(/\/realtime\/v1\/websocket/, (ws) => {
+    const s = { ws, topic: null, bindingId: 77 };
+    rtSockets.push(s);
+    ws.onMessage((m) => {
+      const [joinRef, ref, topic, event, payload] = JSON.parse(m);
+      if (event === 'phx_join') {
+        s.topic = topic;
+        const pc = (payload.config.postgres_changes || []).map((f) => ({ id: s.bindingId, ...f }));
+        ws.send(JSON.stringify([joinRef, ref, topic, 'phx_reply', { status: 'ok', response: { postgres_changes: pc } }]));
+      } else if (ref) ws.send(JSON.stringify([joinRef, ref, topic, 'phx_reply', { status: 'ok', response: {} }]));
+    });
+    ws.onClose(() => rtSockets.splice(rtSockets.indexOf(s), 1));
+  });
   await context.route('https://fonts.googleapis.com/**', (r) => r.abort());
   await context.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js',
     (r) => r.fulfill({ contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body: supabaseJs }));
@@ -202,6 +227,13 @@ async function setup(context) {
       if (!me) return json(401, { error: 'La sesión no es válida. Iniciá sesión de nuevo.' });
       if (me.role !== 'ADMIN' || !me.active) return json(403, { error: 'Solo un ADMIN puede crear usuarios.' });
       const b = req.postDataJSON();
+      if (b.action === 'reset_password') {
+        const t = byId(b.id);
+        if (!t) return json(404, { error: 'El usuario no existe.' });
+        if (b.id === me.id) return json(400, { error: 'Para tu propia contraseña usá "Clave".' });
+        Object.assign(t[1], { password: b.password, must_change_password: true, password_changed_at: null });
+        return json(200, { id: b.id });
+      }
       created.push(b);
       if (users[b.email]) return json(409, { error: 'Ya existe un usuario con ese correo.' });
       const id = 'a0000000-0000-4000-8000-0000000000' + String(10 + created.length);
@@ -751,9 +783,35 @@ resetData();
   assert.match(await badge('Nora Nueva'), /^Último ingreso: \d{2}\/\d{2}\/\d{4}/);
   assert.match(await c4.page.locator('#list-users .crud-item', { hasText: 'Nora Nueva' }).locator('.user-access').getAttribute('title'), /Contraseña cambiada/);
   await c4.page.screenshot({ path: DIR + 'tests/shot-accesos.png', fullPage: true });
+  assert.equal(await c4.page.locator('#list-users .crud-item', { hasText: 'Brayner Rosales' }).locator('.user-reset').count(), 0);
+  answers.push(false);
+  await c4.page.locator('#list-users .crud-item', { hasText: 'Nora Nueva' }).locator('.user-reset').click();
+  assert.equal(users['nora@bcr.test'].password, 'nueva-clave-segura');
+  answers.push(true);
+  await c4.page.evaluate(() => { window.__copied = null; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied = t; } } }); });
+  await c4.page.locator('#list-users .crud-item', { hasText: 'Nora Nueva' }).locator('.user-reset').click();
+  await c4.page.waitForSelector('#user-invite:not([hidden])');
+  const resetPw = users['nora@bcr.test'].password;
+  assert.notEqual(resetPw, 'nueva-clave-segura');
+  assert.equal(resetPw.length, 14);
+  assert.equal(users['nora@bcr.test'].must_change_password, true);
+  assert.match(await c4.page.textContent('#user-invite-text'), /Hola Nora, te generé una contraseña temporal nueva[\s\S]*Contraseña temporal: •{10}/);
+  await c4.page.click('#user-invite-copy');
+  await c4.page.waitForSelector('#user-invite-copy:has-text("Copiado")');
+  assert.ok((await c4.page.evaluate(() => window.__copied)).includes('Contraseña temporal: ' + resetPw));
+  await c4.page.waitForFunction(() => /Entró, falta cambiar/.test([...document.querySelectorAll('#list-users .crud-item')].find((e) => e.textContent.includes('Nora Nueva'))?.textContent || ''));
+  ok('ADMIN: "Nueva contraseña" pide confirmación, genera una temporal, vuelve a pedir el cambio y arma el mensaje');
   delete users['nunca@bcr.test']; delete users['temp@bcr.test'];
   await c4.context.close();
   ok('ADMIN ve quién nunca entró, quién sigue con la temporal y el último ingreso');
+
+  const c5 = await newPage();
+  await c5.page.goto('http://app.test/index.html');
+  await login(c5.page, 'nora@bcr.test', users['nora@bcr.test'].password);
+  await c5.page.waitForSelector('#pw-dialog[open]');
+  assert.equal(await c5.page.textContent('#pw-title'), 'Cambiá tu contraseña temporal');
+  await c5.context.close();
+  ok('con la contraseña temporal nueva entra y la app le pide cambiarla');
 }
 
 // 17. QA_LEAD no puede crear usuarios (la función lo rechaza aunque se llame a mano)
@@ -885,6 +943,26 @@ resetData();
   assert.equal(tables.solicitudes[0].cierra, '2026-12-01');
   assert.equal(tables.solicitudes[0].nombre, 'Solicitud P3_081 Renombrada');
   ok('Solicitudes: casillas, horas, fecha, nombre y notas se guardan; cierre enviado la cierra y quita los encargados');
+  assert.equal(await row.locator('.sol-mod').textContent(), 'vos · recién');
+  ok('Solicitudes: muestra quién hizo el último cambio');
+
+  await page.waitForSelector('#sol-live', { state: 'visible' });
+  const sol2 = { ...tables.solicitudes.find((s) => s.id === 2), observaciones: 'Cambio de otro lead', updated_by: users['admin@bcr.test'].id, updated_at: new Date(Date.now() - 2 * 3600e3).toISOString() };
+  rtPush('UPDATE', sol2, { id: 2 });
+  await page.waitForFunction(() => document.querySelector('#sol-body tr[data-id="2"] textarea[aria-label="Observaciones"]').value === 'Cambio de otro lead');
+  assert.equal(await page.locator('#sol-body tr[data-id="2"] .sol-mod').textContent(), 'Brayner · hace 2 h');
+  // La fila que estás editando no se pisa: solo cambia su estado.
+  await page.locator('#sol-body tr[data-id="2"] textarea[aria-label="Observaciones"]').focus();
+  await page.keyboard.type(' (mío)');
+  rtPush('UPDATE', { ...sol2, horas: 9 }, { id: 2 });
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(await page.locator('#sol-body tr[data-id="2"] textarea[aria-label="Observaciones"]').inputValue(), 'Cambio de otro lead (mío)');
+  await page.locator('#sol-search').focus();
+  rtPush('INSERT', { id: 50, nombre: 'Solicitud P3_200 En vivo', informe_semanal: false, encargados: [], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: false, cierre_enviado: false, cierra: null, observaciones: '', cerrada: false, updated_by: users['admin@bcr.test'].id, updated_at: new Date().toISOString() });
+  await page.waitForSelector('#sol-body tr[data-id="50"]');
+  rtPush('DELETE', null, { id: 50 });
+  await page.waitForFunction(() => !document.querySelector('#sol-body tr[data-id="50"]'));
+  ok('Solicitudes en vivo: cambios, altas y bajas de otros aparecen solos sin pisar lo que estás escribiendo');
 
 
   await page.fill('#sol-new-name', 'Solicitud P3_090 Nueva <i>x</i>');
