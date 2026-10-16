@@ -1,5 +1,6 @@
-// QA BCR Suite — crea un usuario desde Administración → Usuarios, o le pone
-// una contraseña temporal nueva (action: 'reset_password') a quien olvidó la suya.
+// QA BCR Suite — crea un usuario desde Administración → Usuarios, le pone
+// una contraseña temporal nueva (action: 'reset_password') a quien olvidó la suya
+// o elimina un usuario (action: 'delete_user').
 // Solo un ADMIN activo puede llamarla. La clave secreta la pone Supabase
 // en el entorno de la función: nunca llega al navegador.
 // Publicar con "Verify JWT" desactivado: la función valida la sesión ella misma
@@ -52,6 +53,20 @@ Deno.serve(async (req) => {
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return reply(400, { error: 'Datos inválidos.' }); }
+
+  // Eliminar un usuario: se borra de Auth y, en cascada, su perfil, sus horas y su historial.
+  if (body.action === 'delete_user') {
+    const id = String(body.id ?? '');
+    if (!UUID_RE.test(id)) return reply(400, { error: 'Usuario inválido.' });
+    if (id === auth.user.id) return reply(400, { error: 'No podés eliminar tu propio usuario.' });
+    const { data: target, error: targetError } = await admin.from('profiles').select('id').eq('id', id).maybeSingle();
+    if (targetError) return reply(500, { error: 'No se pudo buscar el usuario.' });
+    if (!target) return reply(404, { error: 'El usuario no existe.' });
+    const { error: delError } = await admin.auth.admin.deleteUser(id);
+    if (delError) return reply(400, { error: 'No se pudo eliminar el usuario: ' + delError.message });
+    return reply(200, { id });
+  }
+
   const password = String(body.password ?? '');
   if (password.length < 10 || password.length > 72) return reply(400, { error: 'La contraseña temporal debe tener entre 10 y 72 caracteres.' });
 

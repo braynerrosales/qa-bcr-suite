@@ -49,10 +49,11 @@ const solicitudesIniciales = () => [
   { id: 4, nombre: 'Solicitud P2_191 TPSISTAR cerrada', informe_semanal: false, encargados: [], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: false, cierre_enviado: true, cierra: '2026-01-23', observaciones: '', cerrada: true },
 ];
 function resetData(empty = false) {
-  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [], solicitudes: [], horas: [], horas_ajustes: [] } : {
+  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [], solicitudes: [], horas: [], horas_ajustes: [], feedback: [] } : {
     solicitudes: solicitudesIniciales(),
     horas: [],
     horas_ajustes: [],
+    feedback: [],
     daily_groups: [{ id: 1, code: 'daily1', active: true }, { id: 2, code: 'daily2', active: true }],
     daily_members: [
       { id: 1, daily_group_id: 1, name: 'Ana <img src=x onerror=alert(1)>', active: true },
@@ -177,6 +178,26 @@ function horasRequest(req, url, me, json) {
   }
   if (method === 'DELETE') { tables.horas = tables.horas.filter((r) => !visible.includes(r)); return json(200, visible.map((r) => ({ id: r.id }))); }
 }
+// Igual que public.feedback (20261019000001): cualquiera activo envía, solo ADMIN lee.
+function feedbackRequest(req, url, me, r, json) {
+  const admin = !!me?.active && me.role === 'ADMIN';
+  const filters = [...url.searchParams].filter(([k]) => !['select', 'order', 'columns', 'limit'].includes(k))
+    .map(([k, v]) => { const [op, ...rest] = v.split('.'); return [k, rest.join('.')]; });
+  const visible = admin ? tables.feedback.filter((f) => filters.every(([k, v]) => String(f[k]) === v)) : [];
+  const method = req.method();
+  if (method === 'HEAD') return r.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range', 'content-range': `0-${Math.max(0, visible.length - 1)}/${visible.length}` } });
+  if (method === 'GET') return json(200, [...visible].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((f) => ({ ...f })));
+  const body = req.postDataJSON();
+  if (method === 'POST') {
+    if (!me?.active) return json(403, { code: '42501', message: 'new row violates row-level security policy for table "feedback"' });
+    if ('user_id' in body || 'autor' in body) return json(403, { code: '42501', message: 'permission denied for table feedback' });
+    if (tables.feedback.filter((f) => f.user_id === me.id).length >= 20) return json(400, { code: '54000', message: 'Llegaste al máximo' });
+    tables.feedback.push({ id: Math.max(0, ...tables.feedback.map((x) => x.id)) + 1, user_id: me.id, autor: me.full_name, mensaje: body.mensaje.trim(), leido: false, created_at: new Date(Date.now() + tables.feedback.length).toISOString() });
+    return r.fulfill({ status: 201, headers: { 'access-control-allow-origin': '*' }, body: '' });
+  }
+  if (method === 'PATCH') { visible.forEach((f) => Object.assign(f, { leido: body.leido })); return json(200, visible.map((f) => ({ id: f.id }))); }
+  if (method === 'DELETE') { tables.feedback = tables.feedback.filter((f) => !visible.includes(f)); return json(200, visible.map((f) => ({ id: f.id }))); }
+}
 // Igual que public.horas_ajustes (20261018000003_horas_ajustes.sql): solo QA_LEAD y ADMIN.
 function ajustesRequest(req, url, me, json) {
   const ops = { eq: (a, b) => String(a) === b, gte: (a, b) => String(a) >= b, lte: (a, b) => String(a) <= b };
@@ -299,6 +320,15 @@ async function setup(context) {
       if (!me) return json(401, { error: 'La sesión no es válida. Iniciá sesión de nuevo.' });
       if (me.role !== 'ADMIN' || !me.active) return json(403, { error: 'Solo un ADMIN puede crear usuarios.' });
       const b = req.postDataJSON();
+      if (b.action === 'delete_user') {
+        const t = byId(b.id);
+        if (!t) return json(404, { error: 'El usuario no existe.' });
+        if (b.id === me.id) return json(400, { error: 'No podés eliminar tu propio usuario.' });
+        delete users[t[0]];
+        tables.horas = tables.horas.filter((h) => h.user_id !== b.id);
+        tables.feedback.forEach((f) => { if (f.user_id === b.id) f.user_id = null; });
+        return json(200, { id: b.id });
+      }
       if (b.action === 'reset_password') {
         const t = byId(b.id);
         if (!t) return json(404, { error: 'El usuario no existe.' });
@@ -318,6 +348,7 @@ async function setup(context) {
       return json(200, Object.values(users).map((u) => ({ id: u.id, first_sign_in_at: u.first_sign_in_at ?? null, last_sign_in_at: u.last_sign_in_at ?? null, password_changed_at: u.password_changed_at ?? null, must_change_password: !!u.must_change_password })));
     }
     if (url.pathname === '/rest/v1/horas') return horasRequest(req, url, byId(subOf(req))?.[1], json);
+    if (url.pathname === '/rest/v1/feedback') return feedbackRequest(req, url, byId(subOf(req))?.[1], r, json);
     if (url.pathname === '/rest/v1/horas_ajustes') return ajustesRequest(req, url, byId(subOf(req))?.[1], json);
     if (url.pathname === '/rest/v1/rpc/horas_resumen') {
       const me = byId(subOf(req))?.[1];
@@ -1360,11 +1391,88 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   ok('Horas (ADMIN): si no se puede guardar la elección, avisa y deja la casilla como estaba');
   await context.close();
 }
+// Feedback y eliminar usuarios
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'qa@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('.sidebar-logout:has-text("Enviar feedback")');
+  await page.waitForSelector('#fb-dialog[open]');
+  await page.click('#fb-send');
+  assert.equal(tables.feedback.length, 0, 'vacío no se envía');
+  await page.fill('#fb-text', '  En Horas me gustaría <b>copiar</b> la semana anterior.  ');
+  assert.equal(await page.textContent('#fb-count'), '58 / 2000');
+  await page.click('#fb-send');
+  await page.waitForSelector('#fb-status.ok');
+  await page.waitForSelector('#fb-dialog', { state: 'hidden' });
+  assert.deepEqual([tables.feedback.length, tables.feedback[0].autor, tables.feedback[0].mensaje], [1, 'Quique QA <b>', 'En Horas me gustaría <b>copiar</b> la semana anterior.']);
+  assert.equal(await page.isVisible('#atab-feedback'), false);
+  ok('Feedback: cualquier usuario lo envía desde el menú');
+  await context.close();
+}
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'lead@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.evaluate(() => showPage('admin'));
+  assert.equal(await page.isVisible('#atab-feedback'), false);
+  const leadRead = await page.evaluate(async () => (await supabaseClient.from('feedback').select('*')).data);
+  assert.deepEqual(leadRead, []);
+  ok('Feedback: un Lead no ve la pestaña ni puede leerlo');
+  await context.close();
+}
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'admin@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.evaluate(() => showPage('admin'));
+  await page.waitForSelector('#fb-badge:not([hidden])');
+  assert.equal(await page.textContent('#fb-badge'), '1');
+  await page.click('#atab-feedback');
+  await page.waitForSelector('#list-feedback .fb-item.unread');
+  assert.equal(await page.textContent('#list-feedback .fb-msg'), 'En Horas me gustaría <b>copiar</b> la semana anterior.');
+  assert.match(await page.textContent('#list-feedback .fb-head'), /Quique QA <b>/);
+  await page.screenshot({ path: DIR + 'tests/shot-feedback.png', fullPage: true });
+  await page.click('#list-feedback button:has-text("Marcar leído")');
+  await page.waitForSelector('#list-feedback .crud-empty:has-text("No hay feedback sin leer")');
+  assert.equal(tables.feedback[0].leido, true);
+  assert.equal(await page.isVisible('#fb-badge'), false);
+  await page.check('input[name=fb-filter][value=all]');
+  await page.waitForSelector('#list-feedback .fb-item:not(.unread)');
+  answers.push(true);
+  await page.click('#list-feedback .crud-btn-del');
+  await page.waitForSelector('#list-feedback .crud-empty:has-text("Todavía no hay feedback")');
+  assert.equal(tables.feedback.length, 0);
+  ok('Feedback (ADMIN): lo lee, lo marca como leído y lo elimina');
+
+  users['borrar@bcr.test'] = { id: 'a0000000-0000-4000-8000-000000000077', password: 'pw', full_name: 'Bruno Borrar', role: 'QA', active: true };
+  tables.horas.push({ id: 900, user_id: 'a0000000-0000-4000-8000-000000000077', fecha: '2026-10-12', tipo: 'TRABAJO', soli: '', tarea: '', horas: 8, facturable: 8 });
+  await page.click('#atab-users');
+  await page.waitForSelector('#list-users .crud-item:has-text("Bruno Borrar")');
+  assert.equal(await page.locator(`#list-users .user-delete[data-id="${ids.admin}"]`).count(), 0, 'no se puede eliminar a sí mismo');
+  const del = page.locator('#list-users .crud-item', { hasText: 'Bruno Borrar' }).locator('.user-delete');
+  answers.push(false);
+  await del.click();
+  assert.ok(users['borrar@bcr.test'], 'si cancela no se elimina');
+  assert.match(dialogs.at(-1), /Se borran su usuario y sus horas registradas/);
+  answers.push(true);
+  await del.click();
+  await page.waitForSelector('#users-status.ok:has-text("Bruno Borrar fue eliminado")');
+  await until(page, () => !document.querySelector('#list-users').textContent.includes('Bruno Borrar'));
+  assert.equal(users['borrar@bcr.test'], undefined);
+  assert.equal(tables.horas.some((h) => h.id === 900), false);
+  ok('ADMIN: elimina un usuario (con confirmación; no a sí mismo)');
+  await context.close();
+}
 {
   const { context, page } = await newPage({ width: 375, height: 760 });
   await page.goto('http://app.test/index.html');
   await login(page, 'qa@bcr.test');
   await page.waitForSelector('.mobile-topbar', { state: 'visible' });
+  assert.equal(await page.isVisible('#mobile-feedback'), true);
   await page.click('.mobile-nav-btn:has-text("Horas")');
   await page.waitForSelector('#hrs-days .hrs-line');
   let overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

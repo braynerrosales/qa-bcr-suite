@@ -457,6 +457,18 @@
   .pw-eye svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .pw-eye .eye-off, .pw-eye[aria-pressed="true"] .eye-on { display: none; }
   .pw-eye[aria-pressed="true"] .eye-off { display: block; }
+  .fb-text { width: 100%; min-height: 130px; resize: vertical; font: inherit; }
+  .fb-count { font-size: 12px; color: var(--ink-3); text-align: right; margin-top: -6px; }
+  .fb-badge { display: inline-block; min-width: 20px; padding: 1px 6px; margin-left: 4px; border-radius: 999px; background: var(--mark); color: var(--mark-ink); font-size: 12px; font-weight: 700; text-align: center; }
+  .fb-filter { display: flex; gap: 18px; margin: 4px 0 12px; font-size: 14px; }
+  .fb-filter label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .fb-item { border: 1px solid var(--rule); border-radius: var(--r-sheet); background: var(--sheet); padding: 12px 14px; margin-bottom: 10px; }
+  .fb-item.unread { border-left: 4px solid var(--bcr); }
+  .fb-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-size: 13px; color: var(--ink-2); }
+  .fb-head strong { color: var(--ink); font-size: 14px; }
+  .fb-msg { margin: 8px 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+  .fb-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .user-delete { padding: 6px 10px; }
   .pw-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
 
   /* ── Móvil ───────────────────────────────── */
@@ -583,6 +595,7 @@
     <button class="mobile-nav-btn" onclick="showPage('calc')">Días</button>
   </div>
   <div class="mobile-account">
+    <button class="mobile-logout-btn" id="mobile-feedback" onclick="openFeedback()" title="Enviar feedback">Feedback</button>
     <button class="mobile-logout-btn" id="mobile-password" onclick="openPasswordDialog()" title="Cambiar contraseña">Clave</button>
     <button class="mobile-logout-btn" id="mobile-logout" onclick="logout()" title="Cerrar sesión">Salir</button>
   </div>
@@ -599,6 +612,20 @@
       <button type="button" class="btn-secondary" id="pw-cancel" onclick="document.getElementById('pw-dialog').close()">Cancelar</button>
       <button type="button" class="btn-secondary" id="pw-logout" hidden onclick="closeForcedAndLogout()">Cerrar sesión</button>
       <button type="submit" class="crud-btn-add" id="pw-submit">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="pw-dialog" id="fb-dialog" aria-labelledby="fb-title">
+  <form onsubmit="sendFeedback(event)">
+    <div class="admin-card-title" id="fb-title">Enviar feedback</div>
+    <p class="adj-hint">Ideas, errores o algo que te gustaría cambiar. Solo lo leen los ADMIN, con tu nombre.</p>
+    <textarea class="fb-text" id="fb-text" rows="6" maxlength="2000" required aria-label="Tu feedback" placeholder="Ej: En Horas me gustaría poder copiar la semana anterior."></textarea>
+    <div class="fb-count" id="fb-count" aria-hidden="true">0 / 2000</div>
+    <div class="status-msg" id="fb-status" role="status"></div>
+    <div class="pw-dialog-actions">
+      <button type="button" class="btn-secondary" onclick="document.getElementById('fb-dialog').close()">Cancelar</button>
+      <button type="submit" class="crud-btn-add" id="fb-send">Enviar</button>
     </div>
   </form>
 </dialog>
@@ -655,6 +682,7 @@
         <div class="sidebar-user-name" id="sidebar-user-name"></div>
         <div class="sidebar-user-role" id="sidebar-user-role"></div>
         <div class="sidebar-user-actions">
+          <button class="sidebar-logout" onclick="openFeedback()">Enviar feedback</button>
           <button class="sidebar-logout" onclick="openPasswordDialog()">Cambiar contraseña</button>
           <button class="sidebar-logout" onclick="logout()">Cerrar sesión</button>
         </div>
@@ -834,6 +862,7 @@
         <button class="admin-tab-btn" id="atab-tasks" onclick="selectAdminTab('tasks')">Proyectos y tareas</button>
         <button class="admin-tab-btn" id="atab-backup" onclick="selectAdminTab('backup')">Respaldo</button>
         <button class="admin-tab-btn" id="atab-users" onclick="selectAdminTab('users')" hidden>Usuarios</button>
+        <button class="admin-tab-btn" id="atab-feedback" onclick="selectAdminTab('feedback')" hidden>Feedback <span class="fb-badge" id="fb-badge" hidden></span></button>
       </div>
 
       <!-- PERSONAS -->
@@ -924,10 +953,22 @@
         <div class="backup-note" id="backup-status"></div>
       </div>
 
+      <!-- FEEDBACK (solo ADMIN) -->
+      <div class="admin-section" id="asec-feedback">
+        <div class="admin-card-title">Feedback</div>
+        <div class="admin-card-desc">Lo que el equipo envía con "Enviar feedback". Solo lo ven los ADMIN; quien lo envía no lo vuelve a ver.</div>
+        <div class="fb-filter" role="group" aria-label="Mostrar">
+          <label><input type="radio" name="fb-filter" value="pending" checked onchange="renderFeedbackAdmin()"> Sin leer</label>
+          <label><input type="radio" name="fb-filter" value="all" onchange="renderFeedbackAdmin()"> Todos</label>
+        </div>
+        <div class="status-msg" id="fb-admin-status" role="status"></div>
+        <div id="list-feedback"></div>
+      </div>
+
       <!-- USUARIOS (solo ADMIN) -->
       <div class="admin-section" id="asec-users">
         <div class="admin-card-title">Usuarios</div>
-        <div class="admin-card-desc">Creá el usuario con una contraseña temporal y compartila por un canal privado: al entrar por primera vez la app le pide cambiarla. Abajo ves quién ya entró y podés cambiar roles, desactivar usuarios o darle una contraseña temporal nueva a quien olvidó la suya.</div>
+        <div class="admin-card-desc">Creá el usuario con una contraseña temporal y compartila por un canal privado: al entrar por primera vez la app le pide cambiarla. Abajo ves quién ya entró y podés cambiar nombres y roles, desactivar o eliminar usuarios, o darle una contraseña temporal nueva a quien olvidó la suya.</div>
         <form class="user-create" id="user-create-form" onsubmit="createUser(event)" autocomplete="off">
           <input class="crud-input" id="nu-name" placeholder="Nombre completo" required maxlength="120" aria-label="Nombre completo">
           <input class="crud-input" id="nu-email" type="email" placeholder="Correo" required maxlength="254" aria-label="Correo">
@@ -1427,6 +1468,7 @@ function selectAdminTab(tab){
   if(tb.offsetParent)tb.scrollIntoView({block:'nearest',inline:'nearest'});
   document.getElementById('asec-'+tab).classList.add('active');
   if(tab==='users')renderUsersAdmin();
+  if(tab==='feedback')loadFeedbackAdmin();
 }
 function renderAdmin(){renderPeopleAdmin();renderRulesAdmin();renderTaskProjectList();}
 
@@ -2440,8 +2482,85 @@ function applyPermissions(){
   document.getElementById('mnav-admin').hidden=!lead;
   ['nav-solicitudes','mnav-solicitudes','home-solicitudes'].forEach(id=>document.getElementById(id).hidden=!lead);
   document.getElementById('atab-users').hidden=!isAdmin();
-  if(!isAdmin()&&document.getElementById('asec-users').classList.contains('active'))selectAdminTab('people');
+  document.getElementById('atab-feedback').hidden=!isAdmin();
+  if(!isAdmin()&&['asec-users','asec-feedback'].some(id=>document.getElementById(id).classList.contains('active')))selectAdminTab('people');
+  if(isAdmin())refreshFeedbackBadge();
   if(!lead&&(document.getElementById('page-admin').classList.contains('active')||document.getElementById('page-solicitudes').classList.contains('active')))showPage('home');
+}
+
+/* ============ FEEDBACK ============ */
+// Cualquier usuario envía; solo un ADMIN lee (RLS de public.feedback).
+function openFeedback(){
+  const d=document.getElementById('fb-dialog');
+  d.querySelector('form').reset();
+  document.getElementById('fb-count').textContent='0 / 2000';
+  const st=document.getElementById('fb-status');st.className='status-msg';st.textContent='';
+  document.getElementById('fb-send').disabled=false;
+  d.showModal();
+  document.getElementById('fb-text').focus();
+}
+document.addEventListener('input',e=>{if(e.target.id==='fb-text')document.getElementById('fb-count').textContent=e.target.value.length+' / 2000';});
+async function sendFeedback(e){
+  e.preventDefault();
+  const text=document.getElementById('fb-text').value.trim(),st=document.getElementById('fb-status'),btn=document.getElementById('fb-send');
+  if(!text){document.getElementById('fb-text').focus();return;}
+  btn.disabled=true;st.className='status-msg info';st.textContent='Enviando...';
+  // Sin .select(): quien envía no puede leer el feedback.
+  const {error}=await supabaseClient.from('feedback').insert({mensaje:text});
+  if(error){
+    btn.disabled=false;st.className='status-msg error';
+    st.textContent='⚠ '+(error.code==='54000'?'Llegaste al máximo de 20 mensajes por día. Probá mañana.':'No se pudo enviar'+errorDetail(error)+'.');
+    return;
+  }
+  st.className='status-msg ok';st.textContent='✓ ¡Gracias! Lo recibieron los ADMIN.';
+  document.getElementById('fb-text').value='';
+  if(isAdmin())refreshFeedbackBadge();
+  setTimeout(()=>document.getElementById('fb-dialog').close(),1400);
+}
+let FEEDBACK=[];
+async function refreshFeedbackBadge(){
+  const {count,error}=await supabaseClient.from('feedback').select('id',{count:'exact',head:true}).eq('leido',false);
+  const b=document.getElementById('fb-badge');
+  b.hidden=!!error||!count;b.textContent=count||'';
+  b.setAttribute('aria-label',(count||0)+' sin leer');
+}
+async function loadFeedbackAdmin(){
+  const box=document.getElementById('list-feedback');
+  if(!isAdmin()){box.innerHTML='';return;}
+  box.innerHTML='<div class="crud-empty">Cargando...</div>';
+  const {data,error}=await supabaseClient.from('feedback').select('id,autor,mensaje,leido,created_at').order('created_at',{ascending:false}).limit(500);
+  if(error){box.innerHTML='<div class="crud-empty">⚠ No se pudo cargar el feedback.</div>';return;}
+  FEEDBACK=data||[];
+  renderFeedbackAdmin();
+}
+function renderFeedbackAdmin(){
+  const box=document.getElementById('list-feedback');
+  const all=document.querySelector('input[name=fb-filter]:checked')?.value==='all';
+  const list=FEEDBACK.filter(f=>all||!f.leido);
+  const pending=FEEDBACK.filter(f=>!f.leido).length,b=document.getElementById('fb-badge');
+  b.hidden=!pending;b.textContent=pending||'';b.setAttribute('aria-label',pending+' sin leer');
+  box.innerHTML=list.length?list.map(f=>`<div class="fb-item${f.leido?'':' unread'}">
+      <div class="fb-head"><strong>${escapeHtml(f.autor||'Usuario eliminado')}</strong><span>${fmtDateTime(f.created_at)}</span>${f.leido?'<span>Leído</span>':''}</div>
+      <p class="fb-msg">${escapeHtml(f.mensaje)}</p>
+      <div class="fb-actions">
+        <button type="button" class="btn-secondary user-reset" data-id="${f.id}" onclick="setFeedbackRead(+this.dataset.id,${!f.leido},this)">${f.leido?'Marcar sin leer':'Marcar leído'}</button>
+        <button type="button" class="crud-btn-del" data-id="${f.id}" onclick="deleteFeedback(+this.dataset.id,this)">Eliminar</button>
+      </div>
+    </div>`).join(''):`<div class="crud-empty">${all?'Todavía no hay feedback.':'No hay feedback sin leer.'}</div>`;
+}
+async function feedbackWrite(run,btn){
+  const st=document.getElementById('fb-admin-status');
+  btn.disabled=true;
+  const {data,error}=await run();
+  btn.disabled=false;
+  if(error||!data?.length){st.className='status-msg error';st.textContent='⚠ '+(error?writeErrorMessage(error):'No tenés permiso para este cambio.');await loadFeedbackAdmin();return;}
+  st.className='status-msg';st.textContent='';
+  await loadFeedbackAdmin();
+}
+function setFeedbackRead(id,leido,btn){feedbackWrite(()=>supabaseClient.from('feedback').update({leido}).eq('id',id).select('id'),btn);}
+function deleteFeedback(id,btn){
+  if(!confirm('¿Eliminar este feedback? No se puede deshacer.'))return;
+  feedbackWrite(()=>supabaseClient.from('feedback').delete().eq('id',id).select('id'),btn);
 }
 
 /* ============ ADMIN: USUARIOS ============ */
@@ -2468,6 +2587,7 @@ async function renderUsersAdmin(){
       <label class="crud-label-small"><input type="checkbox" class="crud-checkbox" data-id="${u.id}"${u.active?' checked':''}${lock} onchange="updateUser(this.dataset.id,{active:this.checked},this)"> Activo</label>
       <button type="button" class="btn-secondary user-rename" data-id="${u.id}" onclick="editUserName(this.dataset.id,this)">Cambiar nombre</button>
       ${self?'':`<button type="button" class="btn-secondary user-reset" data-id="${u.id}" onclick="resetUserPassword(this.dataset.id,this)">Nueva contraseña</button>`}
+      ${self?'':`<button type="button" class="crud-btn-del user-delete" data-id="${u.id}" onclick="deleteUser(this.dataset.id,this)">Eliminar</button>`}
     </div>`;
   }).join(''):'<div class="crud-empty">No hay usuarios.</div>';
 }
@@ -2584,6 +2704,19 @@ async function createUser(event){
 }
 // Contraseña olvidada: el ADMIN genera una temporal nueva (la Edge Function la
 // cambia en Auth y vuelve a pedir el cambio al entrar) y la comparte con el mensaje.
+// Eliminar es definitivo (borra también sus horas); para que alguien no entre más alcanza con desmarcar "Activo".
+async function deleteUser(id,btn){
+  const u=USERS.find(x=>x.id===id);if(!u||!isAdmin()||id===currentUser.id)return;
+  if(!confirm(`¿Eliminar a ${u.full_name} (${u.email||'sin correo'})?\n\nSe borran su usuario y sus horas registradas, y no se puede deshacer.\nSi solo querés que no entre más, cancelá y desmarcá "Activo".`))return;
+  const st=document.getElementById('users-status');
+  st.className='status-msg info';st.textContent='Eliminando...';btn.disabled=true;
+  const {error}=await supabaseClient.functions.invoke('admin-create-user',{body:{action:'delete_user',id}});
+  btn.disabled=false;
+  if(error){st.className='status-msg error';st.textContent='⚠ '+await functionErrorMessage(error);return;}
+  st.className='status-msg ok';st.textContent=`✓ ${u.full_name} fue eliminado.`;
+  hrsPeople=null;
+  await renderUsersAdmin();
+}
 async function resetUserPassword(id,btn){
   const u=USERS.find(x=>x.id===id);if(!u||!isAdmin())return;
   if(!confirm(`¿Generar una contraseña temporal nueva para ${u.full_name}? La contraseña actual deja de servir.`))return;

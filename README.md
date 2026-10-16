@@ -169,6 +169,12 @@ En la app: *Administración → Usuarios* → nombre, correo, rol y contraseña 
 
 **Cambiar nombre:** en la lista, *Cambiar nombre* edita el nombre en la misma fila (Enter guarda, Esc cancela). Sirve también para el propio usuario. Lo guarda `profiles.full_name` (solo ADMIN, por RLS); no hace falta SQL nuevo.
 
+**Eliminar usuario:** en la lista, *Eliminar* (no aparece en tu propio usuario) pide confirmación y lo borra con la función `admin-create-user` (`action: 'delete_user'`): se borran su usuario, su perfil, sus horas y los ajustes de sus horas; en lo que modificó queda el registro sin el «modificado por». Para que alguien no entre más sin perder sus horas, alcanza con desmarcar *Activo*. Requiere `20261019000001_feedback_y_eliminar_usuarios.sql` y volver a publicar la función (pegar `index.ts` → *Deploy*, *Verify JWT* desactivado).
+
+## Feedback
+
+Cualquier usuario envía ideas o errores con **Enviar feedback** (menú lateral; *Feedback* en el celular). Solo los ADMIN lo leen en **Administración → Feedback** (con un contador de sin leer), lo marcan como leído o lo eliminan; quien lo envía no lo vuelve a ver. La base pone el autor (no se puede enviar a nombre de otro) y limita a 20 mensajes por persona por día. Requiere `20261019000001_feedback_y_eliminar_usuarios.sql`.
+
 ## Generar tareas QA
 
 Las tareas salen solo de la plantilla del proyecto (o de la variante). Si no hay plantilla, la app lo avisa y no genera nada: se agrega en Administración → Proyectos y tareas. La extracción de PBIs desde una captura con IA está desactivada. Después de generar, «Borrar» limpia los PBIs y las tareas y deja elegido el proyecto para la siguiente tanda.
