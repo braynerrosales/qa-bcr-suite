@@ -329,7 +329,7 @@ begin
     perform pg_temp.ensure_constraint('public.project_variants', 'project_variants_project_id_name_key', 'u', array['project_id','name'], 'UNIQUE (project_id, name)');
     perform pg_temp.ensure_constraint('public.templates', 'templates_project_variant_key', 'u', array['project_id','variant_id'], 'UNIQUE NULLS NOT DISTINCT (project_id, variant_id)');
     perform pg_temp.ensure_constraint('public.template_tasks', 'template_tasks_template_id_position_key', 'u', array['template_id','position'], 'UNIQUE (template_id, "position")');
-    perform pg_temp.ensure_constraint('public.profiles', 'profiles_role_check', 'c', array['role'], 'CHECK ((role = ANY (ARRAY[''ADMIN''::text, ''QA_LEAD''::text, ''QA''::text])))');
+    perform pg_temp.ensure_constraint('public.profiles', 'profiles_role_check', 'c', array['role'], 'CHECK ((role = ANY (ARRAY[''ADMIN''::text, ''QA_LEAD''::text, ''QA''::text, ''BETA''::text])))');
     perform pg_temp.ensure_constraint('public.daily_members', 'daily_members_name_check', 'c', array['name'], 'CHECK ((TRIM(BOTH FROM name) <> ''''::text))');
     perform pg_temp.ensure_constraint('public.daily_rules', 'daily_rules_first_range_check', 'c', array['first_range'], 'CHECK ((first_range >= 0))');
     perform pg_temp.ensure_constraint('public.daily_rule_members', 'daily_rule_members_rule_type_check', 'c', array['rule_type'], 'CHECK ((rule_type = ANY (ARRAY[''FIRST_GROUP''::text, ''LAST_FIXED''::text])))');

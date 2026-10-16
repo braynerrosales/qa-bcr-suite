@@ -626,7 +626,7 @@
     <button class="mobile-nav-btn active" onclick="showPage('home')">Inicio</button>
     <button class="mobile-nav-btn" onclick="showPage('qa')">Tareas</button>
     <button class="mobile-nav-btn" onclick="showPage('daily')">Daily</button>
-    <button class="mobile-nav-btn" onclick="showPage('horas')">Horas</button>
+    <button class="mobile-nav-btn" onclick="showPage('horas')" id="mnav-horas">Horas</button>
     <button class="mobile-nav-btn" onclick="showPage('solicitudes')" id="mnav-solicitudes">Solicitudes</button>
     <button class="mobile-nav-btn" onclick="showPage('admin')" id="mnav-admin">Admin</button>
     <button class="mobile-nav-btn" onclick="showPage('calc')">Días</button>
@@ -750,7 +750,7 @@
           <span class="home-tool-desc">Sorteá quién habla primero en el Daily 1 o el Daily 2, respetando las reglas del equipo.</span>
           <span class="home-tool-go" aria-hidden="true">›</span>
         </button>
-        <button class="home-tool" onclick="showPage('horas')">
+        <button class="home-tool" onclick="showPage('horas')" id="home-horas">
           <span class="home-tool-name">Registrar horas</span>
           <span class="home-tool-desc">Cargá tus horas de la semana y mirá el consolidado del equipo: facturable, no facturable y ausencias.</span>
           <span class="home-tool-go" aria-hidden="true">›</span>
@@ -1040,7 +1040,7 @@
         <form class="user-create" id="user-create-form" onsubmit="createUser(event)" autocomplete="off">
           <input class="crud-input" id="nu-name" placeholder="Nombre completo" required maxlength="120" aria-label="Nombre completo">
           <input class="crud-input" id="nu-email" type="email" placeholder="Correo" required maxlength="254" aria-label="Correo">
-          <select class="user-role-select" id="nu-role" aria-label="Rol"><option value="QA">QA</option><option value="QA_LEAD">QA Lead</option><option value="ADMIN">Admin</option></select>
+          <select class="user-role-select" id="nu-role" aria-label="Rol"><option value="QA">QA</option><option value="QA_LEAD">QA Lead</option><option value="ADMIN">Admin</option><option value="BETA">Beta</option></select>
           <div class="user-create-pw">
             <input class="crud-input" id="nu-password" type="password" placeholder="Contraseña temporal (mín. 10)" required minlength="10" maxlength="72" autocomplete="new-password" aria-label="Contraseña temporal">
             <button type="button" class="btn-secondary" id="nu-show" onclick="togglePasswordVisible()" aria-pressed="false" aria-controls="nu-password">Ver</button>
@@ -1341,7 +1341,7 @@ function check(res,needRows){
 
 /* ============ NAVIGATION ============ */
 function showPage(id) {
-  if((id==='admin'||id==='solicitudes')&&!canManageConfig())id='home';
+  if(((id==='admin'||id==='solicitudes')&&!canManageConfig())||(id==='horas'&&!canUseHoras()))id='home';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.mobile-nav-btn').forEach((b,i) => { b.classList.remove('active'); if(['home','qa','daily','horas','solicitudes','admin','calc'][i]===id){b.classList.add('active');if(b.offsetParent)b.scrollIntoView({block:'nearest',inline:'nearest'});} });
@@ -2075,8 +2075,8 @@ function hrsRangeLabel(a,b){
 function hrsName(id){return (hrsPeople||[]).find(p=>p.id===id)?.full_name||'';}
 async function hrsLoadPeople(){
   if(hrsPeople)return;
-  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,active').order('full_name');
-  if(!error)hrsPeople=data||[];
+  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,active,role').order('full_name');
+  if(!error)hrsPeople=(data||[]).filter(p=>p.role!=='BETA');
 }
 function openHoras(){
   if(!hrsWeek)hrsWeek=hrsMonday(new Date());
@@ -2399,9 +2399,9 @@ async function hrsTogglePicker(open){
   if(!open)return;
   const list=document.getElementById('hrs-picker-list');
   list.textContent='Cargando…';
-  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,active,en_informe').order('full_name');
+  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,active,en_informe,role').order('full_name');
   if(error){list.textContent='';setHrsStatus('error','No se pudo cargar la lista de personas'+errorDetail(error)+'.');return;}
-  list.replaceChildren(...(data||[]).map(p=>{
+  list.replaceChildren(...(data||[]).filter(p=>p.role!=='BETA').map(p=>{
     const label=document.createElement('label'),cb=document.createElement('input');
     cb.type='checkbox';cb.checked=p.en_informe!==false;
     cb.addEventListener('change',()=>hrsSetEnInforme(p.id,cb));
@@ -2511,11 +2511,13 @@ function calcToggleHolidays(){
 const SUPABASE_URL='https://aprerrmqsnkeakrjcoxf.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_1-F7LwzYlWRQFQTlZ6Go4Q_1uwFdQVP';
 
-const ROLE_LABELS={ADMIN:'Admin',QA_LEAD:'QA Lead',QA:'QA'};
+const ROLE_LABELS={ADMIN:'Admin',QA_LEAD:'QA Lead',QA:'QA',BETA:'Beta'};
 let supabaseClient=null, currentUser=null;
 
 function canManageConfig(){return !!currentUser&&(currentUser.role==='ADMIN'||currentUser.role==='QA_LEAD');}
 function isAdmin(){return !!currentUser&&currentUser.role==='ADMIN';}
+// BETA: solo Generar tareas, Daily y Días hábiles (la base también le bloquea Horas).
+function canUseHoras(){return !!currentUser&&currentUser.role!=='BETA';}
 
 function showAuth(state,message){
   document.body.classList.add('auth-locked');
@@ -2655,11 +2657,12 @@ function applyPermissions(){
   document.getElementById('nav-admin').hidden=!lead;
   document.getElementById('mnav-admin').hidden=!lead;
   ['nav-solicitudes','mnav-solicitudes','home-solicitudes'].forEach(id=>document.getElementById(id).hidden=!lead);
+  ['nav-horas','mnav-horas','home-horas'].forEach(id=>document.getElementById(id).hidden=!canUseHoras());
   document.getElementById('atab-users').hidden=!isAdmin();
   document.getElementById('atab-feedback').hidden=!isAdmin();
   if(!isAdmin()&&['asec-users','asec-feedback'].some(id=>document.getElementById(id).classList.contains('active')))selectAdminTab('people');
   if(isAdmin())refreshFeedbackBadge();
-  if(!lead&&(document.getElementById('page-admin').classList.contains('active')||document.getElementById('page-solicitudes').classList.contains('active')))showPage('home');
+  if((!lead&&(document.getElementById('page-admin').classList.contains('active')||document.getElementById('page-solicitudes').classList.contains('active')))||(!canUseHoras()&&document.getElementById('page-horas').classList.contains('active')))showPage('home');
 }
 
 /* ============ FEEDBACK ============ */

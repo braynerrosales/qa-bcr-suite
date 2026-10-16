@@ -191,7 +191,11 @@ Los cambios se guardan al salir de cada campo; marcar «Cierre enviado» cierra 
 
 **En vivo:** con `supabase/migrations/20261017000002_solicitudes_realtime.sql` la tabla se publica en Supabase Realtime y los cambios de otros leads aparecen solos (indicador «● En vivo»). Realtime respeta el RLS: solo reciben cambios QA_LEAD y ADMIN activos. En la fila que estás editando solo se actualiza el estado, para no pisar lo que escribís. El plan gratuito incluye 200 conexiones simultáneas y 2 millones de mensajes por mes. Sin esa migración la app funciona igual con «↻ Recargar».
 
-## Horas (todos los usuarios)
+## Rol Beta
+
+Para usuarios de prueba: un **Beta** solo ve **Generar tareas**, **Daily** (sortear, guardar y ver el historial) y **Días hábiles**, y puede enviar feedback. No ve Horas, Solicitudes ni Administración, y no sale en el informe de horas. El bloqueo está en la base: con `supabase/migrations/20261020000001_rol_beta.sql` un Beta no puede leer ni guardar horas ni pedir el consolidado aunque llame a Supabase directo. Se elige al crear el usuario o en Administración → Usuarios (la Edge Function `admin-create-user` acepta el rol `BETA`). Pruebas de la base: `supabase/tests/beta_test.sql`.
+
+## Horas (todos los usuarios salvo Beta)
 
 Reemplaza el libro «Horas semanales» (una pestaña por QA) y el informe «Horas mensuales equipo QA». Requiere `supabase/migrations/20261018000001_horas.sql`.
 

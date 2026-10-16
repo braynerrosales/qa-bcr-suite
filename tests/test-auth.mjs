@@ -1587,6 +1587,37 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   await context.close();
 }
 
+// BETA: solo Generar tareas, Daily y Días hábiles
+{
+  users['beta@bcr.test'] = { id: 'a0000000-0000-4000-8000-000000000077', password: 'pw', full_name: 'Bea Beta', role: 'BETA', active: true };
+  const { context, page } = await newPage();
+  const horasReqs = [];
+  page.on('request', (r) => { if (/\/rest\/v1\/(horas|solicitudes|rpc\/horas_resumen)/.test(r.url())) horasReqs.push(r.url()); });
+  await page.goto('http://app.test/index.html');
+  await login(page, 'beta@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  assert.equal(await page.textContent('#sidebar-user-role'), 'Beta');
+  for (const id of ['nav-horas', 'nav-solicitudes', 'nav-admin', 'home-horas', 'home-solicitudes']) assert.equal(await page.isVisible('#' + id), false, id + ' visible para BETA');
+  for (const id of ['nav-qa', 'nav-daily', 'nav-calc']) assert.equal(await page.isVisible('#' + id), true, id + ' oculto para BETA');
+  await page.evaluate(() => showPage('horas'));
+  assert.equal(await page.isVisible('#page-home'), true, 'BETA no entra a Horas aunque lo pida');
+  await page.click('#nav-daily');
+  await page.waitForSelector('#rollBtn');
+  await page.click('#nav-calc');
+  assert.equal(await page.isVisible('#page-calc'), true);
+  assert.deepEqual(horasReqs, [], 'BETA no pide horas ni solicitudes');
+  ok('BETA: ve solo Generar tareas, Daily y Días hábiles; no entra a Horas ni pide sus datos');
+  await context.close();
+  const adm = await newPage();
+  await adm.page.goto('http://app.test/index.html');
+  await login(adm.page, 'admin@bcr.test');
+  await adm.page.waitForSelector('.layout', { state: 'visible' });
+  assert.ok((await adm.page.locator('#nu-role option').allTextContents()).includes('Beta'));
+  await adm.context.close();
+  delete users['beta@bcr.test'];
+  ok('ADMIN: puede crear usuarios con rol Beta');
+}
+
 await browser.close();
 assert.deepEqual(errors, [], 'errores de JS en la página: ' + errors.join(' | '));
 ok('sin errores de JavaScript ni bloqueos de CSP/integridad en la página');
