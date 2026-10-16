@@ -313,6 +313,11 @@
   .user-create select { padding: 9px 12px; font-size: 14px; }
   .user-create-pw { display: flex; gap: 8px; }
   .user-create-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+  .user-invite { margin: 4px 0 16px; padding: 16px 18px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); }
+  .user-invite-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .user-invite-hint { font-size: 13px; color: var(--ink-2); margin-bottom: 10px; }
+  .user-invite pre { white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 14px; background: var(--paper, transparent); border: 1px dashed var(--rule-2); border-radius: var(--r-ctl); padding: 12px; margin: 0 0 10px; }
+  .user-invite-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
   #list-users { margin-top: 22px; }
   body.saving { cursor: progress; }
   body.saving .admin-section { pointer-events: none; opacity: 0.65; }
@@ -766,6 +771,15 @@
           <div class="user-create-actions"><button type="submit" class="crud-btn-add" id="nu-submit">Crear usuario</button></div>
         </form>
         <div class="status-msg" id="user-create-status" role="status"></div>
+        <div class="user-invite" id="user-invite" hidden>
+          <div class="user-invite-title">Mensaje para la persona</div>
+          <div class="user-invite-hint">Copialo y mandalo por un canal privado (chat directo, no grupos). La contraseña se copia completa aunque acá se vea oculta. Al tocar "Listo" se borra de la pantalla.</div>
+          <pre id="user-invite-text"></pre>
+          <div class="user-invite-actions">
+            <button type="button" class="btn-secondary" id="user-invite-copy" onclick="copyInvite()">Copiar mensaje</button>
+            <button type="button" class="btn-secondary" onclick="closeInvite()">Listo</button>
+          </div>
+        </div>
         <div class="crud-list" id="list-users"></div>
         <div class="status-msg" id="users-status" role="status"></div>
       </div>
@@ -1709,6 +1723,7 @@ async function onLoginSubmit(event){
 }
 
 async function logout(){
+  closeInvite();
   clearCache();
   if(supabaseClient){
     try{const {error}=await supabaseClient.auth.signOut();if(error)throw error;}
@@ -1796,6 +1811,7 @@ async function createUser(event){
     role:document.getElementById('nu-role').value,
     password:document.getElementById('nu-password').value
   };
+  closeInvite();
   st.className='status-msg info';st.textContent='Creando usuario...';btn.disabled=true;
   const {data,error}=await supabaseClient.functions.invoke('admin-create-user',{body});
   btn.disabled=false;
@@ -1815,8 +1831,47 @@ async function createUser(event){
   document.getElementById('user-create-form').reset();
   setPasswordVisible(false);
   st.className='status-msg ok';
-  st.textContent=`✓ Usuario creado: ${data.email} (${ROLE_LABELS[data.role]||data.role}). Compartile la contraseña temporal por un canal privado; no se vuelve a mostrar.`;
+  st.textContent=`✓ Usuario creado: ${data.email} (${ROLE_LABELS[data.role]||data.role}). Copiá el mensaje de abajo y compartilo por un canal privado; la contraseña no se vuelve a mostrar.`;
+  showInvite({name:body.full_name,email:data.email,role:ROLE_LABELS[data.role]||data.role,password:body.password});
   await renderUsersAdmin();
+}
+// Mensaje de bienvenida con los datos de acceso. La contraseña solo vive en
+// inviteText (para copiarla) y en pantalla se ve oculta.
+let inviteText='';
+function inviteMessage(d,pw){
+  const first=d.name.split(/\s+/)[0]||d.name;
+  return `Hola ${first}, ya tenés acceso a QA BCR Suite.
+
+Enlace: ${location.origin}${location.pathname}
+Usuario: ${d.email}
+Contraseña temporal: ${pw}
+Rol: ${d.role}
+
+Al entrar por primera vez, cambiá la contraseña en "Cambiar contraseña" (en el menú; en el celular, el botón "Clave"). No compartas tu contraseña con nadie.`;
+}
+function showInvite(d){
+  inviteText=inviteMessage(d,d.password);
+  document.getElementById('user-invite-text').textContent=inviteMessage(d,'•'.repeat(10));
+  document.getElementById('user-invite').hidden=false;
+}
+function closeInvite(){
+  inviteText='';
+  document.getElementById('user-invite-text').textContent='';
+  document.getElementById('user-invite').hidden=true;
+}
+function copyInvite(){
+  const btn=document.getElementById('user-invite-copy');
+  const done=()=>{btn.textContent='✓ Copiado';setTimeout(()=>btn.textContent='Copiar mensaje',2000);};
+  const fail=()=>{btn.textContent='⚠ No se pudo copiar';setTimeout(()=>btn.textContent='Copiar mensaje',2500);};
+  if(!inviteText)return;
+  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(inviteText).then(done).catch(()=>legacyCopy(inviteText)?done():fail());
+  else legacyCopy(inviteText)?done():fail();
+}
+function legacyCopy(text){
+  const ta=Object.assign(document.createElement('textarea'),{value:text,style:'position:fixed;top:0;left:0;opacity:0'});
+  document.body.appendChild(ta);ta.select();
+  let ok=false;try{ok=document.execCommand('copy');}catch{}
+  ta.remove();return ok;
 }
 
 function openPasswordDialog(){

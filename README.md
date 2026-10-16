@@ -163,7 +163,7 @@ Crear usuarios necesita la clave secreta de Supabase, que nunca puede ir en la p
 
 No hace falta configurar secretos: Supabase pone `SUPABASE_URL` y la clave secreta en el entorno de la función.
 
-En la app: *Administración → Usuarios* → nombre, correo, rol y contraseña temporal (*Generar* crea una de 14 caracteres). La persona entra con esa contraseña y la cambia en *Cambiar contraseña* (sidebar) o *Clave* (móvil). Si la función no está publicada, la app lo dice.
+En la app: *Administración → Usuarios* → nombre, correo, rol y contraseña temporal (*Generar* crea una de 14 caracteres). La persona entra con esa contraseña y la cambia en *Cambiar contraseña* (sidebar) o *Clave* (móvil). Al crear el usuario aparece un mensaje listo para copiar (enlace, usuario, contraseña temporal y rol); en pantalla la contraseña se ve oculta y *Listo* la borra. Mandalo por chat directo. Si la función no está publicada, la app lo dice.
 
 ## Generar tareas QA
 

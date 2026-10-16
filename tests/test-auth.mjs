@@ -655,6 +655,20 @@ resetData();
   assert.equal(await page.getAttribute('#nu-password', 'type'), 'password');
   ok('ADMIN: crea un usuario con rol y contraseña temporal (oculta salvo con "Ver"); aparece en la lista');
 
+  const shown = await page.textContent('#user-invite-text');
+  assert.ok(!shown.includes(temp), 'la contraseña no debe verse en pantalla');
+  assert.match(shown, /Hola Nora,[\s\S]*Usuario: nora@bcr\.test[\s\S]*Contraseña temporal: •{10}[\s\S]*Rol: QA Lead/);
+  await page.evaluate(() => { window.__copied = null; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied = t; } } }); });
+  await page.click('#user-invite-copy');
+  await page.waitForSelector('#user-invite-copy:has-text("Copiado")');
+  const copied = await page.evaluate(() => window.__copied);
+  assert.ok(copied.includes('Contraseña temporal: ' + temp), copied);
+  assert.ok(copied.includes('Enlace: http'), copied);
+  await page.click('#user-invite button:has-text("Listo")');
+  assert.equal(await page.isHidden('#user-invite'), true);
+  assert.equal(await page.evaluate(() => inviteText), '');
+  ok('ADMIN: mensaje para la persona; la contraseña se copia pero no se ve, y "Listo" la borra');
+
   await page.fill('#nu-name', 'Otra');
   await page.fill('#nu-email', 'nora@bcr.test');
   await page.fill('#nu-password', 'temporal-123');
