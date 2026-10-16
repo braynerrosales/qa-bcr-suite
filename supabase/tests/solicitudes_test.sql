@@ -34,6 +34,18 @@ begin
     if n <> 1 then raise exception 'FALLO: QA_LEAD no pudo editar'; end if;
     raise notice 'OK: QA_LEAD edita';
 
+    select * into r from public.solicitudes where nombre = 'Solicitud P9_001 Prueba RLS';
+    if cardinality(r.encargados) <> 0 or r.informe_semanal then
+        raise exception 'FALLO: la solicitud cerrada sigue en el informe (% / %)', r.encargados, r.informe_semanal;
+    end if;
+    update public.solicitudes set encargados = array['Persona Uno'], informe_semanal = true
+    where nombre = 'Solicitud P9_001 Prueba RLS';
+    select * into r from public.solicitudes where nombre = 'Solicitud P9_001 Prueba RLS';
+    if cardinality(r.encargados) <> 0 or r.informe_semanal then
+        raise exception 'FALLO: una solicitud cerrada aceptó encargados';
+    end if;
+    raise notice 'OK: al cerrarse sale del informe semanal y no acepta encargados';
+
     begin
         update public.solicitudes set updated_by = null;
         raise exception 'FALLO: el cliente pudo escribir updated_by';

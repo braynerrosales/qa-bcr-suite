@@ -173,11 +173,11 @@ Las tareas salen solo de la plantilla del proyecto (o de la variante). Si no hay
 
 Reemplaza a `solicitudes_tracker.html`: una lista compartida en Supabase, en lugar de un JSON en cada navegador. Solo la ven y editan los QA_LEAD y ADMIN activos; a un QA el RLS no le devuelve filas aunque llame a la API.
 
-1. En el SQL Editor, ejecutar `supabase/migrations/20261016000001_solicitudes.sql`.
+1. En el SQL Editor, ejecutar `supabase/migrations/20261016000001_solicitudes.sql` y después `20261016000002_solicitudes_cerrada_sin_encargado.sql`.
 2. (Opcional) `supabase/tests/solicitudes_test.sql`: imprime solo «OK» y termina en ROLLBACK.
 3. Cargar las solicitudes existentes con `cargar-solicitudes.sql` (no está en el repo porque tiene nombres). Se niega a correr si la tabla ya tiene datos y al final muestra `iguales = true`.
 
-Los cambios se guardan al salir de cada campo; marcar «Cierre enviado» cierra la solicitud. El encargado del informe se elige de las personas activas del Daily. La base registra quién hizo el último cambio (`updated_by`).
+Los cambios se guardan al salir de cada campo; marcar «Cierre enviado» cierra la solicitud y la saca del informe semanal (quita sus encargados; un trigger lo garantiza en la base). «↻ Recargar» trae los cambios que hicieron otros leads. El encargado del informe se elige de las personas activas del Daily. La base registra quién hizo el último cambio (`updated_by`).
 
 ## Daily: «No asistió»
 

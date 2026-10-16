@@ -795,23 +795,6 @@ resetData();
   ok('Solicitudes: buscador y filtro por estado');
 
   const row = page.locator('#sol-body tr[data-id="1"]');
-  await row.locator('input[aria-label="Cierre enviado"]').check();
-  await page.waitForFunction(() => document.querySelector('#sol-body tr[data-id="1"] .sol-badge').textContent === 'Cerrada');
-  await new Promise((r) => setTimeout(r, 200));
-  assert.equal(tables.solicitudes[0].cierre_enviado, true);
-  assert.equal(tables.solicitudes[0].cerrada, true);
-  await row.locator('textarea[aria-label="Observaciones"]').fill('Pendiente <script>x</script>');
-  await row.locator('input[type=number]').fill('6.5');
-  await row.locator('input[type=date]').fill('2026-12-01');
-  await row.locator('.sol-name').fill('Solicitud P3_081 Renombrada');
-  await page.locator('#sol-search').focus();
-  await new Promise((r) => setTimeout(r, 300));
-  assert.equal(tables.solicitudes[0].observaciones, 'Pendiente <script>x</script>');
-  assert.equal(tables.solicitudes[0].horas, 6.5);
-  assert.equal(tables.solicitudes[0].cierra, '2026-12-01');
-  assert.equal(tables.solicitudes[0].nombre, 'Solicitud P3_081 Renombrada');
-  ok('Solicitudes: casillas, horas, fecha, nombre y notas se guardan; cierre enviado la cierra');
-
   await row.locator('.sol-enc select').selectOption('Caro Dos');
   await page.waitForSelector('#sol-body tr[data-id="1"] .sol-chip:has-text("Caro Dos")');
   await new Promise((r) => setTimeout(r, 200));
@@ -822,6 +805,28 @@ resetData();
   await new Promise((r) => setTimeout(r, 200));
   assert.deepEqual(tables.solicitudes[0].encargados, ['Caro Dos']);
   ok('Solicitudes: encargado se elige de las personas activas del Daily y se puede quitar');
+  await row.locator('input[aria-label="Cierre enviado"]').check();
+  await page.waitForFunction(() => document.querySelector('#sol-body tr[data-id="1"] .sol-badge').textContent === 'Cerrada');
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(tables.solicitudes[0].cierre_enviado, true);
+  assert.equal(tables.solicitudes[0].cerrada, true);
+  assert.deepEqual(tables.solicitudes[0].encargados, []);
+  assert.equal(tables.solicitudes[0].informe_semanal, false);
+  assert.equal(await row.locator('.sol-chip').count(), 0);
+  assert.equal(await row.locator('.sol-enc select').count(), 0);
+  assert.equal(await row.locator('input[aria-label="Informe semanal"]').isDisabled(), true);
+  await row.locator('textarea[aria-label="Observaciones"]').fill('Pendiente <script>x</script>');
+  await row.locator('input[type=number]').fill('6.5');
+  await row.locator('input[type=date]').fill('2026-12-01');
+  await row.locator('.sol-name').fill('Solicitud P3_081 Renombrada');
+  await page.locator('#sol-search').focus();
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(tables.solicitudes[0].observaciones, 'Pendiente <script>x</script>');
+  assert.equal(tables.solicitudes[0].horas, 6.5);
+  assert.equal(tables.solicitudes[0].cierra, '2026-12-01');
+  assert.equal(tables.solicitudes[0].nombre, 'Solicitud P3_081 Renombrada');
+  ok('Solicitudes: casillas, horas, fecha, nombre y notas se guardan; cierre enviado la cierra y quita los encargados');
+
 
   await page.fill('#sol-new-name', 'Solicitud P3_090 Nueva <i>x</i>');
   await page.click('#sol-new-btn');
@@ -829,6 +834,12 @@ resetData();
   assert.ok(tables.solicitudes.some((s) => s.nombre === 'Solicitud P3_090 Nueva <i>x</i>'));
   assert.equal(await page.locator('#sol-body .sol-name').evaluateAll((els) => els.some((e) => e.value === 'Solicitud P3_090 Nueva <i>x</i>')), true);
   ok('Solicitudes: agregar una nueva');
+
+  tables.solicitudes.find((s) => s.id === 3).nombre = 'QA_OPC_47 Cambiada por otro lead';
+  await page.click('#sol-reload');
+  await page.waitForSelector('#sol-status.ok:has-text("Lista actualizada")');
+  assert.equal(await page.locator('#sol-body tr[data-id="3"] .sol-name').inputValue(), 'QA_OPC_47 Cambiada por otro lead');
+  ok('Solicitudes: Recargar trae los cambios de otros');
 
   answers.push(false);
   await page.locator('#sol-body tr[data-id="3"] .sol-del').click();

@@ -181,6 +181,7 @@
   .sol-stat.is-open { border-left-color: var(--bad); }
   .sol-stat.is-done { border-left-color: var(--ok); }
   .sol-stat.is-late { border-left-color: var(--mark); }
+  .sol-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
   .sol-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
   .sol-toolbar .crud-input { flex: 1 1 200px; min-width: 0; }
   .sol-new { display: flex; gap: 10px; margin-bottom: 12px; }
@@ -774,14 +775,15 @@
     <!-- SOLICITUDES (QA Lead y Admin) -->
     <div class="page" id="page-solicitudes">
     <div class="sol-page">
-      <div class="page-header">
+      <div class="page-header sol-header">
         <div class="page-header-left">
           <button class="page-back" onclick="showPage('home')" aria-label="Volver al inicio">←</button>
           <div>
             <h2 class="page-title">Control de solicitudes</h2>
-            <p class="page-subtitle">Lista compartida entre QA Lead y Admin. Los cambios se guardan solos al salir de cada campo.</p>
+            <p class="page-subtitle">Lista compartida entre QA Lead y Admin. Los cambios se guardan solos al salir de cada campo. Al cerrar una solicitud se quitan sus encargados del informe semanal.</p>
           </div>
         </div>
+        <button class="btn-secondary" id="sol-reload" onclick="reloadSolicitudes()">↻ Recargar</button>
       </div>
       <div class="sol-stats" id="sol-stats"></div>
       <form class="sol-new" onsubmit="addSolicitud(event)">
@@ -795,7 +797,6 @@
           <option value="done">Cerradas</option>
           <option value="all">Todas</option>
         </select>
-        <button class="btn-secondary" onclick="loadSolicitudes()">Recargar</button>
         <button class="btn-secondary" onclick="exportSolicitudes()">Exportar JSON</button>
       </div>
       <div class="status-msg" id="sol-status" role="status"></div>
@@ -1357,6 +1358,13 @@ async function loadSolicitudes(){
   const {data,error}=await supabaseClient.from('solicitudes').select('*').order('id');
   if(error){setSolStatus('error','⚠ No se pudieron cargar las solicitudes'+errorDetail(error)+'.');return;}
   SOL=data||[];setSolStatus('');renderSolicitudes();
+  return true;
+}
+async function reloadSolicitudes(){
+  const btn=document.getElementById('sol-reload');btn.disabled=true;
+  const done=await loadSolicitudes();
+  btn.disabled=false;
+  if(done)setSolStatus('ok','✓ Lista actualizada a las '+new Date().toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit'})+'.');
 }
 // Días desde la fecha de cierre (positivo = ya pasó), o null sin fecha.
 function solDaysSince(date){
@@ -1413,8 +1421,11 @@ function solRow(r){
   SOL_CHECKS.forEach(([field,label])=>{
     const c=Object.assign(document.createElement('input'),{type:'checkbox',checked:!!r[field]});
     c.setAttribute('aria-label',label);
-    // Marcar "Cierre enviado" cierra la solicitud (igual que el tracker anterior).
-    c.addEventListener('change',()=>saveSolicitud(r.id,field==='cierre_enviado'?{cierre_enviado:c.checked,cerrada:c.checked}:{[field]:c.checked}));
+    // Marcar "Cierre enviado" cierra la solicitud (igual que el tracker anterior)
+    // y la saca del informe semanal; la base hace lo mismo con un trigger.
+    c.addEventListener('change',()=>saveSolicitud(r.id,field==='cierre_enviado'
+      ?(c.checked?{cierre_enviado:true,cerrada:true,informe_semanal:false,encargados:[]}:{cierre_enviado:false,cerrada:false})
+      :{[field]:c.checked}));
     checks[field]=c;
   });
   const horas=Object.assign(document.createElement('input'),{type:'number',min:'0',step:'0.5',placeholder:'0',value:r.horas??''});
@@ -1454,9 +1465,15 @@ function updateSolRow(tr,r){
   const badge=tr.querySelector('td:nth-last-child(2) span');
   badge.className='sol-badge'+(r.cerrada?' done':'');badge.textContent=r.cerrada?'Cerrada':'Abierta';
   tr.querySelector('input[aria-label="Cierre enviado"]').checked=!!r.cierre_enviado;
+  const inf=tr.querySelector('input[aria-label="Informe semanal"]');
+  inf.checked=!!r.informe_semanal;inf.disabled=!!r.cerrada;
+  inf.title=r.cerrada?'Cerrada: ya no va en el informe semanal':'';
+  const enc=tr.querySelector('.sol-enc');
+  if(enc.dataset.n!==String((r.encargados||[]).length)+(r.cerrada?'c':''))renderSolEncargados(enc,r);
 }
 function renderSolEncargados(box,r){
   box.replaceChildren();
+  box.dataset.n=String((r.encargados||[]).length)+(r.cerrada?'c':'');
   (r.encargados||[]).forEach(n=>{
     const chip=document.createElement('span');chip.className='sol-chip';chip.append(n);
     const x=Object.assign(document.createElement('button'),{type:'button',textContent:'×'});
@@ -1465,7 +1482,7 @@ function renderSolEncargados(box,r){
     chip.appendChild(x);box.appendChild(chip);
   });
   const free=solPeople().filter(n=>!(r.encargados||[]).includes(n));
-  if(!free.length||(r.encargados||[]).length>=10)return;
+  if(r.cerrada||!free.length||(r.encargados||[]).length>=10)return;
   const sel=document.createElement('select');sel.setAttribute('aria-label','Agregar encargado del informe');
   sel.appendChild(new Option('+ Encargado',''));
   free.forEach(n=>sel.appendChild(new Option(n,n)));
