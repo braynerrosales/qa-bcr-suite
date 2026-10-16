@@ -174,7 +174,8 @@
   tr.task-row td { padding-left: 34px; color: var(--ink-2); }
 
   /* ── Solicitudes ─────────────────────────── */
-  .sol-page { padding: 44px 48px 88px; max-width: 1320px; }
+  /* La tabla usa todo el ancho disponible: en pantallas grandes no hace falta desplazarla. */
+  .sol-page { padding: 44px 32px 88px; }
   .sol-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
   .sol-stat { background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--bcr); border-radius: var(--r-ctl); padding: 8px 14px; min-width: 110px; font-size: 13px; color: var(--ink-2); }
   .sol-stat b { display: block; font-family: var(--mono); font-size: 20px; color: var(--ink); }
@@ -187,14 +188,14 @@
   .sol-new { display: flex; gap: 10px; margin-bottom: 12px; }
   .sol-new .crud-input { flex: 1; min-width: 0; }
   .sol-table-wrap { position: relative; overflow-x: auto; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); }
-  .sol-table { min-width: 1270px; }
+  .sol-table { min-width: 1080px; }
   .sol-table-outer { position: relative; }
   .sol-table-outer.more-right::after { content: ""; position: absolute; top: 1px; right: 1px; bottom: 1px; width: 28px; pointer-events: none; border-radius: 0 var(--r-sheet) var(--r-sheet) 0; background: linear-gradient(to right, transparent, color-mix(in srgb, var(--ink) 16%, transparent)); }
-  .sol-table td:first-child { min-width: 340px; max-width: 420px; }
+  .sol-table td:first-child { min-width: 240px; max-width: 560px; }
   .sol-table thead { display: table-header-group; }
-  .sol-table th { background: var(--sidebar-bg); color: var(--sidebar-ink); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 10px 6px; text-align: center; vertical-align: bottom; }
+  .sol-table th { background: var(--sidebar-bg); color: var(--sidebar-ink); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 10px 4px; text-align: center; vertical-align: bottom; }
   .sol-table th:first-child { text-align: left; padding-left: 14px; }
-  .sol-table td { font-family: var(--font); font-size: 13px; padding: 6px; border-top: 1px solid var(--rule); text-align: center; vertical-align: middle; }
+  .sol-table td { font-family: var(--font); font-size: 13px; padding: 6px 4px; border-top: 1px solid var(--rule); text-align: center; vertical-align: middle; }
   .sol-table td:first-child { text-align: left; padding-left: 10px; }
   .sol-table input[type=text], .sol-table input[type=number], .sol-table input[type=date], .sol-table textarea { width: 100%; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 5px 6px; font-size: 13px; min-height: 0; line-height: 1.4; font-family: var(--font); color: var(--ink); }
   .sol-table input:hover, .sol-table textarea:hover { border-color: var(--rule-2); }
@@ -216,11 +217,12 @@
   tr.sol-late td:first-child { background: color-mix(in srgb, var(--bad) 16%, var(--sheet)); box-shadow: inset 4px 0 0 var(--bad), 1px 0 0 var(--rule); animation: solPulse 1.4s ease-in-out infinite; }
   @keyframes solPulse { 50% { background: color-mix(in srgb, var(--bad) 30%, var(--sheet)); } }
   .sol-cierra { display: flex; align-items: center; gap: 4px; }
+  .sol-table .sol-cierra input[type=date] { width: 118px; padding: 5px 2px; }
   .sol-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
   .sol-dot-red { background: #e0463b; } .sol-dot-yellow { background: #e8b93d; } .sol-dot-green { background: #3fae6a; } .sol-dot-blue { background: #3d7ee8; }
   .sol-dot.blink { animation: solBlink 1s ease-in-out infinite; }
   @keyframes solBlink { 50% { opacity: .25; } }
-  .sol-enc { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 150px; }
+  .sol-enc { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 130px; }
   .sol-chip { display: inline-flex; align-items: center; gap: 2px; background: var(--sheet-2); border: 1px solid var(--rule-2); border-radius: 999px; padding: 1px 4px 1px 9px; font-size: 12px; white-space: nowrap; }
   .sol-chip button { background: none; border: 0; color: var(--ink-3); font-size: 14px; line-height: 1; padding: 0 4px; }
   .sol-chip button:hover { color: var(--bad); }
@@ -880,9 +882,9 @@
       <div class="sol-table-wrap" id="sol-table-wrap">
         <table class="sol-table">
           <thead><tr>
-            <th style="min-width:340px">Solicitud</th><th>Informe sem.</th><th>Encargado</th><th style="width:72px">Horas</th>
+            <th style="min-width:240px">Solicitud</th><th>Informe sem.</th><th>Encargado</th><th style="width:64px">Horas</th>
             <th>Pend. plan</th><th>Pend. actualizar</th><th>Plan enviado</th><th>Cierre enviado</th>
-            <th style="width:150px">Cierra</th><th style="min-width:180px">Observaciones</th><th>Estado</th><th><span class="sr-only">Eliminar</span></th>
+            <th style="width:130px">Cierra</th><th style="min-width:160px">Observaciones</th><th>Estado</th><th><span class="sr-only">Eliminar</span></th>
           </tr></thead>
           <tbody id="sol-body"></tbody>
         </table>
