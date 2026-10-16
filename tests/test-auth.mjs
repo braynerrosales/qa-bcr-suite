@@ -49,11 +49,12 @@ const solicitudesIniciales = () => [
   { id: 4, nombre: 'Solicitud P2_191 TPSISTAR cerrada', informe_semanal: false, encargados: [], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: false, cierre_enviado: true, cierra: '2026-01-23', observaciones: '', cerrada: true },
 ];
 function resetData(empty = false) {
-  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [], solicitudes: [], horas: [], horas_ajustes: [], feedback: [] } : {
+  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [], solicitudes: [], horas: [], horas_ajustes: [], feedback: [], daily_runs: [] } : {
     solicitudes: solicitudesIniciales(),
     horas: [],
     horas_ajustes: [],
     feedback: [],
+    daily_runs: [],
     daily_groups: [{ id: 1, code: 'daily1', active: true }, { id: 2, code: 'daily2', active: true }],
     daily_members: [
       { id: 1, daily_group_id: 1, name: 'Ana <img src=x onerror=alert(1)>', active: true },
@@ -177,6 +178,24 @@ function horasRequest(req, url, me, json) {
     return json(200, visible.map((r) => ({ ...r })));
   }
   if (method === 'DELETE') { tables.horas = tables.horas.filter((r) => !visible.includes(r)); return json(200, visible.map((r) => ({ id: r.id }))); }
+}
+// Igual que daily_guardar() / daily_historial() (20261019000002_daily_historial.sql).
+function dailyGuardar(me, b) {
+  const today = new Date(); const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const min = new Date(today); min.setDate(min.getDate() - 7); const max = new Date(today); max.setDate(max.getDate() + 1);
+  if (b.p_fecha < iso(min) || b.p_fecha > iso(max)) return [400, { code: '22023', message: 'Fecha inválida' }];
+  if (!tables.daily_groups.some((g) => g.id === b.p_grupo && g.active)) return [400, { code: '22023', message: 'Daily inválido' }];
+  if (!Array.isArray(b.p_miembros) || !b.p_miembros.length || b.p_miembros.some((m) => !m.name?.trim() || m.position < 1 || (m.completed && m.absent))) return [400, { code: '22023', message: 'Lista de personas inválida' }];
+  const old = tables.daily_runs.find((r) => r.daily_group_id === b.p_grupo && r.run_date === b.p_fecha);
+  const run = { id: old?.id ?? tables.daily_runs.length + 1, daily_group_id: b.p_grupo, run_date: b.p_fecha, created_by: me.id, members: b.p_miembros.map((m) => ({ ...m, name: m.name.trim(), completed: !!m.completed, absent: !!m.absent })) };
+  tables.daily_runs = tables.daily_runs.filter((r) => r !== old).concat(run);
+  return [200, [{ run_id: run.id, reemplazado: !!old }]];
+}
+function dailyHistorial(b) {
+  const nameOf = (id) => Object.values(users).find((u) => u.id === id)?.full_name ?? '';
+  return tables.daily_runs.filter((r) => r.daily_group_id === b.p_grupo && r.run_date >= b.desde && r.run_date <= b.hasta)
+    .sort((x, y) => y.run_date.localeCompare(x.run_date))
+    .flatMap((r) => r.members.map((m) => ({ run_id: r.id, run_date: r.run_date, guardado_por: nameOf(r.created_by), member_name: m.name, position: m.position, completed: m.completed, absent: m.absent })));
 }
 // Igual que public.feedback (20261019000001): cualquiera activo envía, solo ADMIN lee.
 function feedbackRequest(req, url, me, r, json) {
@@ -348,6 +367,13 @@ async function setup(context) {
       return json(200, Object.values(users).map((u) => ({ id: u.id, first_sign_in_at: u.first_sign_in_at ?? null, last_sign_in_at: u.last_sign_in_at ?? null, password_changed_at: u.password_changed_at ?? null, must_change_password: !!u.must_change_password })));
     }
     if (url.pathname === '/rest/v1/horas') return horasRequest(req, url, byId(subOf(req))?.[1], json);
+    if (url.pathname === '/rest/v1/rpc/daily_guardar' || url.pathname === '/rest/v1/rpc/daily_historial') {
+      const me = byId(subOf(req))?.[1];
+      if (!me?.active) return json(403, { code: '42501', message: 'Usuario sin acceso' });
+      if (url.pathname.endsWith('historial')) return json(200, dailyHistorial(req.postDataJSON()));
+      const [st, body] = dailyGuardar(me, req.postDataJSON());
+      return json(st, body);
+    }
     if (url.pathname === '/rest/v1/feedback') return feedbackRequest(req, url, byId(subOf(req))?.[1], r, json);
     if (url.pathname === '/rest/v1/horas_ajustes') return ajustesRequest(req, url, byId(subOf(req))?.[1], json);
     if (url.pathname === '/rest/v1/rpc/horas_resumen') {
@@ -1012,6 +1038,53 @@ resetData();
   await page.click('#rollBtn');
   assert.equal(await page.textContent('#absentCount'), '0');
   ok('ausencias: se deshacen desde la fila o la lista, y se limpian al generar otro orden');
+
+  // Historial: guardar el daily de hoy (ausente + uno que habló) y verlo abajo.
+  assert.match(await page.textContent('#dly-hist-body'), /No hay dailies guardados este mes/);
+  const order = await page.locator('#listBody .participant-item').evaluateAll((els) => els.map((e) => e.dataset.name));
+  await page.locator('#listBody .participant-item').first().click();
+  await page.locator('#listBody .participant-item').nth(1).locator('.p-absent-btn').click();
+  await page.click('#dly-save-btn');
+  await page.waitForSelector('#dly-save-status.ok');
+  assert.match(await page.textContent('#dly-save-status'), new RegExp(`Guardado el Daily 1 de hoy: ${order.length - 1} asisti(ó|eron), 1 no asistió`));
+  assert.equal(tables.daily_runs.length, 1);
+  const saved = tables.daily_runs[0];
+  assert.deepEqual(saved.members.map((m) => m.name), order);
+  assert.deepEqual([saved.members[0].completed, saved.members[1].absent, saved.created_by, saved.daily_group_id], [true, true, users['qa@bcr.test'].id, 1]);
+  assert.equal(saved.members.find((m) => m.name === 'Beto Uno').daily_member_id, 2);
+  await page.waitForSelector('#dly-hist-body .dly-day');
+  const dayText = await page.textContent('#dly-hist-body .dly-day-head');
+  assert.ok(dayText.includes(`${order.length - 1} de ${order.length} asistieron · empezó ${order[0]} · guardó Quique QA <b>`), dayText);
+  assert.equal(await page.textContent('#dly-hist-body .dly-day-absent'), 'No asistieron: ' + order[1]);
+  const absRow = page.locator('#dly-hist-body tbody tr', { hasText: order[1] });
+  assert.deepEqual(await absRow.locator('td').allTextContents(), [order[1], '0', '1', '0%', '0']);
+  assert.equal(await page.locator('#dly-hist-body img').count(), 0, 'los nombres se escapan');
+  await page.screenshot({ path: DIR + 'tests/shot-daily-historial.png', fullPage: true });
+  let overflowH = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert.ok(overflowH <= 0, 'scroll horizontal en historial móvil: ' + overflowH);
+  ok('Daily: guarda el daily de hoy (orden, quién habló y quién no asistió) y lo muestra en el historial');
+
+  answers.push(false);
+  const nd = dialogs.length;
+  await page.click('#dly-save-btn');
+  for (let i = 0; i < 50 && dialogs.length === nd; i++) await new Promise((r) => setTimeout(r, 50));
+  await page.waitForSelector('#dly-save-btn:not([disabled])');
+  assert.match(dialogs.at(-1), /ya lo guardó Quique QA <b>/);
+  assert.equal(tables.daily_runs[0].members[1].absent, true, 'si cancela no se reemplaza');
+  await page.locator('#listBody .participant-item').nth(1).locator('.p-absent-btn').click();
+  answers.push(true);
+  await page.click('#dly-save-btn');
+  await page.waitForSelector('#dly-save-status.ok:has-text("asisti"):not(:has-text("no asisti"))');
+  assert.equal(tables.daily_runs.length, 1, 'un registro por daily por día');
+  assert.equal(tables.daily_runs[0].members.some((m) => m.absent), false);
+  await page.click('[aria-label="Mes anterior"]');
+  await page.waitForSelector('#dly-hist-body .sol-empty');
+  await page.click('#dtab2');
+  assert.equal(await page.textContent('#dly-hist-title'), 'Historial del Daily 2');
+  assert.equal(await page.isVisible('#dly-save'), false);
+  ok('Daily: volver a guardar el mismo día pide confirmación y reemplaza; el historial cambia por mes y daily');
+  await page.click('#dtab1');
+  await page.click('#rollBtn');
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(overflow <= 0, 'scroll horizontal en Daily móvil: ' + overflow);

@@ -203,7 +203,11 @@ Reemplaza el libro «Horas semanales» (una pestaña por QA) y el informe «Hora
 
 ## Daily: «No asistió»
 
-Cada persona del orden tiene un botón **No asistió**: la saca de completados, la tacha y la pasa a la lista *No asistieron*. Se deshace con el mismo botón (*Asistió*) o tocando su fila en esa lista, y se limpia al generar otro orden. Por ahora no se guarda en Supabase (igual que los completados); va con el historial del Daily.
+Cada persona del orden tiene un botón **No asistió**: la saca de completados, la tacha y la pasa a la lista *No asistieron*. Se deshace con el mismo botón (*Asistió*) o tocando su fila en esa lista, y se limpia al generar otro orden.
+
+## Daily: historial
+
+Al terminar el daily, **Guardar daily de hoy** guarda el orden, quién habló y quién no asistió (quien no está en *No asistió* cuenta como que asistió). Hay un registro por daily por día: si se vuelve a guardar el mismo día, la app pregunta y lo reemplaza. Debajo, **Historial** muestra por mes y por daily la asistencia de cada persona (asistió, faltó, % —en amarillo si es menos de 80 %— y cuántas veces empezó) y cada día guardado con quién empezó, quién faltó, el orden y quién lo guardó. Guarda cualquier usuario activo con `daily_guardar()` (solo desde 7 días atrás hasta mañana) y lo leen todos con `daily_historial()`. Requiere `20261019000002_daily_historial.sql`.
 
 ## Diseño
 
@@ -211,4 +215,4 @@ Hoja de trabajo clara con la tinta azul del banco y un solo acento: el amarillo 
 
 ## Siguiente: Fase 4
 
-Guardar el historial del Daily y del QA Generator. Si más adelante se vuelve a usar IA (extraer PBIs de una captura o proponer tareas), va por una Edge Function: la clave de Anthropic queda en Supabase y se registra el uso en `ai_usage_log`; nunca se llama a `api.anthropic.com` desde el navegador.
+Guardar el historial del QA Generator. Si más adelante se vuelve a usar IA (extraer PBIs de una captura o proponer tareas), va por una Edge Function: la clave de Anthropic queda en Supabase y se registra el uso en `ai_usage_log`; nunca se llama a `api.anthropic.com` desde el navegador.

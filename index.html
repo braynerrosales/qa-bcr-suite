@@ -308,6 +308,25 @@
   .dice-icon { font-size: 18px; }
   .daily-columns { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
   .list-container, .done-list { overflow: hidden; }
+  .dly-save { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 14px; }
+  .dly-save[hidden] { display: none; }
+  .dly-save-hint { font-size: 13px; color: var(--ink-2); flex: 1 1 220px; }
+  .dly-save .status-msg { flex-basis: 100%; }
+  .dly-hist { margin-top: 36px; }
+  .dly-hist-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-bottom: 12px; }
+  .dly-hist-title { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; margin: 0; }
+  .dly-hist-ctrl { display: flex; align-items: center; gap: 8px; }
+  .dly-hist-ctrl .hrs-period { min-width: 120px; text-align: center; }
+  .dly-days { display: grid; gap: 8px; margin-top: 18px; }
+  .dly-day { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 10px 14px; font-size: 14px; }
+  .dly-day-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+  .dly-day-head strong { font-size: 14px; }
+  .dly-day-head span { font-size: 13px; color: var(--ink-2); }
+  .dly-day-absent { margin-top: 4px; font-size: 13px; color: var(--bad); }
+  .dly-day-order { margin-top: 4px; font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .dly-hist .hrs-table { min-width: 0; }
+  @media (max-width: 780px) { .dly-hist .hrs-table th, .dly-hist .hrs-table td { padding: 7px 8px; } .dly-hist .hrs-table td:first-child { overflow-wrap: anywhere; } }
+  .hrs-table td.dly-low { background: color-mix(in srgb, var(--mark) 35%, transparent); color: var(--mark-ink); }
   .list-header, .done-header { padding: 14px 18px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .list-header-title, .done-header-title { font-size: 15px; font-weight: 700; }
   .run-badge, .done-count-badge { font-size: 13px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
@@ -818,6 +837,11 @@
               </div>
             </div>
           </div>
+          <div class="dly-save" id="dly-save" hidden>
+            <button type="button" class="crud-btn-add" id="dly-save-btn" onclick="saveDailyRun()">Guardar daily de hoy</button>
+            <span class="dly-save-hint">Al terminar. Quien no esté en "No asistió" cuenta como que asistió.</span>
+            <div class="status-msg" id="dly-save-status" role="status"></div>
+          </div>
         </div>
         <div>
           <div class="done-list">
@@ -840,6 +864,18 @@
           </div>
         </div>
       </div>
+      <section class="dly-hist" aria-labelledby="dly-hist-title">
+        <div class="dly-hist-head">
+          <h3 class="dly-hist-title" id="dly-hist-title">Historial del Daily 1</h3>
+          <div class="dly-hist-ctrl">
+            <button class="btn-secondary" onclick="shiftDailyHistory(-1)" aria-label="Mes anterior">←</button>
+            <span class="hrs-period" id="dly-hist-month"></span>
+            <button class="btn-secondary" onclick="shiftDailyHistory(1)" aria-label="Mes siguiente">→</button>
+          </div>
+        </div>
+        <div class="status-msg" id="dly-hist-status" role="status"></div>
+        <div id="dly-hist-body"></div>
+      </section>
     </div>
     </div>
 
@@ -1282,6 +1318,7 @@ function showPage(id) {
   if(id==='admin')renderAdmin();
   if(id==='solicitudes')loadSolicitudes();
   if(id==='horas')openHoras();
+  if(id==='daily')loadDailyHistory();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1371,6 +1408,8 @@ function selectDaily(num){
   document.getElementById('rollBtn').className=`roll-btn d${num}`;
   document.getElementById('rollLabel').textContent=`Sortear el orden del Daily ${num}`;
   runCount=0;document.getElementById('runBadge').textContent='—';
+  document.getElementById('dly-save').hidden=true;
+  loadDailyHistory();
   document.getElementById('listBody').innerHTML=`<div class="list-empty"><div class="list-empty-text">Tocá <strong>Sortear</strong> para ver quién habla primero en el Daily ${num}.</div></div>`;
 }
 function generateOrder(dailyKey){
@@ -1398,6 +1437,8 @@ function roll(){
   clearAbsent();
   const dice=document.getElementById('diceIcon');dice.classList.remove('spinning');void dice.offsetWidth;dice.classList.add('spinning');
   const dailyKey=`daily${activeDaily}`,order=generateOrder(dailyKey),color=activeDaily===1?'d1':'d2',n=order.length;
+  document.getElementById('dly-save').hidden=!n;
+  const sst=document.getElementById('dly-save-status');sst.className='status-msg';sst.textContent='';
   document.getElementById('runBadge').textContent=`Sorteo ${runCount}`;
   document.getElementById('rollLabel').textContent=`Volver a sortear el Daily ${activeDaily}`;
   document.getElementById('listBody').innerHTML=order.map((name,i)=>{
@@ -1458,6 +1499,82 @@ function toggleAbsent(el){
   const n=body.querySelectorAll('.done-item').length;
   document.getElementById('absentCount').textContent=n;
   if(!n)body.innerHTML=ABSENT_EMPTY;
+}
+
+/* ============ DAILY: HISTORIAL ============ */
+// Un registro por daily por día (daily_guardar reemplaza si ya se guardó ese día).
+let dlyMonth=null,dlySeq=0;
+function dlyMonthStart(){if(!dlyMonth){const t=new Date();dlyMonth=new Date(t.getFullYear(),t.getMonth(),1);}return dlyMonth;}
+function fmtDay(iso){const [y,m,d]=iso.split('-').map(Number);return ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][new Date(y,m-1,d).getDay()]+' '+d+'/'+m+'/'+y;}
+async function saveDailyRun(){
+  const dk=`daily${activeDaily}`,grupo=REFS.groups?.[dk],st=document.getElementById('dly-save-status'),btn=document.getElementById('dly-save-btn');
+  const items=[...document.querySelectorAll('#listBody .participant-item')];
+  if(!items.length)return;
+  if(!grupo){st.className='status-msg error';st.textContent='⚠ No se pudo guardar: falta la configuración del daily. Recargá la página.';return;}
+  const fecha=calcToISO(new Date());
+  btn.disabled=true;st.className='status-msg info';st.textContent='Guardando...';
+  // Si ya se guardó hoy, se pregunta antes de reemplazar.
+  const prev=await supabaseClient.rpc('daily_historial',{p_grupo:grupo,desde:fecha,hasta:fecha});
+  if(!prev.error&&prev.data?.length&&!confirm(`El Daily ${activeDaily} de hoy ya lo guardó ${prev.data[0].guardado_por||'alguien'}. ¿Reemplazarlo con este?`)){
+    btn.disabled=false;st.className='status-msg';st.textContent='';return;
+  }
+  const miembros=items.map((el,i)=>({daily_member_id:REFS.members[memberKey(dk,el.dataset.name)]||null,name:el.dataset.name,position:i+1,completed:el.classList.contains('done'),absent:el.classList.contains('absent')}));
+  const {error}=await supabaseClient.rpc('daily_guardar',{p_grupo:grupo,p_fecha:fecha,p_miembros:miembros});
+  btn.disabled=false;
+  if(error){st.className='status-msg error';st.textContent='⚠ No se pudo guardar'+errorDetail(error)+'.';return;}
+  const absent=miembros.filter(m=>m.absent).length;
+  const verb=n=>n===1?'asistió':'asistieron',came=miembros.length-absent;
+  st.className='status-msg ok';st.textContent=`✓ Guardado el Daily ${activeDaily} de hoy: ${came} ${verb(came)}`+(absent?`, ${absent} no ${verb(absent)}.`:'.');
+  dlyMonth=null;
+  loadDailyHistory();
+}
+function shiftDailyHistory(n){const m=dlyMonthStart();dlyMonth=new Date(m.getFullYear(),m.getMonth()+n,1);loadDailyHistory();}
+async function loadDailyHistory(){
+  const seq=++dlySeq,dk=`daily${activeDaily}`,grupo=REFS.groups?.[dk];
+  const a=dlyMonthStart(),b=new Date(a.getFullYear(),a.getMonth()+1,0);
+  const m=HRS_MONTHS[a.getMonth()];
+  document.getElementById('dly-hist-title').textContent=`Historial del Daily ${activeDaily}`;
+  document.getElementById('dly-hist-month').textContent=m.charAt(0).toUpperCase()+m.slice(1)+' '+a.getFullYear();
+  const box=document.getElementById('dly-hist-body'),st=document.getElementById('dly-hist-status');
+  if(!grupo||!supabaseClient){box.replaceChildren();return;}
+  const {data,error}=await supabaseClient.rpc('daily_historial',{p_grupo:grupo,desde:calcToISO(a),hasta:calcToISO(b)});
+  if(seq!==dlySeq)return;
+  if(error){st.className='status-msg error';st.textContent='⚠ No se pudo cargar el historial'+errorDetail(error)+'.';box.replaceChildren();return;}
+  st.className='status-msg';st.textContent='';
+  const rows=data||[];
+  if(!rows.length){box.innerHTML='<div class="sol-empty">No hay dailies guardados este mes. Al terminar el daily, tocá <strong>Guardar daily de hoy</strong>.</div>';return;}
+  // Días (más reciente primero) y resumen por persona.
+  const days=new Map(),people=new Map();
+  rows.forEach(r=>{
+    if(!days.has(r.run_date))days.set(r.run_date,{by:r.guardado_por,members:[]});
+    days.get(r.run_date).members.push(r);
+    const p=people.get(r.member_name)||{name:r.member_name,total:0,absent:0,first:0};
+    p.total++;if(r.absent)p.absent++;if(r.position===1)p.first++;
+    people.set(r.member_name,p);
+  });
+  const table=document.createElement('table');table.className='hrs-table';
+  table.createCaption().textContent=`Asistencia: ${days.size} ${days.size===1?'daily guardado':'dailies guardados'}`;
+  const hr=table.createTHead().insertRow();
+  ['Persona','Asistió','Faltó','% asistencia','Empezó'].forEach(t=>{const th=document.createElement('th');th.scope='col';th.textContent=t;hr.appendChild(th);});
+  const body=table.createTBody();
+  [...people.values()].sort((x,y)=>y.absent-x.absent||x.name.localeCompare(y.name)).forEach(p=>{
+    const tr=body.insertRow(),pct=Math.round((p.total-p.absent)*100/p.total);
+    [p.name,p.total-p.absent,p.absent,pct+'%',p.first].forEach((v,i)=>{const td=tr.insertCell();td.textContent=v;if(i===3&&pct<80)td.classList.add('dly-low');});
+  });
+  const wrap=document.createElement('div');wrap.className='hrs-table-wrap';wrap.appendChild(table);
+  const list=document.createElement('div');list.className='dly-days';
+  days.forEach((d,iso)=>{
+    const ms=d.members.sort((x,y)=>x.position-y.position),abs=ms.filter(x=>x.absent);
+    const item=document.createElement('div');item.className='dly-day';
+    const head=document.createElement('div');head.className='dly-day-head';
+    const strong=document.createElement('strong');strong.textContent=fmtDay(iso);
+    const info=document.createElement('span');info.textContent=`${ms.length-abs.length} de ${ms.length} asistieron · empezó ${ms[0]?.member_name||'—'}`+(d.by?` · guardó ${d.by}`:'');
+    head.append(strong,info);item.append(head);
+    if(abs.length){const p=document.createElement('div');p.className='dly-day-absent';p.textContent='No asistieron: '+abs.map(x=>x.member_name).join(', ');item.append(p);}
+    const ord=document.createElement('div');ord.className='dly-day-order';ord.textContent='Orden: '+ms.map(x=>x.member_name).join(' → ');item.append(ord);
+    list.append(item);
+  });
+  box.replaceChildren(wrap,list);
 }
 
 /* ============ ADMIN: TABS ============ */
