@@ -36,6 +36,7 @@ const patches = [];
 
 // ── Datos simulados (Fase 3): tablas en memoria con la forma de Supabase ──
 let functionMissing = false; // la Edge Function no está publicada
+let functionUnreachable = false; // respuesta sin CORS: el navegador no la recibe
 const created = [];           // cuerpos enviados a admin-create-user
 let failConfig = false;      // get_app_config responde 500
 let failNextWrite = null;    // código de error para la próxima escritura
@@ -181,6 +182,7 @@ async function setup(context) {
       }
     }
     if (url.pathname === '/functions/v1/admin-create-user') {
+      if (functionUnreachable) return r.abort('failed');
       // Igual que supabase/functions/admin-create-user: solo ADMIN activo.
       if (functionMissing) return json(404, { code: 'NOT_FOUND', message: 'Requested function was not found' });
       const me = byId(subOf(req))?.[1];
@@ -631,13 +633,18 @@ resetData();
   await page.click('#user-create-form button:has-text("Generar")');
   const temp = await page.inputValue('#nu-password');
   assert.ok(temp.length === 14, temp);
+  assert.equal(await page.getAttribute('#nu-password', 'type'), 'password');
+  await page.click('#nu-show');
+  assert.equal(await page.getAttribute('#nu-password', 'type'), 'text');
+  assert.equal(await page.textContent('#nu-show'), 'Ocultar');
   await page.click('#nu-submit');
   await page.waitForSelector('#user-create-status.ok');
   assert.match(await page.textContent('#user-create-status'), /nora@bcr\.test \(QA Lead\)/);
   assert.deepEqual(created.at(-1), { full_name: 'Nora Nueva', email: 'nora@bcr.test', role: 'QA_LEAD', password: temp });
   await until(page, (n) => document.querySelectorAll('#list-users .crud-item').length === n + 1, before);
   assert.equal(await page.inputValue('#nu-password'), '');
-  ok('ADMIN: crea un usuario con rol y contraseña temporal; aparece en la lista');
+  assert.equal(await page.getAttribute('#nu-password', 'type'), 'password');
+  ok('ADMIN: crea un usuario con rol y contraseña temporal (oculta salvo con "Ver"); aparece en la lista');
 
   await page.fill('#nu-name', 'Otra');
   await page.fill('#nu-email', 'nora@bcr.test');
@@ -653,6 +660,12 @@ resetData();
   await page.waitForFunction(() => /no está publicada/.test(document.getElementById('user-create-status').textContent));
   functionMissing = false;
   ok('función sin publicar: lo explica');
+
+  functionUnreachable = true;
+  await page.click('#nu-submit');
+  await page.waitForFunction(() => /No se pudo contactar la función admin-create-user.*Verify JWT/.test(document.getElementById('user-create-status').textContent));
+  functionUnreachable = false;
+  ok('función inalcanzable (sin CORS o con Verify JWT): dice qué revisar');
   await page.screenshot({ path: DIR + 'tests/shot-crear-usuario.png', fullPage: true });
   await context.close();
 

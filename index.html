@@ -695,7 +695,8 @@
           <input class="crud-input" id="nu-email" type="email" placeholder="Correo" required maxlength="254" aria-label="Correo">
           <select class="user-role-select" id="nu-role" aria-label="Rol"><option value="QA">QA</option><option value="QA_LEAD">QA Lead</option><option value="ADMIN">Admin</option></select>
           <div class="user-create-pw">
-            <input class="crud-input" id="nu-password" placeholder="Contraseña temporal (mín. 10)" required minlength="10" maxlength="72" autocomplete="new-password" aria-label="Contraseña temporal">
+            <input class="crud-input" id="nu-password" type="password" placeholder="Contraseña temporal (mín. 10)" required minlength="10" maxlength="72" autocomplete="new-password" aria-label="Contraseña temporal">
+            <button type="button" class="btn-secondary" id="nu-show" onclick="togglePasswordVisible()" aria-pressed="false" aria-controls="nu-password">Ver</button>
             <button type="button" class="btn-secondary" onclick="generatePassword()">Generar</button>
           </div>
           <div class="user-create-actions"><button type="submit" class="crud-btn-add" id="nu-submit">Crear usuario</button></div>
@@ -1485,6 +1486,13 @@ async function updateUser(id,changes,input){
   st.className='status-msg ok';st.textContent='✓ Guardado';
 }
 
+// La contraseña temporal no queda a la vista (pantalla compartida, capturas): solo se muestra con "Ver".
+function setPasswordVisible(show){
+  document.getElementById('nu-password').type=show?'text':'password';
+  const b=document.getElementById('nu-show');
+  b.textContent=show?'Ocultar':'Ver';b.setAttribute('aria-pressed',String(show));
+}
+function togglePasswordVisible(){setPasswordVisible(document.getElementById('nu-password').type==='password');}
 function generatePassword(){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*';
   const bytes=crypto.getRandomValues(new Uint32Array(14));
@@ -1509,6 +1517,9 @@ async function createUser(event){
   if(error){
     let msg=error.message;
     const res=error.context;
+    // FunctionsFetchError: el navegador no recibió respuesta (función sin publicar, con "Verify JWT"
+    // activado o caída al arrancar; en esos casos la respuesta llega sin CORS y el navegador la bloquea).
+    if(error.name==='FunctionsFetchError')msg='No se pudo contactar la función admin-create-user. Revisá en Supabase → Edge Functions que esté publicada con ese nombre exacto y con "Verify JWT" desactivado (ver README).';
     if(res&&typeof res.json==='function'){
       if(res.status===404)msg='La función admin-create-user no está publicada en Supabase (ver README).';
       else{try{msg=(await res.json()).error||msg;}catch(e){}}
@@ -1517,6 +1528,7 @@ async function createUser(event){
     return;
   }
   document.getElementById('user-create-form').reset();
+  setPasswordVisible(false);
   st.className='status-msg ok';
   st.textContent=`✓ Usuario creado: ${data.email} (${ROLE_LABELS[data.role]||data.role}). Compartile la contraseña temporal por un canal privado; no se vuelve a mostrar.`;
   await renderUsersAdmin();
