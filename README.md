@@ -183,6 +183,14 @@ Los cambios se guardan al salir de cada campo; marcar «Cierre enviado» cierra 
 
 **En vivo:** con `supabase/migrations/20261017000002_solicitudes_realtime.sql` la tabla se publica en Supabase Realtime y los cambios de otros leads aparecen solos (indicador «● En vivo»). Realtime respeta el RLS: solo reciben cambios QA_LEAD y ADMIN activos. En la fila que estás editando solo se actualiza el estado, para no pisar lo que escribís. El plan gratuito incluye 200 conexiones simultáneas y 2 millones de mensajes por mes. Sin esa migración la app funciona igual con «↻ Recargar».
 
+## Horas (todos los usuarios)
+
+Reemplaza el libro «Horas semanales» (una pestaña por QA) y el informe «Horas mensuales equipo QA». Requiere `supabase/migrations/20261018000001_horas.sql`.
+
+- **Mis horas:** semana de lunes a viernes. Cada línea tiene Soli/PBI, tarea, tipo, horas y horas **facturables** (número, no casilla: si Azure dice 8 y se cobran 7, se pone 7). Por defecto se factura todo lo trabajado. Feriado, licencia/incapacidad/citas y vacaciones/permisos son una línea más del día, sin horas facturables. Los feriados de Costa Rica tienen un botón para cargarlos. Cada día muestra su total contra 8 h.
+- **Consolidado:** por semana o por mes, una fila por persona con Feriado, Facturable, No facturable, Licencia, Vacaciones, Total y Capacidad (días hábiles × 8). En amarillo, quien no llega o se pasa. Una semana que cruza de mes se parte en dos tablas, como el Excel. «Copiar para Excel» copia las tablas para pegarlas en una hoja.
+- **Permisos (RLS):** un QA ve y cambia solo sus líneas. QA_LEAD y ADMIN ven y corrigen las de todos (selector «Horas de» o tocando un nombre en el consolidado), y la línea queda marcada «Corregido por…». El consolidado lo ven todos los usuarios activos, pero `horas_resumen()` solo devuelve totales: nunca las tareas de otros.
+
 ## Daily: «No asistió»
 
 Cada persona del orden tiene un botón **No asistió**: la saca de completados, la tacha y la pasa a la lista *No asistieron*. Se deshace con el mismo botón (*Asistió*) o tocando su fila en esa lista, y se limpia al generar otro orden. Por ahora no se guarda en Supabase (igual que los completados); va con el historial del Daily.

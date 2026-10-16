@@ -237,6 +237,50 @@
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .sol-empty { padding: 36px; text-align: center; color: var(--ink-3); font-size: 14px; }
 
+  /* ── Horas ───────────────────────────────── */
+  .hrs-page { padding: 44px 32px 88px; max-width: 1240px; }
+  .hrs-tabs { display: inline-flex; gap: 4px; padding: 4px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); margin-bottom: 16px; }
+  .hrs-tab { background: transparent; border: 0; border-radius: var(--r-ctl); padding: 8px 18px; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+  .hrs-tab:hover { color: var(--ink); }
+  .hrs-tab[aria-selected=true] { background: var(--bcr); color: var(--bcr-ink); }
+  .hrs-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .hrs-period { font-weight: 700; font-size: 15px; padding: 0 6px; }
+  .hrs-bar .hrs-spacer { flex: 1; }
+  .hrs-person { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .hrs-days { display: grid; gap: 12px; }
+  .hrs-day { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); overflow: hidden; }
+  .hrs-day-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 14px; background: var(--sheet-2); border-bottom: 1px solid var(--rule); }
+  .hrs-day-head h3 { font-size: 14px; margin: 0; }
+  .hrs-hol { font-size: 12px; font-weight: 600; color: var(--ink-2); margin-left: 6px; }
+  .hrs-day-tot { font-family: var(--mono); font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .hrs-day-tot.off { color: color-mix(in srgb, var(--bad) 80%, var(--ink)); }
+  .hrs-line { display: grid; grid-template-columns: 120px minmax(180px, 1fr) 210px 84px 104px 36px; grid-template-areas: "soli tarea tipo horas fact del" "mod mod mod mod mod mod"; gap: 2px 6px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--rule); }
+  .hrs-f { display: block; min-width: 0; }
+  .hrs-f > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .hrs-soli { grid-area: soli; } .hrs-tarea { grid-area: tarea; } .hrs-tipo { grid-area: tipo; } .hrs-horas { grid-area: horas; } .hrs-fact { grid-area: fact; }
+  .hrs-line input, .hrs-line select { width: 100%; padding: 6px 8px; font-size: 13px; }
+  .hrs-line input[type=number] { text-align: right; font-family: var(--mono); }
+  .hrs-line input:disabled { opacity: .5; }
+  .hrs-line .bad { border-color: var(--bad); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bad) 25%, transparent); }
+  .hrs-line .sol-del { grid-area: del; }
+  .hrs-edited { grid-area: mod; font-size: 11px; color: var(--ink-2); }
+  .hrs-edited:empty { display: none; }
+  .hrs-line-head { padding: 0 10px 4px; border: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; color: var(--ink-2); grid-template-areas: "soli tarea tipo horas fact del"; }
+  .hrs-line-head span:nth-child(4), .hrs-line-head span:nth-child(5) { text-align: right; }
+  .hrs-day-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 10px; }
+  .hrs-table-wrap { overflow-x: auto; margin-bottom: 18px; }
+  .hrs-table { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); border-collapse: separate; border-spacing: 0; overflow: hidden; min-width: 720px; }
+  .hrs-table caption { caption-side: top; text-align: left; font-weight: 700; font-size: 15px; padding: 0 2px 8px; }
+  .hrs-table thead { display: table-header-group; }
+  .hrs-table th { background: var(--sidebar-bg); color: var(--sidebar-ink); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 10px 12px; text-align: right; vertical-align: bottom; }
+  .hrs-table td { padding: 7px 12px; border-top: 1px solid var(--rule); text-align: right; }
+  .hrs-table th:first-child, .hrs-table td:first-child { text-align: left; font-family: var(--font); }
+  .hrs-table td:first-child { font-weight: 600; }
+  .hrs-table tfoot td { font-weight: 700; background: var(--sheet-2); }
+  .hrs-table td.off { background: color-mix(in srgb, var(--mark) 30%, var(--sheet)); }
+  .hrs-who { background: none; border: 0; padding: 0; font: inherit; color: var(--bcr); text-decoration: underline; text-align: left; cursor: pointer; }
+  .hrs-note { font-size: 13px; color: var(--ink-2); margin: -6px 0 14px; }
+
   /* ── Daily ───────────────────────────────── */
   .daily-tabs-selector { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); margin-bottom: 18px; min-width: min(420px, 100%); }
   .daily-tab-btn { background: transparent; border: 0; border-radius: var(--r-ctl); padding: 10px 16px; text-align: left; color: var(--ink-2); }
@@ -411,7 +455,7 @@
     .home-title { margin-bottom: 28px; }
     .home-tool { grid-template-columns: 1fr auto; padding: 18px 2px; }
     .home-tool-desc { grid-column: 1 / -1; grid-row: 2; }
-    .qa-page, .daily-page, .admin-page, .calc-page, .sol-page { padding: 24px 16px 64px; }
+    .qa-page, .daily-page, .admin-page, .calc-page, .sol-page, .hrs-page { padding: 24px 16px 64px; }
     .page-title { font-size: 24px; }
     .main-grid, .daily-columns, .admin-daily-cols, .user-create { grid-template-columns: 1fr; }
     .daily-tabs-selector { display: grid; }
@@ -459,6 +503,16 @@
     .sol-del { min-width: 44px; min-height: 44px; font-size: 18px; }
     tr.sol-late { box-shadow: inset 4px 0 0 var(--bad); }
     tr.sol-late td:first-child { box-shadow: none; animation: none; }
+    /* Horas en móvil: cada línea en tres filas, con su etiqueta. */
+    .hrs-page .hrs-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+    .hrs-line-head { display: none; }
+    .hrs-line { grid-template-columns: 1fr 1fr 44px; grid-template-areas: "soli tipo tipo" "tarea tarea tarea" "horas fact del" "mod mod mod"; gap: 8px; padding: 12px 12px; }
+    .hrs-f > span { position: static; width: auto; height: auto; clip: auto; display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 2px; }
+    .hrs-line .sol-del { align-self: end; min-width: 44px; min-height: 44px; font-size: 18px; }
+    .hrs-line input, .hrs-line select { font-size: 16px; min-height: 40px; }
+    .hrs-bar .hrs-period { flex: 1 1 100%; order: -1; padding: 0; }
+    .hrs-person { flex: 1 1 100%; }
+    .hrs-person select { flex: 1; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -498,6 +552,7 @@
     <button class="mobile-nav-btn active" onclick="showPage('home')">Inicio</button>
     <button class="mobile-nav-btn" onclick="showPage('qa')">Tareas</button>
     <button class="mobile-nav-btn" onclick="showPage('daily')">Daily</button>
+    <button class="mobile-nav-btn" onclick="showPage('horas')">Horas</button>
     <button class="mobile-nav-btn" onclick="showPage('solicitudes')" id="mnav-solicitudes">Solicitudes</button>
     <button class="mobile-nav-btn" onclick="showPage('admin')" id="mnav-admin">Admin</button>
     <button class="mobile-nav-btn" onclick="showPage('calc')">Días</button>
@@ -543,6 +598,7 @@
       <button class="nav-item item-home active" onclick="showPage('home')" id="nav-home">Inicio</button>
       <button class="nav-item item-qa" onclick="showPage('qa')" id="nav-qa">Generar tareas</button>
       <button class="nav-item item-daily" onclick="showPage('daily')" id="nav-daily">Daily</button>
+      <button class="nav-item item-horas" onclick="showPage('horas')" id="nav-horas">Horas</button>
       <button class="nav-item item-solicitudes" onclick="showPage('solicitudes')" id="nav-solicitudes">Solicitudes</button>
       <button class="nav-item item-admin" onclick="showPage('admin')" id="nav-admin">Administración</button>
       <button class="nav-item item-calc" onclick="showPage('calc')" id="nav-calc">Días hábiles</button>
@@ -576,6 +632,11 @@
         <button class="home-tool" onclick="showPage('daily')">
           <span class="home-tool-name">Ordenar el Daily</span>
           <span class="home-tool-desc">Sorteá quién habla primero en el Daily 1 o el Daily 2, respetando las reglas del equipo.</span>
+          <span class="home-tool-go" aria-hidden="true">›</span>
+        </button>
+        <button class="home-tool" onclick="showPage('horas')">
+          <span class="home-tool-name">Registrar horas</span>
+          <span class="home-tool-desc">Cargá tus horas de la semana y mirá el consolidado del equipo: facturable, no facturable y ausencias.</span>
           <span class="home-tool-go" aria-hidden="true">›</span>
         </button>
         <button class="home-tool" onclick="showPage('solicitudes')" id="home-solicitudes">
@@ -894,6 +955,56 @@
     </div>
     </div>
 
+    <!-- HORAS (todos; cada QA carga las suyas, leads corrigen las de todos) -->
+    <div class="page" id="page-horas">
+    <div class="hrs-page">
+      <div class="page-header">
+        <div class="page-header-left">
+          <button class="page-back" onclick="showPage('home')" aria-label="Volver al inicio">←</button>
+          <div>
+            <h2 class="page-title">Horas</h2>
+            <p class="page-subtitle">Cargá una línea por tarea, con las horas trabajadas y cuántas se pueden facturar. Feriados, licencias, citas, vacaciones y permisos van como una línea más del día. Se guarda solo al salir de cada campo.</p>
+          </div>
+        </div>
+      </div>
+      <div class="hrs-tabs" role="tablist" aria-label="Vista de horas">
+        <button class="hrs-tab" role="tab" id="hrs-tab-mine" aria-controls="hrs-mine" aria-selected="true" onclick="hrsShowTab('mine')">Mis horas</button>
+        <button class="hrs-tab" role="tab" id="hrs-tab-report" aria-controls="hrs-report" aria-selected="false" onclick="hrsShowTab('report')">Consolidado</button>
+      </div>
+      <div class="status-msg" id="hrs-status" role="status"></div>
+      <section id="hrs-mine" role="tabpanel" aria-labelledby="hrs-tab-mine">
+        <div class="hrs-bar">
+          <button class="btn-secondary" onclick="hrsShiftWeek(-1)" aria-label="Semana anterior">←</button>
+          <span class="hrs-period" id="hrs-week-label"></span>
+          <button class="btn-secondary" onclick="hrsShiftWeek(1)" aria-label="Semana siguiente">→</button>
+          <button class="btn-secondary" onclick="hrsThisWeek()">Esta semana</button>
+          <span class="hrs-spacer"></span>
+          <label class="hrs-person" id="hrs-person-wrap" hidden>Horas de
+            <select class="user-role-select" id="hrs-person" onchange="hrsPickPerson(this.value)"></select>
+          </label>
+        </div>
+        <div class="sol-stats" id="hrs-week-stats"></div>
+        <div class="hrs-line hrs-line-head" aria-hidden="true"><span>Soli / PBI</span><span>Tarea / actividad</span><span>Tipo</span><span>Horas</span><span>Facturables</span><span></span></div>
+        <div class="hrs-days" id="hrs-days"></div>
+      </section>
+      <section id="hrs-report" role="tabpanel" aria-labelledby="hrs-tab-report" hidden>
+        <div class="hrs-bar">
+          <select class="user-role-select" id="hrs-mode" aria-label="Período" onchange="hrsSetMode(this.value)">
+            <option value="week">Semana</option>
+            <option value="month">Mes</option>
+          </select>
+          <button class="btn-secondary" onclick="hrsShiftReport(-1)" aria-label="Período anterior">←</button>
+          <span class="hrs-period" id="hrs-report-label"></span>
+          <button class="btn-secondary" onclick="hrsShiftReport(1)" aria-label="Período siguiente">→</button>
+          <span class="hrs-spacer"></span>
+          <button class="btn-secondary" id="hrs-copy" onclick="hrsCopyReport()">Copiar para Excel</button>
+        </div>
+        <p class="hrs-note" id="hrs-report-note"></p>
+        <div id="hrs-report-tables"></div>
+      </section>
+    </div>
+    </div>
+
     <!-- CALC DÍAS HÁBILES -->
     <div class="page" id="page-calc">
     <div class="calc-page">
@@ -1071,11 +1182,12 @@ function showPage(id) {
   if((id==='admin'||id==='solicitudes')&&!canManageConfig())id='home';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll('.mobile-nav-btn').forEach((b,i) => { b.classList.remove('active'); if(['home','qa','daily','solicitudes','admin','calc'][i]===id){b.classList.add('active');if(b.offsetParent)b.scrollIntoView({block:'nearest',inline:'nearest'});} });
+  document.querySelectorAll('.mobile-nav-btn').forEach((b,i) => { b.classList.remove('active'); if(['home','qa','daily','horas','solicitudes','admin','calc'][i]===id){b.classList.add('active');if(b.offsetParent)b.scrollIntoView({block:'nearest',inline:'nearest'});} });
   document.getElementById('page-'+id).classList.add('active');
   document.getElementById('nav-'+id).classList.add('active');
   if(id==='admin')renderAdmin();
   if(id==='solicitudes')loadSolicitudes();
+  if(id==='horas')openHoras();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1675,6 +1787,280 @@ function exportSolicitudes(){
   const blob=new Blob([JSON.stringify(SOL,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download='solicitudes.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+/* ============ HORAS ============ */
+// Cada QA carga sus líneas (RLS: solo las suyas); QA_LEAD y ADMIN ven y corrigen
+// las de todos. El consolidado sale de horas_resumen(): solo totales por persona.
+const HRS_TIPOS=[['TRABAJO','Trabajo'],['FERIADO','Feriado'],['LICENCIA','Licencia / incapacidad / citas'],['VACACIONES','Vacaciones / permisos']];
+const HRS_DAY_CAP=8;
+const HRS_DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes'];
+const HRS_MONTHS=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+let HRS=[],hrsWeek=null,hrsUser=null,hrsPeople=null,hrsTab='mine',hrsMode='week',hrsRef=null,hrsSeq=0,hrsReport=[];
+function setHrsStatus(kind,text){const st=document.getElementById('hrs-status');st.className=kind?'status-msg '+kind:'status-msg';st.textContent=text||'';}
+function hrsMonday(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-(x.getDay()+6)%7);return x;}
+function hrsAddDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
+function hrsNum(n){return Math.round((Number(n)||0)*100)/100;}
+function hrsFmt(n){return String(hrsNum(n));}
+function hrsRangeLabel(a,b){
+  return a.getMonth()===b.getMonth()
+    ?`${a.getDate()} al ${b.getDate()} de ${HRS_MONTHS[b.getMonth()]} de ${b.getFullYear()}`
+    :`${a.getDate()} de ${HRS_MONTHS[a.getMonth()]} al ${b.getDate()} de ${HRS_MONTHS[b.getMonth()]} de ${b.getFullYear()}`;
+}
+function hrsName(id){return (hrsPeople||[]).find(p=>p.id===id)?.full_name||'';}
+async function hrsLoadPeople(){
+  if(hrsPeople)return;
+  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,active').order('full_name');
+  if(!error)hrsPeople=data||[];
+}
+function openHoras(){
+  if(!hrsWeek)hrsWeek=hrsMonday(new Date());
+  if(!hrsUser)hrsUser=currentUser.id;
+  hrsShowTab(hrsTab);
+}
+function hrsShowTab(t){
+  hrsTab=t;
+  ['mine','report'].forEach(k=>{
+    document.getElementById('hrs-tab-'+k).setAttribute('aria-selected',String(k===t));
+    document.getElementById('hrs-'+k).hidden=k!==t;
+  });
+  setHrsStatus('');
+  if(t==='mine')loadMyHours();
+  else{hrsRef=new Date(hrsWeek);loadHrsReport();}
+}
+
+/* ── Mis horas ── */
+async function loadMyHours(){
+  const seq=++hrsSeq;
+  await hrsLoadPeople();
+  const lead=canManageConfig(),wrap=document.getElementById('hrs-person-wrap');
+  wrap.hidden=!lead;
+  if(lead){
+    const sel=document.getElementById('hrs-person');
+    sel.replaceChildren(...(hrsPeople||[]).filter(p=>p.active||p.id===hrsUser).map(p=>new Option(p.full_name+(p.id===currentUser.id?' (vos)':''),p.id)));
+    sel.value=hrsUser;
+  }
+  const from=hrsWeek,to=hrsAddDays(hrsWeek,4);
+  document.getElementById('hrs-week-label').textContent='Semana del '+hrsRangeLabel(from,to);
+  const {data,error}=await supabaseClient.from('horas').select('*').eq('user_id',hrsUser)
+    .gte('fecha',calcToISO(from)).lte('fecha',calcToISO(to)).order('fecha').order('id');
+  if(seq!==hrsSeq)return false;   // ya se pidió otra semana
+  if(error){HRS=[];renderMyHours();setHrsStatus('error','⚠ No se pudieron cargar las horas'+errorDetail(error)+'.');return false;}
+  HRS=data||[];renderMyHours();
+  return true;
+}
+function hrsShiftWeek(n){hrsWeek=hrsAddDays(hrsWeek,7*n);setHrsStatus('');loadMyHours();}
+function hrsThisWeek(){hrsWeek=hrsMonday(new Date());setHrsStatus('');loadMyHours();}
+function hrsPickPerson(id){hrsUser=id;setHrsStatus('');loadMyHours();}
+function renderMyHours(){
+  const box=document.getElementById('hrs-days');box.replaceChildren();
+  for(let i=0;i<5;i++){
+    const d=hrsAddDays(hrsWeek,i),iso=calcToISO(d),hol=HOLIDAYS_CR.find(h=>h.date===iso);
+    const day=document.createElement('section');day.className='hrs-day';day.dataset.date=iso;
+    const head=document.createElement('div');head.className='hrs-day-head';
+    const title=document.createElement('h3');
+    title.textContent=`${HRS_DAYS[i]} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+    if(hol){const s=document.createElement('span');s.className='hrs-hol';s.textContent='Feriado: '+hol.name;title.appendChild(s);}
+    const tot=document.createElement('span');tot.className='hrs-day-tot';
+    head.append(title,tot);
+    const lines=document.createElement('div');lines.className='hrs-lines';
+    HRS.filter(r=>r.fecha===iso).forEach(r=>lines.appendChild(hrsLine(r)));
+    const actions=document.createElement('div');actions.className='hrs-day-actions';
+    const add=Object.assign(document.createElement('button'),{type:'button',className:'btn-secondary',textContent:'+ Agregar línea'});
+    add.setAttribute('aria-label','Agregar línea el '+HRS_DAYS[i].toLowerCase());
+    add.addEventListener('click',()=>{const el=hrsNewLine(lines,{fecha:iso});el.querySelector('input').focus();});
+    actions.appendChild(add);
+    if(hol){
+      const fer=Object.assign(document.createElement('button'),{type:'button',className:'btn-secondary',textContent:'Cargar feriado ('+HRS_DAY_CAP+' h)'});
+      fer.addEventListener('click',()=>{fer.remove();hrsSaveLine(hrsNewLine(lines,{fecha:iso,tipo:'FERIADO',tarea:hol.name,horas:HRS_DAY_CAP}));});
+      if(!HRS.some(r=>r.fecha===iso))actions.appendChild(fer);
+    }
+    day.append(head,lines,actions);
+    box.appendChild(day);
+  }
+  hrsTotals();
+}
+function hrsNewLine(lines,init){
+  const r={id:null,user_id:hrsUser,tipo:'TRABAJO',soli:'',tarea:'',horas:null,facturable:null,...init};
+  HRS.push(r);
+  const el=hrsLine(r);lines.appendChild(el);return el;
+}
+function hrsLine(r){
+  const row=document.createElement('div');row.className='hrs-line';row._r=r;
+  const field=(label,area,el)=>{const l=document.createElement('label');l.className='hrs-f hrs-'+area;const s=document.createElement('span');s.textContent=label;l.append(s,el);return l;};
+  const soli=Object.assign(document.createElement('input'),{type:'text',className:'crud-input',maxLength:60,placeholder:'Ej: P3_141',value:r.soli||''});
+  soli.dataset.f='soli';
+  const tarea=Object.assign(document.createElement('input'),{type:'text',className:'crud-input',maxLength:300,placeholder:'Ej: Ejecución 2317552',value:r.tarea||''});
+  tarea.dataset.f='tarea';
+  const tipo=document.createElement('select');tipo.className='crud-input';tipo.dataset.f='tipo';
+  HRS_TIPOS.forEach(([v,l])=>tipo.appendChild(new Option(l,v)));tipo.value=r.tipo;
+  const horas=Object.assign(document.createElement('input'),{type:'number',className:'crud-input',min:'0.25',max:'24',step:'0.25',inputMode:'decimal',value:r.horas??''});
+  horas.dataset.f='horas';
+  const fact=Object.assign(document.createElement('input'),{type:'number',className:'crud-input',min:'0',max:'24',step:'0.25',inputMode:'decimal',value:r.facturable??''});
+  fact.dataset.f='facturable';
+  const del=Object.assign(document.createElement('button'),{type:'button',className:'sol-del',textContent:'✕',title:'Eliminar línea'});
+  del.setAttribute('aria-label','Eliminar línea');
+  const mod=document.createElement('small');mod.className='hrs-edited';
+  row.append(field('Soli / PBI','soli',soli),field('Tarea / actividad','tarea',tarea),field('Tipo','tipo',tipo),field('Horas','horas',horas),field('Facturables','fact',fact),del,mod);
+  // Por defecto se factura todo lo trabajado; si ya se cambió a mano, se respeta.
+  horas.addEventListener('change',()=>{
+    if(tipo.value==='TRABAJO'&&(fact.value===''||Number(fact.value)===Number(r.horas)))fact.value=horas.value;
+    hrsSaveLine(row);
+  });
+  tipo.addEventListener('change',()=>{
+    if(tipo.value!=='TRABAJO')fact.value='0';
+    else if(fact.value===''||Number(fact.value)===0)fact.value=horas.value;
+    hrsSaveLine(row);
+  });
+  [soli,tarea,fact].forEach(el=>el.addEventListener('change',()=>hrsSaveLine(row)));
+  del.addEventListener('click',()=>hrsDeleteLine(row));
+  hrsSyncLine(row);
+  return row;
+}
+function hrsSyncLine(row){
+  const r=row._r,fact=row.querySelector('[data-f=facturable]');
+  fact.disabled=r.tipo!=='TRABAJO';
+  fact.title=fact.disabled?'Solo el trabajo se factura':'';
+  const mod=row.querySelector('.hrs-edited');
+  // Si un lead corrigió la línea de otra persona, queda a la vista.
+  if(r.id!=null&&r.updated_by&&r.updated_by!==r.user_id){
+    const who=r.updated_by===currentUser.id?'vos':(hrsName(r.updated_by)||'un lead');
+    mod.textContent='Corregido por '+who+(r.updated_at?' · '+solAgo(r.updated_at):'');
+  }else mod.textContent='';
+}
+function hrsSaveLine(row){
+  const r=row._r,get=f=>row.querySelector(`[data-f=${f}]`);
+  row.querySelectorAll('.bad').forEach(el=>el.classList.remove('bad'));
+  const tipo=get('tipo').value,hv=get('horas').value.trim(),fv=get('facturable').value.trim();
+  const horas=hv===''?null:hrsNum(hv),facturable=tipo==='TRABAJO'?(fv===''?0:hrsNum(fv)):0;
+  const bad=(f,msg)=>{get(f).classList.add('bad');setHrsStatus('error','⚠ '+msg);};
+  if(horas===null){if(r.id!=null)bad('horas','Las horas no pueden quedar vacías. Para quitar la línea usá ✕.');return;}
+  if(!(horas>0&&horas<=24))return bad('horas','Las horas de una línea van de 0.25 a 24.');
+  if(!(facturable>=0)||facturable>horas)return bad('facturable','Las horas facturables no pueden ser más que las trabajadas.');
+  setHrsStatus('');
+  Object.assign(r,{tipo,soli:get('soli').value.trim(),tarea:get('tarea').value.trim(),horas,facturable});
+  hrsSyncLine(row);hrsTotals();
+  // Una escritura a la vez por línea: la segunda espera el id de la primera.
+  r._p=(r._p||Promise.resolve()).then(()=>hrsWrite(row));
+}
+async function hrsWrite(row){
+  const r=row._r,v={fecha:r.fecha,tipo:r.tipo,soli:r.soli,tarea:r.tarea,horas:r.horas,facturable:r.facturable};
+  const res=r.id==null
+    ?await supabaseClient.from('horas').insert({...v,user_id:r.user_id}).select('*')
+    :await supabaseClient.from('horas').update(v).eq('id',r.id).select('*');
+  if(res.error||!res.data||!res.data.length){
+    alert('⚠ '+writeErrorMessage(res.error||{code:'42501'}));
+    await loadMyHours();
+    return;
+  }
+  Object.assign(r,res.data[0]);
+  if(row.isConnected)hrsSyncLine(row);
+}
+async function hrsDeleteLine(row){
+  const r=row._r;
+  if(r.id!=null&&!confirm('¿Eliminar esta línea'+(r.tarea?` ("${r.tarea}")`:'')+'?'))return;
+  await r._p;
+  if(r.id!=null){
+    const {data,error}=await supabaseClient.from('horas').delete().eq('id',r.id).select('id');
+    if(error||!data||!data.length){alert('⚠ '+writeErrorMessage(error||{code:'42501'}));await loadMyHours();return;}
+  }
+  HRS=HRS.filter(x=>x!==r);row.remove();hrsTotals();
+}
+function hrsSum(rows){
+  const s={total:0,fact:0,nofact:0,aus:0};
+  rows.forEach(r=>{if(!(r.horas>0))return;s.total+=+r.horas;if(r.tipo==='TRABAJO'){s.fact+=+r.facturable;s.nofact+=r.horas-r.facturable;}else s.aus+=+r.horas;});
+  Object.keys(s).forEach(k=>s[k]=hrsNum(s[k]));
+  return s;
+}
+function hrsTotals(){
+  document.querySelectorAll('#hrs-days .hrs-day').forEach(day=>{
+    const t=hrsSum(HRS.filter(r=>r.fecha===day.dataset.date)).total,el=day.querySelector('.hrs-day-tot');
+    el.textContent=hrsFmt(t)+' / '+HRS_DAY_CAP+' h';
+    el.classList.toggle('off',t!==HRS_DAY_CAP);
+    el.title=t<HRS_DAY_CAP?'Faltan '+hrsFmt(HRS_DAY_CAP-t)+' h':t>HRS_DAY_CAP?'Sobran '+hrsFmt(t-HRS_DAY_CAP)+' h':'';
+  });
+  const s=hrsSum(HRS),box=document.getElementById('hrs-week-stats');box.replaceChildren();
+  [['',hrsFmt(s.total)+' / '+(5*HRS_DAY_CAP),'Total semana'],['is-done',hrsFmt(s.fact),'Facturable'],['is-open',hrsFmt(s.nofact),'No facturable'],['is-late',hrsFmt(s.aus),'Feriados y ausencias']]
+    .forEach(([cls,n,label])=>{const d=document.createElement('div');d.className='sol-stat '+cls;const b=document.createElement('b');b.textContent=n;d.append(b,label);box.appendChild(d);});
+}
+
+/* ── Consolidado ── */
+function hrsSetMode(m){hrsMode=m;loadHrsReport();}
+function hrsShiftReport(n){
+  hrsRef=hrsMode==='month'?new Date(hrsRef.getFullYear(),hrsRef.getMonth()+n,1):hrsAddDays(hrsRef,7*n);
+  loadHrsReport();
+}
+// Igual que el Excel: una semana que cruza de mes se parte en dos tablas.
+function hrsRanges(){
+  if(hrsMode==='month'){
+    const a=new Date(hrsRef.getFullYear(),hrsRef.getMonth(),1);
+    return [[a,new Date(a.getFullYear(),a.getMonth()+1,0)]];
+  }
+  const a=hrsMonday(hrsRef),b=hrsAddDays(a,4);
+  if(a.getMonth()===b.getMonth())return [[a,b]];
+  return [[a,new Date(a.getFullYear(),a.getMonth()+1,0)],[new Date(b.getFullYear(),b.getMonth(),1),b]];
+}
+function hrsWorkdays(a,b){let n=0;for(let d=new Date(a);d<=b;d=hrsAddDays(d,1)){const w=d.getDay();if(w>0&&w<6)n++;}return n;}
+function hrsCaption(a,b){
+  if(hrsMode==='month'){const m=HRS_MONTHS[a.getMonth()];return m.charAt(0).toUpperCase()+m.slice(1)+' '+a.getFullYear();}
+  return 'Semana '+hrsRangeLabel(a,b);
+}
+const HRS_COLS=[['feriado','Feriado'],['facturable','Facturable'],['no_facturable','No facturable'],['licencia','Licencia / incapacidad / citas'],['vacaciones','Vacaciones / permisos'],['total','Total'],['cap','Capacidad']];
+async function loadHrsReport(){
+  const seq=++hrsSeq,ranges=hrsRanges();
+  document.getElementById('hrs-mode').value=hrsMode;
+  const first=ranges[0][0],last=ranges[ranges.length-1][1];
+  document.getElementById('hrs-report-label').textContent=hrsMode==='month'?hrsCaption(first,last):'Semana del '+hrsRangeLabel(first,last);
+  await hrsLoadPeople();
+  const res=await Promise.all(ranges.map(([a,b])=>supabaseClient.rpc('horas_resumen',{desde:calcToISO(a),hasta:calcToISO(b)})));
+  if(seq!==hrsSeq)return false;
+  const box=document.getElementById('hrs-report-tables');box.replaceChildren();hrsReport=[];
+  const err=res.find(r=>r.error);
+  if(err){setHrsStatus('error','⚠ No se pudo cargar el consolidado'+errorDetail(err.error)+'.');return false;}
+  setHrsStatus('');
+  document.getElementById('hrs-report-note').textContent=canManageConfig()
+    ?'Tocá un nombre para ver y corregir sus líneas. En amarillo: el total no llega o se pasa de la capacidad.'
+    :'En amarillo: el total no llega o se pasa de la capacidad.';
+  ranges.forEach(([a,b],i)=>{
+    const cap=hrsWorkdays(a,b)*HRS_DAY_CAP,caption=hrsCaption(a,b);
+    const rows=(res[i].data||[]).map(r=>({...r,cap}));
+    hrsReport.push({caption,rows});
+    const table=document.createElement('table');table.className='hrs-table';
+    table.createCaption().textContent=caption;
+    const hr=table.createTHead().insertRow();
+    ['Persona',...HRS_COLS.map(c=>c[1])].forEach(t=>{const th=document.createElement('th');th.scope='col';th.textContent=t;hr.appendChild(th);});
+    const body=table.createTBody();
+    rows.forEach(r=>{
+      const tr=body.insertRow(),name=tr.insertCell();
+      if(canManageConfig()||r.user_id===currentUser.id){
+        const btn=Object.assign(document.createElement('button'),{type:'button',className:'hrs-who',textContent:r.full_name});
+        btn.addEventListener('click',()=>{hrsUser=r.user_id;hrsWeek=hrsMonday(a);hrsShowTab('mine');});
+        name.appendChild(btn);
+      }else name.textContent=r.full_name;
+      HRS_COLS.forEach(([k])=>{
+        const td=tr.insertCell();td.textContent=hrsFmt(r[k]);
+        if(k==='total'&&hrsNum(r.total)!==cap){td.classList.add('off');td.title=r.total<cap?'Faltan '+hrsFmt(cap-r.total)+' h':'Sobran '+hrsFmt(r.total-cap)+' h';}
+      });
+    });
+    const fr=table.createTFoot().insertRow();
+    fr.insertCell().textContent='Total horas';
+    HRS_COLS.forEach(([k])=>{fr.insertCell().textContent=hrsFmt(rows.reduce((s,r)=>s+(+r[k]||0),0));});
+    const wrap=document.createElement('div');wrap.className='hrs-table-wrap';wrap.appendChild(table);
+    box.appendChild(wrap);
+  });
+  return true;
+}
+// Texto separado por tabulaciones: se pega directo en Excel.
+function hrsCopyReport(){
+  const head=['Equipo',...HRS_COLS.map(c=>c[1])].join('\t');
+  const text=hrsReport.map(t=>[t.caption,head,...t.rows.map(r=>[r.full_name,...HRS_COLS.map(([k])=>hrsFmt(r[k]))].join('\t')),
+    ['Total horas',...HRS_COLS.map(([k])=>hrsFmt(t.rows.reduce((s,r)=>s+(+r[k]||0),0)))].join('\t')].join('\n')).join('\n\n');
+  const btn=document.getElementById('hrs-copy');
+  const done=()=>{btn.textContent='✓ Copiado';setTimeout(()=>btn.textContent='Copiar para Excel',2000);};
+  const fail=()=>{btn.textContent='⚠ No se pudo copiar';setTimeout(()=>btn.textContent='Copiar para Excel',2500);};
+  if(!text)return;
+  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(done).catch(()=>legacyCopy(text)?done():fail());
+  else legacyCopy(text)?done():fail();
 }
 
 /* ============ CALC DÍAS HÁBILES ============ */

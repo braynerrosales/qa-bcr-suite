@@ -49,8 +49,9 @@ const solicitudesIniciales = () => [
   { id: 4, nombre: 'Solicitud P2_191 TPSISTAR cerrada', informe_semanal: false, encargados: [], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: false, cierre_enviado: true, cierra: '2026-01-23', observaciones: '', cerrada: true },
 ];
 function resetData(empty = false) {
-  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [], solicitudes: [] } : {
+  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [], solicitudes: [], horas: [] } : {
     solicitudes: solicitudesIniciales(),
+    horas: [],
     daily_groups: [{ id: 1, code: 'daily1', active: true }, { id: 2, code: 'daily2', active: true }],
     daily_members: [
       { id: 1, daily_group_id: 1, name: 'Ana <img src=x onerror=alert(1)>', active: true },
@@ -140,6 +141,52 @@ function tableRequest(req, url, me, json) {
   return json(200, target.map((r) => ({ id: r.id })));
 }
 const r201 = (json) => json(201, null);
+
+// Igual que public.horas (supabase/migrations/20261018000001_horas.sql): RLS, checks y trigger.
+const ownOrLead = (me, r) => !!me && me.active && (r.user_id === me.id || isLead(me));
+function horasRequest(req, url, me, json) {
+  const ops = { eq: (a, b) => String(a) === b, gte: (a, b) => String(a) >= b, lte: (a, b) => String(a) <= b };
+  const filters = [...url.searchParams].filter(([k]) => !['select', 'order', 'columns'].includes(k))
+    .map(([k, v]) => { const [op, ...rest] = v.split('.'); return [k, op, rest.join('.')]; });
+  const visible = tables.horas.filter((r) => ownOrLead(me, r) && filters.every(([k, op, v]) => ops[op](r[k], v)));
+  const method = req.method();
+  if (method === 'GET') return json(200, visible.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.id - b.id).map((r) => ({ ...r })));
+  const body = req.postDataJSON();
+  writes.push({ method, name: 'horas', body });
+  if (failNextWrite) { const code = failNextWrite; failNextWrite = null; return json(403, { code, message: 'denied' }); }
+  const checkRow = (r) => {
+    const dow = new Date(r.fecha + 'T00:00:00').getDay();
+    if (dow === 0 || dow === 6) return 'horas_fecha_check';
+    if (!(r.horas > 0 && r.horas <= 24) || r.facturable < 0 || r.facturable > r.horas) return 'horas_check';
+    return null;
+  };
+  const stamp = (r) => Object.assign(r, { updated_by: me.id, updated_at: new Date().toISOString() }, r.tipo !== 'TRABAJO' ? { facturable: 0 } : {});
+  if (method === 'POST') {
+    const r = stamp({ id: Math.max(0, ...tables.horas.map((x) => x.id)) + 1, user_id: me?.id, tipo: 'TRABAJO', soli: '', tarea: '', facturable: 0, ...body });
+    if (!ownOrLead(me, r)) return json(403, { code: '42501', message: 'new row violates row-level security policy for table "horas"' });
+    if (checkRow(r)) return json(400, { code: '23514', message: 'violates check constraint ' + checkRow(r) });
+    tables.horas.push(r);
+    return json(201, [{ ...r }]);
+  }
+  if (method === 'PATCH') {
+    if ('user_id' in body) return json(403, { code: '42501', message: 'permission denied for table horas' });
+    for (const r of visible) { const n = stamp({ ...r, ...body }); if (checkRow(n)) return json(400, { code: '23514', message: 'check' }); }
+    visible.forEach((r) => stamp(Object.assign(r, body)));
+    return json(200, visible.map((r) => ({ ...r })));
+  }
+  if (method === 'DELETE') { tables.horas = tables.horas.filter((r) => !visible.includes(r)); return json(200, visible.map((r) => ({ id: r.id }))); }
+}
+// Igual que public.horas_resumen(): totales por persona, para cualquier usuario activo.
+function horasResumen(me, { desde, hasta }) {
+  const sum = (rows, f) => Math.round(rows.reduce((s, r) => s + f(r), 0) * 100) / 100;
+  return Object.values(users).map((u) => {
+    const rs = tables.horas.filter((h) => h.user_id === u.id && h.fecha >= desde && h.fecha <= hasta);
+    const t = (tipo) => sum(rs.filter((h) => h.tipo === tipo), (h) => h.horas);
+    const w = rs.filter((h) => h.tipo === 'TRABAJO');
+    return { user_id: u.id, full_name: u.full_name, active: u.active, n: rs.length, feriado: t('FERIADO'), facturable: sum(w, (h) => h.facturable), no_facturable: sum(w, (h) => h.horas - h.facturable), licencia: t('LICENCIA'), vacaciones: t('VACACIONES'), total: sum(rs, (h) => h.horas) };
+  }).filter((r) => r.active || r.n).sort((a, b) => a.full_name.localeCompare(b.full_name))
+    .map(({ active, n, ...r }) => r);
+}
 
 // Supabase Realtime simulado (protocolo Phoenix 2.0.0: [join_ref, ref, topic, event, payload]).
 const rtSockets = [];
@@ -244,6 +291,12 @@ async function setup(context) {
       const me = byId(subOf(req))?.[1];
       if (me?.role !== 'ADMIN' || !me.active) return json(403, { code: '42501', message: 'Solo un ADMIN puede ver los ingresos' });
       return json(200, Object.values(users).map((u) => ({ id: u.id, first_sign_in_at: u.first_sign_in_at ?? null, last_sign_in_at: u.last_sign_in_at ?? null, password_changed_at: u.password_changed_at ?? null, must_change_password: !!u.must_change_password })));
+    }
+    if (url.pathname === '/rest/v1/horas') return horasRequest(req, url, byId(subOf(req))?.[1], json);
+    if (url.pathname === '/rest/v1/rpc/horas_resumen') {
+      const me = byId(subOf(req))?.[1];
+      if (!me?.active) return json(403, { code: '42501', message: 'Usuario sin acceso' });
+      return json(200, horasResumen(me, req.postDataJSON()));
     }
     if (url.pathname === '/rest/v1/rpc/get_app_config') {
       if (failConfig) return json(500, { code: 'XX000', message: 'falla simulada' });
@@ -1006,6 +1059,175 @@ resetData();
   assert.ok(overflow <= 0, 'scroll horizontal en Solicitudes móvil: ' + overflow);
   await page.screenshot({ path: DIR + 'tests/shot-solicitudes-movil.png' });
   ok('ADMIN en móvil: ve la misma lista, la tabla se desplaza dentro de su recuadro');
+  await context.close();
+}
+
+// 20. Horas: cada QA carga las suyas; leads corrigen las de todos; consolidado para todos
+const ymd = (d) => d.toLocaleDateString('en-CA');
+const monday = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d; })();
+const weekDay = (i) => { const d = new Date(monday); d.setDate(d.getDate() + i); return ymd(d); };
+const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@')[0], u.id]));
+{
+  tables.horas = [
+    { id: 1, user_id: ids.lead, fecha: weekDay(0), tipo: 'TRABAJO', soli: 'P3_9', tarea: 'Secreta del lead', horas: 8, facturable: 8, updated_by: ids.lead, updated_at: new Date().toISOString() },
+  ];
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'qa@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#nav-horas');
+  await page.waitForSelector('#hrs-days .hrs-day');
+  assert.equal(await page.locator('#hrs-days .hrs-day').count(), 5);
+  assert.equal(await page.isVisible('#hrs-person-wrap'), false);
+  assert.equal(await page.locator('#hrs-days .hrs-line').count(), 0, 'no ve líneas de otros');
+  ok('Horas (QA): ve su semana de lunes a viernes, sin selector de persona ni líneas de otros');
+
+  const mon = page.locator(`#hrs-days .hrs-day[data-date="${weekDay(0)}"]`);
+  await mon.locator('button:has-text("Agregar línea")').click();
+  const l1 = mon.locator('.hrs-line').first();
+  await l1.locator('[data-f=soli]').fill('P3_141');
+  await l1.locator('[data-f=tarea]').fill('Ejecución 2317552 <b>');
+  await l1.locator('[data-f=horas]').fill('8');
+  await l1.locator('[data-f=horas]').press('Tab');
+  await until(page, () => document.querySelector('#hrs-days .hrs-line [data-f=facturable]').value === '8');
+  await new Promise((r) => setTimeout(r, 250));
+  let mine = tables.horas.filter((h) => h.user_id === ids.qa);
+  assert.equal(mine.length, 1);
+  assert.deepEqual({ ...mine[0], id: 0, updated_at: 0 }, { id: 0, user_id: ids.qa, fecha: weekDay(0), tipo: 'TRABAJO', soli: 'P3_141', tarea: 'Ejecución 2317552 <b>', horas: 8, facturable: 8, updated_by: ids.qa, updated_at: 0 });
+  await l1.locator('[data-f=facturable]').fill('7');
+  await l1.locator('[data-f=facturable]').press('Tab');
+  await new Promise((r) => setTimeout(r, 250));
+  assert.equal(tables.horas.filter((h) => h.user_id === ids.qa).length, 1, 'actualiza, no duplica');
+  assert.equal(mine[0].facturable, 7);
+  assert.equal(await mon.locator('.hrs-day-tot').textContent(), '8 / 8 h');
+  ok('Horas (QA): agrega una línea; facturable arranca igual a las horas y se puede bajar (8 trabajadas, 7 facturables)');
+
+  const tue = page.locator(`#hrs-days .hrs-day[data-date="${weekDay(1)}"]`);
+  await tue.locator('button:has-text("Agregar línea")').click();
+  const l2 = tue.locator('.hrs-line').first();
+  await l2.locator('[data-f=tipo]').selectOption('VACACIONES');
+  await l2.locator('[data-f=horas]').fill('4');
+  await l2.locator('[data-f=horas]').press('Tab');
+  await new Promise((r) => setTimeout(r, 250));
+  const vac = tables.horas.find((h) => h.user_id === ids.qa && h.tipo === 'VACACIONES');
+  assert.equal(vac.horas, 4); assert.equal(vac.facturable, 0);
+  assert.equal(await l2.locator('[data-f=facturable]').isDisabled(), true);
+  assert.equal(await tue.locator('.hrs-day-tot').getAttribute('class'), 'hrs-day-tot off');
+  assert.deepEqual(await page.locator('#hrs-week-stats b').allTextContents(), ['12 / 40', '7', '1', '4']);
+  ok('Horas (QA): vacaciones como línea del día, sin horas facturables; totales de la semana');
+
+  await l1.locator('[data-f=facturable]').fill('9');
+  await l1.locator('[data-f=facturable]').press('Tab');
+  await page.waitForSelector('#hrs-status.error');
+  assert.equal(await l1.locator('[data-f=facturable].bad').count(), 1);
+  assert.equal(mine[0].facturable, 7);
+  await l1.locator('[data-f=facturable]').fill('7');
+  await l1.locator('[data-f=facturable]').press('Tab');
+  ok('Horas (QA): no deja facturar más de lo trabajado');
+
+  answers.push(false);
+  await l2.locator('.sol-del').click();
+  assert.ok(tables.horas.some((h) => h === vac));
+  answers.push(true);
+  await l2.locator('.sol-del').click();
+  await until(page, (d) => !document.querySelector(`#hrs-days .hrs-day[data-date="${d}"] .hrs-line`), weekDay(1));
+  assert.ok(!tables.horas.some((h) => h === vac));
+  ok('Horas (QA): eliminar una línea pide confirmación');
+
+  await page.click('#hrs-tab-report');
+  await page.waitForSelector('#hrs-report-tables table');
+  const tableText = await page.locator('#hrs-report-tables').textContent();
+  assert.ok(!tableText.includes('Secreta'), 'el consolidado no muestra tareas');
+  const rowOf = (name) => page.locator('#hrs-report-tables tbody tr', { hasText: name }).locator('td').allTextContents();
+  assert.deepEqual(await rowOf('Laura Lead'), ['Laura Lead', '0', '8', '0', '0', '0', '8', '40']);
+  assert.deepEqual(await rowOf('Quique QA'), ['Quique QA <b>', '0', '7', '1', '0', '0', '8', '40']);
+  assert.equal(await page.locator('#hrs-report-tables tbody tr', { hasText: 'Inactivo' }).count(), 0);
+  assert.equal(await page.locator('#hrs-report-tables .hrs-who').count(), 1, 'un QA solo puede abrir su propia fila');
+  const people = await page.locator('#hrs-report-tables tbody tr').count();
+  assert.deepEqual(await page.locator('#hrs-report-tables tfoot td').allTextContents(), ['Total horas', '0', '15', '1', '0', '0', '16', String(people * 40)]);
+  ok('Horas (QA): ve el consolidado de todos, solo con totales');
+
+  await page.evaluate(() => { window.__copied = null; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied = t; } } }); });
+  await page.click('#hrs-copy');
+  await page.waitForSelector('#hrs-copy:has-text("Copiado")');
+  const copied = await page.evaluate(() => window.__copied);
+  assert.match(copied, /^Semana .+\nEquipo\tFeriado\tFacturable\tNo facturable\t.+\tTotal\tCapacidad\n/);
+  assert.ok(copied.includes('Quique QA <b>\t0\t7\t1\t0\t0\t8\t40'), copied);
+  assert.ok(copied.endsWith('Total horas\t0\t15\t1\t0\t0\t16\t' + people * 40), copied);
+  ok('Horas: "Copiar para Excel" copia el consolidado separado por tabulaciones');
+
+  // Semana que cruza de mes: dos tablas, como el Excel (29 sep - 2 oct 2026 → 29-30 sep y 1-2 oct).
+  await page.evaluate(() => { hrsRef = new Date(2026, 8, 30); return loadHrsReport(); });
+  assert.deepEqual(await page.locator('#hrs-report-tables caption').allTextContents(), ['Semana 28 al 30 de septiembre de 2026', 'Semana 1 al 2 de octubre de 2026']);
+  assert.equal(await page.locator('#hrs-report-tables table').nth(1).locator('tbody tr').first().locator('td').last().textContent(), '16');
+  await page.selectOption('#hrs-mode', 'month');
+  await until(page, () => document.querySelector('#hrs-report-tables caption')?.textContent === 'Septiembre 2026');
+  assert.equal(await page.locator('#hrs-report-tables tbody tr').first().locator('td').last().textContent(), String(22 * 8));
+  ok('Horas: la semana que cruza de mes se parte en dos; vista por mes con su capacidad');
+  await context.close();
+}
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'lead@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#nav-horas');
+  await page.waitForSelector('#hrs-person-wrap:not([hidden])');
+  await until(page, () => document.querySelectorAll('#hrs-days .hrs-line').length === 1);
+  assert.equal(await page.inputValue('#hrs-days .hrs-line [data-f=tarea]'), 'Secreta del lead');
+  const opts = await page.locator('#hrs-person option').allTextContents();
+  assert.ok(opts.includes('Quique QA <b>') && !opts.includes('Inactivo'), opts.join('|'));
+  ok('Horas (Lead): elige de quién ver las horas (solo activos)');
+
+  await page.click('#hrs-tab-report');
+  await page.waitForSelector('#hrs-report-tables .hrs-who');
+  assert.equal(await page.locator('#hrs-report-tables .hrs-who').count(), await page.locator('#hrs-report-tables tbody tr').count());
+  await page.locator('#hrs-report-tables .hrs-who', { hasText: 'Quique' }).click();
+  await until(page, () => document.querySelectorAll('#hrs-days .hrs-line').length === 1 && document.querySelector('#hrs-days .hrs-line [data-f=soli]').value === 'P3_141');
+  assert.equal(await page.inputValue('#hrs-person'), ids.qa);
+  const line = page.locator('#hrs-days .hrs-line').first();
+  await line.locator('[data-f=facturable]').fill('6.5');
+  await line.locator('[data-f=facturable]').press('Tab');
+  await page.waitForSelector('#hrs-days .hrs-edited:has-text("Corregido por vos")');
+  const q = tables.horas.find((h) => h.user_id === ids.qa);
+  assert.equal(q.facturable, 6.5); assert.equal(q.updated_by, ids.lead);
+  ok('Horas (Lead): desde el consolidado abre las líneas de un QA, las corrige y queda marcado quién corrigió');
+
+  // Otra semana: no hay líneas; feriado de Costa Rica con botón para cargarlo.
+  await page.evaluate(() => { hrsWeek = new Date(2026, 8, 14); return loadMyHours(); });
+  const tueHol = page.locator('#hrs-days .hrs-day[data-date="2026-09-15"]');
+  assert.match(await tueHol.locator('h3').textContent(), /Feriado: Día de la Independencia/);
+  await tueHol.locator('button:has-text("Cargar feriado")').click();
+  await new Promise((r) => setTimeout(r, 250));
+  const fer = tables.horas.find((h) => h.fecha === '2026-09-15');
+  assert.deepEqual([fer.user_id, fer.tipo, fer.horas, fer.facturable, fer.tarea], [ids.qa, 'FERIADO', 8, 0, 'Día de la Independencia']);
+  ok('Horas: los feriados de Costa Rica se cargan con un botón');
+
+  failNextWrite = '42501';
+  await tueHol.locator('.hrs-line [data-f=horas]').fill('4');
+  await tueHol.locator('.hrs-line [data-f=horas]').press('Tab');
+  await until(page, () => document.querySelector('#hrs-days .hrs-day[data-date="2026-09-15"] [data-f=horas]').value === '8');
+  assert.ok(dialogs.at(-1).includes('No tenés permiso'));
+  ok('Horas: si Supabase rechaza el cambio, avisa y vuelve a mostrar lo guardado');
+  await page.screenshot({ path: DIR + 'tests/shot-horas.png', fullPage: true });
+  await context.close();
+}
+{
+  const { context, page } = await newPage({ width: 375, height: 760 });
+  await page.goto('http://app.test/index.html');
+  await login(page, 'qa@bcr.test');
+  await page.waitForSelector('.mobile-topbar', { state: 'visible' });
+  await page.click('.mobile-nav-btn:has-text("Horas")');
+  await page.waitForSelector('#hrs-days .hrs-line');
+  let overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert.ok(overflow <= 0, 'scroll horizontal en Horas móvil: ' + overflow);
+  assert.equal(await page.isVisible('#hrs-days .hrs-line .hrs-f > span'), true, 'en móvil cada campo muestra su etiqueta');
+  await page.screenshot({ path: DIR + 'tests/shot-horas-movil.png', fullPage: true });
+  await page.click('#hrs-tab-report');
+  await page.waitForSelector('#hrs-report-tables table');
+  overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert.ok(overflow <= 0, 'scroll horizontal en consolidado móvil: ' + overflow);
+  ok('Horas en móvil: líneas en tarjetas con etiquetas; el consolidado se desplaza dentro de su recuadro');
   await context.close();
 }
 
