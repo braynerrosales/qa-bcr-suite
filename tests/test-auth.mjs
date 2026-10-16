@@ -800,7 +800,7 @@ resetData();
   await new Promise((r) => setTimeout(r, 200));
   assert.equal(tables.solicitudes[0].cierre_enviado, true);
   assert.equal(tables.solicitudes[0].cerrada, true);
-  await row.locator('textarea').fill('Pendiente <script>x</script>');
+  await row.locator('textarea[aria-label="Observaciones"]').fill('Pendiente <script>x</script>');
   await row.locator('input[type=number]').fill('6.5');
   await row.locator('input[type=date]').fill('2026-12-01');
   await row.locator('.sol-name').fill('Solicitud P3_081 Renombrada');

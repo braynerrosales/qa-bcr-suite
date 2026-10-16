@@ -186,7 +186,8 @@
   .sol-new { display: flex; gap: 10px; margin-bottom: 12px; }
   .sol-new .crud-input { flex: 1; min-width: 0; }
   .sol-table-wrap { position: relative; overflow-x: auto; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); }
-  .sol-table { min-width: 1180px; }
+  .sol-table { min-width: 1270px; }
+  .sol-table td:first-child { min-width: 340px; max-width: 420px; }
   .sol-table thead { display: table-header-group; }
   .sol-table th { background: var(--sidebar-bg); color: var(--sidebar-ink); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 10px 6px; text-align: center; vertical-align: bottom; }
   .sol-table th:first-child { text-align: left; padding-left: 14px; }
@@ -198,7 +199,8 @@
   .sol-table textarea { resize: vertical; min-height: 32px; }
   .sol-table input[type=number] { text-align: center; font-family: var(--mono); }
   .sol-table input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--bcr); cursor: pointer; }
-  .sol-name { font-weight: 600; }
+  .sol-table textarea.sol-name { font-weight: 600; resize: none; min-height: 0; field-sizing: content; }
+  .sol-table textarea { field-sizing: content; }
   .sol-name.urgent { color: var(--bad); font-weight: 700; }
   tr.sol-done { background: color-mix(in srgb, var(--ok) 6%, var(--sheet)); }
   tr.sol-done .sol-name { color: var(--ink-3); text-decoration: line-through; font-weight: 500; }
@@ -800,7 +802,7 @@
       <div class="sol-table-wrap">
         <table class="sol-table">
           <thead><tr>
-            <th style="min-width:250px">Solicitud</th><th>Informe sem.</th><th>Encargado</th><th style="width:72px">Horas</th>
+            <th style="min-width:340px">Solicitud</th><th>Informe sem.</th><th>Encargado</th><th style="width:72px">Horas</th>
             <th>Pend. plan</th><th>Pend. actualizar</th><th>Plan enviado</th><th>Cierre enviado</th>
             <th style="width:150px">Cierra</th><th style="min-width:180px">Observaciones</th><th>Estado</th><th><span class="sr-only">Eliminar</span></th>
           </tr></thead>
@@ -1397,11 +1399,14 @@ function renderSolicitudes(){
 function solCell(...children){const td=document.createElement('td');td.append(...children);return td;}
 function solRow(r){
   const tr=document.createElement('tr');tr.dataset.id=r.id;
-  const name=Object.assign(document.createElement('input'),{type:'text',value:r.nombre,maxLength:300,className:'sol-name'});
+  // textarea para que el nombre completo se lea en varias líneas (Enter no agrega saltos).
+  const name=Object.assign(document.createElement('textarea'),{rows:2,value:r.nombre,maxLength:300,className:'sol-name',title:r.nombre});
+  name.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();name.blur();}});
   name.setAttribute('aria-label','Nombre de la solicitud');
   name.addEventListener('change',()=>{
-    const v=name.value.trim();
+    const v=name.value.replace(/\s+/g,' ').trim();
     if(!v){name.value=r.nombre;alert('El nombre no puede quedar vacío.');return;}
+    name.value=v;name.title=v;
     saveSolicitud(r.id,{nombre:v});
   });
   const checks={};
