@@ -365,7 +365,9 @@
   .backup-note { font-size: 14px; color: var(--ink-2); margin-top: 12px; }
   .user-email { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2); }
   .user-role-select { padding: 6px 10px; font-size: 13px; }
-  .user-reset { padding: 6px 10px; font-size: 13px; }
+  .user-reset, .user-rename { padding: 6px 10px; font-size: 13px; }
+  .user-name-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .user-name-form .crud-input { flex: 1 1 200px; font-weight: 400; }
   .user-role-select:disabled, .crud-checkbox:disabled { opacity: 0.5; cursor: not-allowed; }
   .user-create { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; padding: 18px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); }
   .user-create .crud-input, .user-create select { width: 100%; min-width: 0; }
@@ -2344,6 +2346,7 @@ async function renderUsersAdmin(){
       <span class="crud-item-name">${escapeHtml(u.full_name)}${self?' (vos)':''}<span class="user-email">${escapeHtml(u.email||'')}</span>${userAccessBadge(acc.get(u.id))}</span>
       <select class="user-role-select" aria-label="Rol de ${escapeHtml(u.full_name)}" data-id="${u.id}"${lock} onchange="updateUser(this.dataset.id,{role:this.value},this)">${options}</select>
       <label class="crud-label-small"><input type="checkbox" class="crud-checkbox" data-id="${u.id}"${u.active?' checked':''}${lock} onchange="updateUser(this.dataset.id,{active:this.checked},this)"> Activo</label>
+      <button type="button" class="btn-secondary user-rename" data-id="${u.id}" onclick="editUserName(this.dataset.id,this)">Cambiar nombre</button>
       ${self?'':`<button type="button" class="btn-secondary user-reset" data-id="${u.id}" onclick="resetUserPassword(this.dataset.id,this)">Nueva contraseña</button>`}
     </div>`;
   }).join(''):'<div class="crud-empty">No hay usuarios.</div>';
@@ -2376,6 +2379,34 @@ async function updateUser(id,changes,input){
     return;
   }
   st.className='status-msg ok';st.textContent='✓ Guardado';
+  return true;
+}
+
+// El nombre se edita en la misma fila: Enter guarda, Esc cancela.
+function editUserName(id,btn){
+  const u=USERS.find(x=>x.id===id);if(!u||!isAdmin())return;
+  const name=btn.closest('.crud-item').querySelector('.crud-item-name');
+  const form=Object.assign(document.createElement('form'),{className:'user-name-form'});
+  const input=Object.assign(document.createElement('input'),{type:'text',className:'crud-input',value:u.full_name,maxLength:120,required:true});
+  input.setAttribute('aria-label','Nombre de '+u.full_name);
+  const save=Object.assign(document.createElement('button'),{type:'submit',className:'btn-primary user-rename',textContent:'Guardar'});
+  const cancel=Object.assign(document.createElement('button'),{type:'button',className:'btn-secondary user-rename',textContent:'Cancelar'});
+  cancel.addEventListener('click',renderUsersAdmin);
+  input.addEventListener('keydown',e=>{if(e.key==='Escape')renderUsersAdmin();});
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const v=input.value.trim().replace(/\s+/g,' ');
+    if(!v){input.value='';input.focus();return;}
+    if(v===u.full_name){renderUsersAdmin();return;}
+    save.disabled=true;
+    if(!await updateUser(id,{full_name:v},input))return;
+    if(id===currentUser.id){currentUser.full_name=v;renderUserInfo();}
+    hrsPeople=null;
+    renderUsersAdmin();
+  });
+  form.append(input,save,cancel);
+  name.replaceChildren(form);btn.hidden=true;
+  input.focus();input.select();
 }
 
 // La contraseña temporal no queda a la vista (pantalla compartida, capturas): solo se muestra con "Ver".

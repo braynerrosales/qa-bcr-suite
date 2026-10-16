@@ -167,6 +167,8 @@ En la app: *Administración → Usuarios* → nombre, correo, rol y contraseña 
 
 **Contraseña olvidada:** en la lista, *Nueva contraseña* (no aparece en tu propio usuario) genera una contraseña temporal de 14 caracteres, la función la cambia en Supabase Auth (`action: 'reset_password'`) y vuelve a marcar que la persona debe cambiarla al entrar. Aparece el mismo mensaje para copiar. La contraseña anterior deja de servir. Si actualizás la función, volvé a pegar `index.ts` y *Deploy* (mismo nombre, *Verify JWT* desactivado).
 
+**Cambiar nombre:** en la lista, *Cambiar nombre* edita el nombre en la misma fila (Enter guarda, Esc cancela). Sirve también para el propio usuario. Lo guarda `profiles.full_name` (solo ADMIN, por RLS); no hace falta SQL nuevo.
+
 ## Generar tareas QA
 
 Las tareas salen solo de la plantilla del proyecto (o de la variante). Si no hay plantilla, la app lo avisa y no genera nada: se agrega en Administración → Proyectos y tareas. La extracción de PBIs desde una captura con IA está desactivada. Después de generar, «Borrar» limpia los PBIs y las tareas y deja elegido el proyecto para la siguiente tanda.
