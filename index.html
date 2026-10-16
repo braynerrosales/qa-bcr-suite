@@ -503,6 +503,24 @@
   .fb-msg { margin: 8px 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
   .fb-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .user-delete { padding: 6px 10px; }
+  .inf-dialog { width: min(760px, calc(100vw - 32px)); }
+  .inf-wrap { max-height: 60vh; overflow: auto; }
+  .inf-table { width: 100%; min-width: 0; }
+  .inf-table td, .inf-table th { text-align: left; }
+  .inf-table td { font-weight: 400; overflow-wrap: anywhere; }
+  .inf-table td.inf-na { color: var(--ink-2); }
+  .inf-table td.inf-falta { color: var(--bad); font-weight: 700; }
+  @media print {
+    body.print-inf > :not(#inf-dialog) { display: none !important; }
+    body.print-inf { background: #fff; min-height: 0; }
+    body.print-inf #inf-dialog { position: static; display: block; width: 100%; max-width: none; margin: 0; border: 0; padding: 0; background: #fff; color: #000; }
+    body.print-inf #inf-sub { color: #000; }
+    body.print-inf #inf-dialog::backdrop { display: none; }
+    body.print-inf .inf-wrap { max-height: none; overflow: visible; }
+    body.print-inf .inf-actions, body.print-inf #inf-status { display: none; }
+    body.print-inf .inf-table th { background: #fff; color: #000; border-bottom: 2px solid #000; }
+    body.print-inf .inf-table td { color: #000; }
+  }
   .pw-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
 
   /* ── Móvil ───────────────────────────────── */
@@ -665,6 +683,18 @@
       <button type="submit" class="crud-btn-add" id="fb-send">Enviar</button>
     </div>
   </form>
+</dialog>
+
+<dialog class="pw-dialog inf-dialog" id="inf-dialog" aria-labelledby="inf-title">
+  <div class="admin-card-title" id="inf-title">Informes semanales</div>
+  <p class="adj-hint" id="inf-sub"></p>
+  <div class="inf-wrap"><table class="hrs-table inf-table" id="inf-table"></table></div>
+  <div class="status-msg" id="inf-status" role="status"></div>
+  <div class="pw-dialog-actions inf-actions">
+    <button type="button" class="btn-secondary" onclick="document.getElementById('inf-dialog').close()">Cerrar</button>
+    <button type="button" class="btn-secondary" id="inf-copy" onclick="copyInformes()">Copiar</button>
+    <button type="button" class="crud-btn-add" onclick="printInformes()">Imprimir</button>
+  </div>
 </dialog>
 
 <dialog class="pw-dialog" id="adj-dialog" aria-labelledby="adj-title">
@@ -1092,6 +1122,7 @@
           <option value="done">Cerradas</option>
           <option value="all">Todas</option>
         </select>
+        <button class="btn-secondary" onclick="openInformes()">Informes semanales</button>
         <button class="btn-secondary" onclick="exportSolicitudes()">Exportar JSON</button>
       </div>
       <div class="status-msg" id="sol-status" role="status"></div>
@@ -2048,6 +2079,46 @@ async function deleteSolicitud(id){
   if(error||!data||!data.length)alert('⚠ '+writeErrorMessage(error||{code:'42501'}));
   await loadSolicitudes();
 }
+/* ── Informes semanales: lista de las abiertas para copiar o imprimir ── */
+function informesRows(){
+  return SOL.filter(r=>!r.cerrada).sort(solCompare).map(r=>({
+    nombre:r.nombre,
+    informe:r.informe_semanal?'Sí':'N/A',
+    encargados:r.informe_semanal?((r.encargados||[]).join(', ')||'Sin asignar'):'N/A'
+  }));
+}
+function openInformes(){
+  const rows=informesRows(),t=document.getElementById('inf-table');
+  const hoy=new Date().toLocaleDateString('es-CR',{day:'numeric',month:'long',year:'numeric'});
+  const n=rows.filter(r=>r.informe==='Sí').length;
+  document.getElementById('inf-sub').textContent=`Solicitudes abiertas al ${hoy}: ${rows.length}, ${n} con informe semanal.`;
+  t.replaceChildren();
+  const hr=t.createTHead().insertRow();
+  ['Solicitud','Informe semanal','Encargados'].forEach(x=>{const th=document.createElement('th');th.scope='col';th.textContent=x;hr.appendChild(th);});
+  const b=t.createTBody();
+  rows.forEach(r=>{const tr=b.insertRow();[r.nombre,r.informe,r.encargados].forEach((v,i)=>{const td=tr.insertCell();td.textContent=v;if(i&&v==='N/A')td.classList.add('inf-na');if(v==='Sin asignar')td.classList.add('inf-falta');});});
+  if(!rows.length){const td=b.insertRow().insertCell();td.colSpan=3;td.textContent='No hay solicitudes abiertas.';}
+  const st=document.getElementById('inf-status');st.className='status-msg';st.textContent='';
+  document.getElementById('inf-dialog').showModal();
+}
+function copyInformes(){
+  const rows=informesRows(),cols=['Solicitud','Informe semanal','Encargados'];
+  const text=[cols.join('\t'),...rows.map(r=>[r.nombre,r.informe,r.encargados].join('\t'))].join('\n');
+  const esc=v=>String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const html='<table border="1" cellpadding="4" style="border-collapse:collapse"><tr>'+cols.map(c=>'<th>'+c+'</th>').join('')+'</tr>'+rows.map(r=>'<tr><td>'+esc(r.nombre)+'</td><td>'+r.informe+'</td><td>'+esc(r.encargados)+'</td></tr>').join('')+'</table>';
+  const st=document.getElementById('inf-status');
+  const done=()=>{st.className='status-msg ok';st.textContent='Copiado: pegalo en Excel, Teams o un correo.';};
+  const fail=()=>{st.className='status-msg error';st.textContent='No se pudo copiar. Probá con Imprimir.';};
+  if(window.ClipboardItem&&navigator.clipboard?.write)navigator.clipboard.write([new ClipboardItem({'text/plain':new Blob([text],{type:'text/plain'}),'text/html':new Blob([html],{type:'text/html'})})]).then(done).catch(()=>legacyCopy(text)?done():fail());
+  else if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(done).catch(()=>legacyCopy(text)?done():fail());
+  else legacyCopy(text)?done():fail();
+}
+function printInformes(){
+  document.body.classList.add('print-inf');
+  window.addEventListener('afterprint',()=>document.body.classList.remove('print-inf'),{once:true});
+  window.print();
+}
+
 function exportSolicitudes(){
   const blob=new Blob([JSON.stringify(SOL,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob),a=document.createElement('a');

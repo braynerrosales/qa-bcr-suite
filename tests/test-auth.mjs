@@ -1150,6 +1150,18 @@ resetData();
   await page.fill('#sol-search', '');
   await page.selectOption('#sol-filter', 'open');
   ok('Solicitudes: buscador y filtro por estado');
+  await page.click('.sol-toolbar button:has-text("Informes semanales")');
+  await page.waitForSelector('#inf-dialog[open]');
+  const inf = await page.locator('#inf-table tbody tr').evaluateAll((trs) => trs.map((t) => [...t.cells].map((c) => c.textContent)));
+  assert.deepEqual(inf.map((r) => r.join(' | ')).sort(), [
+    'QA_OPC_47 Proyecto Digitalizacion | N/A | N/A',
+    'Solicitud P3_070 Tucan vencida | N/A | N/A',
+    'Solicitud P3_081 Gobierno <b>Digital</b> | Sí | Beto Uno',
+  ]);
+  assert.equal(await page.locator('#inf-table b').count(), 0, 'los nombres se escapan');
+  assert.match(await page.textContent('#inf-sub'), /abiertas .*: 3, 1 con informe semanal/);
+  await page.click('#inf-dialog button:has-text("Cerrar")');
+  ok('Solicitudes: lista de informes semanales de las abiertas (N/A si no aplica)');
 
   const row = page.locator('#sol-body tr[data-id="1"]');
   await row.locator('.sol-enc select').selectOption('Caro Dos');

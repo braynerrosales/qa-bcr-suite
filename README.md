@@ -189,6 +189,8 @@ Reemplaza a `solicitudes_tracker.html`: una lista compartida en Supabase, en lug
 
 Los cambios se guardan al salir de cada campo; marcar «Cierre enviado» cierra la solicitud y la saca del informe semanal (quita sus encargados; un trigger lo garantiza en la base). «↻ Recargar» trae los cambios que hicieron otros leads. El encargado del informe se elige de las personas activas del Daily. La base registra quién hizo el último cambio (`updated_by`) y la lista lo muestra en cada fila («Laura · hace 2 h»; el detalle al pasar el mouse).
 
+**Informes semanales:** el botón abre la lista de las solicitudes abiertas con *Solicitud | Informe semanal | Encargados* («N/A» si no lleva informe; «Sin asignar» si lleva informe pero no tiene encargado). **Copiar** la deja lista para pegar en Excel, Teams o un correo (como tabla) e **Imprimir** imprime solo esa lista.
+
 **En vivo:** con `supabase/migrations/20261017000002_solicitudes_realtime.sql` la tabla se publica en Supabase Realtime y los cambios de otros leads aparecen solos (indicador «● En vivo»). Realtime respeta el RLS: solo reciben cambios QA_LEAD y ADMIN activos. En la fila que estás editando solo se actualiza el estado, para no pisar lo que escribís. El plan gratuito incluye 200 conexiones simultáneas y 2 millones de mensajes por mes. Sin esa migración la app funciona igual con «↻ Recargar».
 
 ## Rol Beta
