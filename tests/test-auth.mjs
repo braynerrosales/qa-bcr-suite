@@ -360,8 +360,21 @@ async function login(page, email, password = 'pw') {
   await page.screenshot({ path: DIR + 'tests/shot-login.png' });
   ok('sin sesión: muestra login y oculta la app');
 
+  await page.fill('#auth-password', 'mala');
+  const eye = page.locator('#auth-form .pw-eye');
+  assert.equal(await eye.getAttribute('aria-label'), 'Mostrar contraseña');
+  await eye.click();
+  assert.equal(await page.getAttribute('#auth-password', 'type'), 'text');
+  assert.equal(await eye.getAttribute('aria-pressed'), 'true');
+  assert.equal(await eye.getAttribute('aria-label'), 'Ocultar contraseña');
+  await page.screenshot({ path: DIR + 'tests/shot-login-ojo.png' });
+  await eye.click();
+  assert.equal(await page.getAttribute('#auth-password', 'type'), 'password');
+  await eye.click();
   await login(page, 'qa@bcr.test', 'mala');
   await page.waitForSelector('#auth-error.error');
+  assert.equal(await page.getAttribute('#auth-password', 'type'), 'password', 'al ingresar la contraseña vuelve a quedar oculta');
+  ok('login: el ojito muestra y oculta la contraseña');
   assert.equal(await page.textContent('#auth-error'), 'Correo o contraseña incorrectos.');
   ok('contraseña incorrecta: mensaje claro');
 
@@ -804,6 +817,8 @@ resetData();
   assert.match(await c2.page.textContent('#pw-status'), /distinta de la actual/);
   await c2.page.fill('#pw-new', 'nueva-clave-segura');
   await c2.page.fill('#pw-confirm', 'otra-cosa-distinta');
+  await c2.page.locator('#pw-dialog .pw-eye').nth(1).click();
+  assert.deepEqual([await c2.page.getAttribute('#pw-new', 'type'), await c2.page.getAttribute('#pw-confirm', 'type')], ['password', 'text']);
   await c2.page.click('#pw-submit');
   assert.equal(await c2.page.textContent('#pw-status'), 'Las contraseñas no coinciden.');
   await c2.page.fill('#pw-confirm', 'nueva-clave-segura');
