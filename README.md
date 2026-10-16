@@ -190,6 +190,7 @@ Reemplaza el libro «Horas semanales» (una pestaña por QA) y el informe «Hora
 - **Mis horas:** semana de lunes a viernes. Cada línea tiene Soli/PBI, tarea, tipo, horas y horas **facturables** (número, no casilla: si Azure dice 8 y se cobran 7, se pone 7). Por defecto se factura todo lo trabajado. Feriado, licencia/incapacidad/citas y vacaciones/permisos son una línea más del día, sin horas facturables. Los feriados de Costa Rica tienen un botón para cargarlos. Cada día muestra su total contra 8 h.
 - **Consolidado:** por semana o por mes, una fila por persona con Feriado, Facturable, No facturable, Licencia, Vacaciones, Total y Capacidad (días hábiles × 8). En amarillo, quien no llega o se pasa. Una semana que cruza de mes se parte en dos tablas, como el Excel. «Copiar para Excel» copia las tablas para pegarlas en una hoja.
 - **Permisos (RLS):** un QA ve y cambia solo sus líneas. QA_LEAD y ADMIN ven y corrigen las de todos (selector «Horas de» o tocando un nombre en el consolidado), y la línea queda marcada «Corregido por…». El consolidado lo ven todos los usuarios activos, pero `horas_resumen()` solo devuelve totales: nunca las tareas de otros.
+- **Personas del informe (solo ADMIN):** en Consolidado, un ADMIN marca quién sale en el informe (`profiles.en_informe`, requiere `20261018000002_horas_informe.sql`). Quien queda fuera puede seguir cargando sus horas; solo deja de salir en el consolidado.
 
 ## Daily: «No asistió»
 

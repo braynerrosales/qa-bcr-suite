@@ -184,7 +184,7 @@ function horasResumen(me, { desde, hasta }) {
     const t = (tipo) => sum(rs.filter((h) => h.tipo === tipo), (h) => h.horas);
     const w = rs.filter((h) => h.tipo === 'TRABAJO');
     return { user_id: u.id, full_name: u.full_name, active: u.active, n: rs.length, feriado: t('FERIADO'), facturable: sum(w, (h) => h.facturable), no_facturable: sum(w, (h) => h.horas - h.facturable), licencia: t('LICENCIA'), vacaciones: t('VACACIONES'), total: sum(rs, (h) => h.horas) };
-  }).filter((r) => r.active || r.n).sort((a, b) => a.full_name.localeCompare(b.full_name))
+  }).filter((r) => users[Object.keys(users).find((e) => users[e].id === r.user_id)].en_informe !== false && (r.active || r.n)).sort((a, b) => a.full_name.localeCompare(b.full_name))
     .map(({ active, n, ...r }) => r);
 }
 
@@ -252,7 +252,7 @@ async function setup(context) {
       const me = byId(subOf(req))?.[1];
       const visible = Object.entries(users)
         .filter(([, u]) => u.id === me?.id || me?.active)
-        .map(([email, u]) => ({ id: u.id, full_name: u.full_name, email, role: u.role, active: u.active, must_change_password: !!u.must_change_password }))
+        .map(([email, u]) => ({ id: u.id, full_name: u.full_name, email, role: u.role, active: u.active, en_informe: u.en_informe !== false, must_change_password: !!u.must_change_password }))
         .sort((a, b) => a.full_name.localeCompare(b.full_name));
       const idEq = url.searchParams.get('id')?.replace(/^eq\./, '');
       const rows = idEq ? visible.filter((p) => p.id === idEq) : visible;
@@ -1181,6 +1181,7 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
 
   await page.click('#hrs-tab-report');
   await page.waitForSelector('#hrs-report-tables .hrs-who');
+  assert.equal(await page.isVisible('#hrs-pick-btn'), false, 'solo un ADMIN elige quién sale en el informe');
   assert.equal(await page.locator('#hrs-report-tables .hrs-who').count(), await page.locator('#hrs-report-tables tbody tr').count());
   await page.locator('#hrs-report-tables .hrs-who', { hasText: 'Quique' }).click();
   await until(page, () => document.querySelectorAll('#hrs-days .hrs-line').length === 1 && document.querySelector('#hrs-days .hrs-line [data-f=soli]').value === 'P3_141');
@@ -1210,6 +1211,36 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   assert.ok(dialogs.at(-1).includes('No tenés permiso'));
   ok('Horas: si Supabase rechaza el cambio, avisa y vuelve a mostrar lo guardado');
   await page.screenshot({ path: DIR + 'tests/shot-horas.png', fullPage: true });
+  await context.close();
+}
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'admin@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#nav-horas');
+  await page.click('#hrs-tab-report');
+  await page.waitForSelector('#hrs-report-tables tbody tr:has-text("Brayner Rosales")');
+  await page.click('#hrs-pick-btn');
+  const box = page.locator('#hrs-picker-list label', { hasText: 'Brayner Rosales' }).locator('input');
+  await box.waitFor();
+  assert.equal(await box.isChecked(), true);
+  await box.uncheck();
+  await until(page, () => ![...document.querySelectorAll('#hrs-report-tables tbody tr')].some((tr) => tr.textContent.includes('Brayner Rosales')));
+  assert.equal(users['admin@bcr.test'].en_informe, false);
+  assert.ok(await page.locator('#hrs-report-tables tbody tr', { hasText: 'Quique' }).count() > 0);
+  await page.screenshot({ path: DIR + 'tests/shot-horas-informe.png', fullPage: true });
+  await box.check();
+  await page.waitForSelector('#hrs-report-tables tbody tr:has-text("Brayner Rosales")');
+  assert.equal(users['admin@bcr.test'].en_informe, true);
+  ok('Horas (ADMIN): elige quién sale en el consolidado');
+
+  rejectNextPatch = true;
+  const qbox = page.locator('#hrs-picker-list label', { hasText: 'Quique' }).locator('input');
+  await qbox.uncheck();
+  await page.waitForSelector('#hrs-status.error');
+  assert.equal(await qbox.isChecked(), true, 'si no se guarda, la casilla vuelve a como estaba');
+  ok('Horas (ADMIN): si no se puede guardar la elección, avisa y deja la casilla como estaba');
   await context.close();
 }
 {

@@ -280,6 +280,13 @@
   .hrs-table td.off { background: color-mix(in srgb, var(--mark) 30%, var(--sheet)); }
   .hrs-who { background: none; border: 0; padding: 0; font: inherit; color: var(--bcr); text-decoration: underline; text-align: left; cursor: pointer; }
   .hrs-note { font-size: 13px; color: var(--ink-2); margin: -6px 0 14px; }
+  .hrs-picker { border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 14px 16px 10px; margin: 0 0 18px; background: var(--sheet); }
+  .hrs-picker legend { font-weight: 600; padding: 0 6px; }
+  .hrs-picker .hrs-note { margin: 0 0 10px; }
+  .hrs-picker-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 16px; }
+  .hrs-picker-list label { display: flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; }
+  .hrs-picker-list input { width: 18px; height: 18px; flex: none; }
+  .hrs-picker-list small { color: var(--ink-2); }
 
   /* ── Daily ───────────────────────────────── */
   .daily-tabs-selector { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); margin-bottom: 18px; min-width: min(420px, 100%); }
@@ -997,8 +1004,14 @@
           <span class="hrs-period" id="hrs-report-label"></span>
           <button class="btn-secondary" onclick="hrsShiftReport(1)" aria-label="Período siguiente">→</button>
           <span class="hrs-spacer"></span>
+          <button class="btn-secondary" id="hrs-pick-btn" onclick="hrsTogglePicker()" aria-expanded="false" aria-controls="hrs-picker" hidden>Personas del informe</button>
           <button class="btn-secondary" id="hrs-copy" onclick="hrsCopyReport()">Copiar para Excel</button>
         </div>
+        <fieldset class="hrs-picker" id="hrs-picker" hidden>
+          <legend>Personas que salen en el informe</legend>
+          <p class="hrs-note">Quien quede sin marcar puede seguir cargando sus horas, pero no sale en el consolidado.</p>
+          <div class="hrs-picker-list" id="hrs-picker-list"></div>
+        </fieldset>
         <p class="hrs-note" id="hrs-report-note"></p>
         <div id="hrs-report-tables"></div>
       </section>
@@ -2008,6 +2021,8 @@ function hrsCaption(a,b){
 const HRS_COLS=[['feriado','Feriado'],['facturable','Facturable'],['no_facturable','No facturable'],['licencia','Licencia / incapacidad / citas'],['vacaciones','Vacaciones / permisos'],['total','Total'],['cap','Capacidad']];
 async function loadHrsReport(){
   const seq=++hrsSeq,ranges=hrsRanges();
+  document.getElementById('hrs-pick-btn').hidden=!isAdmin();
+  if(!isAdmin())hrsTogglePicker(false);
   document.getElementById('hrs-mode').value=hrsMode;
   const first=ranges[0][0],last=ranges[ranges.length-1][1];
   document.getElementById('hrs-report-label').textContent=hrsMode==='month'?hrsCaption(first,last):'Semana del '+hrsRangeLabel(first,last);
@@ -2049,6 +2064,37 @@ async function loadHrsReport(){
     box.appendChild(wrap);
   });
   return true;
+}
+// ADMIN: elige quién sale en el consolidado (profiles.en_informe).
+async function hrsTogglePicker(open){
+  const box=document.getElementById('hrs-picker'),btn=document.getElementById('hrs-pick-btn');
+  if(open===undefined)open=box.hidden;
+  box.hidden=!open;btn.setAttribute('aria-expanded',String(open));
+  if(!open)return;
+  const list=document.getElementById('hrs-picker-list');
+  list.textContent='Cargando…';
+  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,active,en_informe').order('full_name');
+  if(error){list.textContent='';setHrsStatus('error','⚠ No se pudo cargar la lista de personas'+errorDetail(error)+'.');return;}
+  list.replaceChildren(...(data||[]).map(p=>{
+    const label=document.createElement('label'),cb=document.createElement('input');
+    cb.type='checkbox';cb.checked=p.en_informe!==false;
+    cb.addEventListener('change',()=>hrsSetEnInforme(p.id,cb));
+    label.append(cb,document.createTextNode(p.full_name||'(sin nombre)'));
+    if(!p.active){const s=document.createElement('small');s.textContent='inactivo';label.append(s);}
+    return label;
+  }));
+}
+async function hrsSetEnInforme(id,cb){
+  cb.disabled=true;
+  const {data,error}=await supabaseClient.from('profiles').update({en_informe:cb.checked}).eq('id',id).select('id');
+  cb.disabled=false;
+  if(error||!data?.length){
+    cb.checked=!cb.checked;
+    setHrsStatus('error','⚠ No se pudo guardar'+(error?errorDetail(error):': solo un ADMIN puede elegir quién sale en el informe')+'.');
+    return;
+  }
+  setHrsStatus('');
+  loadHrsReport();
 }
 // Texto separado por tabulaciones: se pega directo en Excel.
 function hrsCopyReport(){
