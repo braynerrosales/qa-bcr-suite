@@ -377,6 +377,11 @@
   .pw-dialog { background: var(--sheet); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 24px; width: min(380px, calc(100vw - 32px)); margin: auto; }
   .pw-dialog::backdrop { background: rgba(10,20,40,0.5); }
   .pw-dialog form { display: flex; flex-direction: column; gap: 10px; }
+  .pw-forced-hint { font-size: 14px; color: var(--ink-2); }
+  .user-access { display: inline-block; margin-top: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: var(--sheet-2); color: var(--ink-2); border: 1px solid var(--rule); }
+  .user-access.is-pending { color: color-mix(in srgb, var(--bad) 78%, var(--ink)); background: color-mix(in srgb, var(--bad) 10%, var(--sheet)); border-color: transparent; }
+  .user-access.is-temp { color: var(--mark-ink); background: color-mix(in srgb, var(--mark) 45%, var(--sheet)); border-color: transparent; }
+  .user-access.is-ok { color: color-mix(in srgb, var(--ok) 78%, var(--ink)); background: color-mix(in srgb, var(--ok) 10%, var(--sheet)); border-color: transparent; }
   .pw-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
 
   /* ── Móvil ───────────────────────────────── */
@@ -499,11 +504,13 @@
 <dialog class="pw-dialog" id="pw-dialog" aria-labelledby="pw-title">
   <form onsubmit="changePassword(event)">
     <div class="admin-card-title" id="pw-title">Cambiar contraseña</div>
+    <p class="pw-forced-hint" id="pw-forced-hint" hidden>Entraste con una contraseña temporal. Elegí una nueva para seguir; la temporal deja de servir.</p>
     <input class="crud-input" id="pw-new" type="password" placeholder="Nueva contraseña (mín. 10)" required minlength="10" maxlength="72" autocomplete="new-password" aria-label="Nueva contraseña">
     <input class="crud-input" id="pw-confirm" type="password" placeholder="Repetir contraseña" required minlength="10" maxlength="72" autocomplete="new-password" aria-label="Repetir contraseña">
     <div class="status-msg" id="pw-status" role="status"></div>
     <div class="pw-dialog-actions">
-      <button type="button" class="btn-secondary" onclick="document.getElementById('pw-dialog').close()">Cancelar</button>
+      <button type="button" class="btn-secondary" id="pw-cancel" onclick="document.getElementById('pw-dialog').close()">Cancelar</button>
+      <button type="button" class="btn-secondary" id="pw-logout" hidden onclick="closeForcedAndLogout()">Cerrar sesión</button>
       <button type="submit" class="crud-btn-add" id="pw-submit">Guardar</button>
     </div>
   </form>
@@ -805,7 +812,7 @@
       <!-- USUARIOS (solo ADMIN) -->
       <div class="admin-section" id="asec-users">
         <div class="admin-card-title">Usuarios</div>
-        <div class="admin-card-desc">Creá el usuario con una contraseña temporal y compartila por un canal privado: la persona la cambia desde "Cambiar contraseña". Abajo podés cambiar roles o desactivar usuarios.</div>
+        <div class="admin-card-desc">Creá el usuario con una contraseña temporal y compartila por un canal privado: al entrar por primera vez la app le pide cambiarla. Abajo ves quién ya entró y podés cambiar roles o desactivar usuarios.</div>
         <form class="user-create" id="user-create-form" onsubmit="createUser(event)" autocomplete="off">
           <input class="crud-input" id="nu-name" placeholder="Nombre completo" required maxlength="120" aria-label="Nombre completo">
           <input class="crud-input" id="nu-email" type="email" placeholder="Correo" required maxlength="254" aria-label="Correo">
@@ -1721,7 +1728,7 @@ async function initAuth(){
 async function loadCurrentProfile(){
   const {data:{user},error:userError}=await supabaseClient.auth.getUser();
   if(userError)throw userError;
-  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,email,role,active').eq('id',user.id).maybeSingle();
+  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,email,role,active,must_change_password').eq('id',user.id).maybeSingle();
   if(error)throw error;
   return data;
 }
@@ -1757,6 +1764,8 @@ async function enterWithSession(){
     showNotice(`⚠ Sin conexión con Supabase: se muestran los datos guardados el ${new Date(cache.savedAt).toLocaleString()}. Los cambios no se guardarán.`,true);
   }
   showApp();
+  // Primer ingreso con la contraseña temporal: hay que cambiarla antes de usar la app.
+  if(currentUser.must_change_password)openPasswordDialog(true);
 }
 
 function loginErrorMessage(error){
@@ -1816,18 +1825,36 @@ async function renderUsersAdmin(){
   const box=document.getElementById('list-users');
   if(!isAdmin()){box.innerHTML='';return;}
   box.innerHTML='<div class="crud-empty">Cargando usuarios...</div>';
-  const {data,error}=await supabaseClient.from('profiles').select('id,full_name,email,role,active').order('full_name');
+  const [{data,error},access]=await Promise.all([
+    supabaseClient.from('profiles').select('id,full_name,email,role,active').order('full_name'),
+    supabaseClient.rpc('admin_user_access')
+  ]);
   if(error){box.innerHTML='<div class="crud-empty">⚠ No se pudieron cargar los usuarios.</div>';return;}
+  // Si falta la migración de accesos, la lista se muestra igual, sin el estado.
+  const acc=new Map((access.error?[]:access.data||[]).map(a=>[a.id,a]));
   box.innerHTML=data.length?data.map(u=>{
     const self=u.id===currentUser.id;
     const lock=self?' disabled title="No podés cambiar tu propio usuario"':'';
     const options=Object.keys(ROLE_LABELS).map(r=>`<option value="${r}"${r===u.role?' selected':''}>${ROLE_LABELS[r]}</option>`).join('');
     return `<div class="crud-item">
-      <span class="crud-item-name">${escapeHtml(u.full_name)}${self?' (vos)':''}<span class="user-email">${escapeHtml(u.email||'')}</span></span>
+      <span class="crud-item-name">${escapeHtml(u.full_name)}${self?' (vos)':''}<span class="user-email">${escapeHtml(u.email||'')}</span>${userAccessBadge(acc.get(u.id))}</span>
       <select class="user-role-select" aria-label="Rol de ${escapeHtml(u.full_name)}" data-id="${u.id}"${lock} onchange="updateUser(this.dataset.id,{role:this.value},this)">${options}</select>
       <label class="crud-label-small"><input type="checkbox" class="crud-checkbox" data-id="${u.id}"${u.active?' checked':''}${lock} onchange="updateUser(this.dataset.id,{active:this.checked},this)"> Activo</label>
     </div>`;
   }).join(''):'<div class="crud-empty">No hay usuarios.</div>';
+}
+
+function fmtDateTime(iso){return new Date(iso).toLocaleString('es-CR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+function userAccessBadge(a){
+  if(!a)return '';
+  let cls,text,title='';
+  if(!a.last_sign_in_at){cls='is-pending';text='Nunca entró';}
+  else if(a.must_change_password){cls='is-temp';text='Entró, falta cambiar la contraseña';title='Primer ingreso: '+fmtDateTime(a.first_sign_in_at||a.last_sign_in_at);}
+  else{
+    cls='is-ok';text='Último ingreso: '+fmtDateTime(a.last_sign_in_at);
+    title=[a.first_sign_in_at&&'Primer ingreso: '+fmtDateTime(a.first_sign_in_at),a.password_changed_at&&'Contraseña cambiada: '+fmtDateTime(a.password_changed_at)].filter(Boolean).join(' · ');
+  }
+  return `<span class="user-access ${cls}"${title?` title="${escapeHtml(title)}"`:''}>${escapeHtml(text)}</span>`;
 }
 
 async function updateUser(id,changes,input){
@@ -1907,7 +1934,7 @@ Usuario: ${d.email}
 Contraseña temporal: ${pw}
 Rol: ${d.role}
 
-Al entrar por primera vez, cambiá la contraseña en "Cambiar contraseña" (en el menú; en el celular, el botón "Clave"). No compartas tu contraseña con nadie.`;
+Al entrar por primera vez te va a pedir que elijas una contraseña nueva; la temporal deja de servir. No compartas tu contraseña con nadie.`;
 }
 function showInvite(d){
   inviteText=inviteMessage(d,d.password);
@@ -1934,9 +1961,14 @@ function legacyCopy(text){
   ta.remove();return ok;
 }
 
-function openPasswordDialog(){
+function openPasswordDialog(forced=false){
   const d=document.getElementById('pw-dialog');
   d.querySelector('form').reset();
+  d.dataset.forced=forced?'1':'';
+  document.getElementById('pw-title').textContent=forced?'Cambiá tu contraseña temporal':'Cambiar contraseña';
+  document.getElementById('pw-forced-hint').hidden=!forced;
+  document.getElementById('pw-cancel').hidden=forced;
+  document.getElementById('pw-logout').hidden=!forced;
   document.getElementById('pw-status').className='status-msg';document.getElementById('pw-status').textContent='';
   d.showModal();
 }
@@ -1953,8 +1985,13 @@ async function changePassword(event){
     return;
   }
   st.className='status-msg ok';st.textContent='✓ Contraseña actualizada.';
-  setTimeout(()=>document.getElementById('pw-dialog').close(),1200);
+  if(currentUser)currentUser.must_change_password=false;
+  const d=document.getElementById('pw-dialog');d.dataset.forced='';
+  setTimeout(()=>d.close(),1200);
 }
+function closeForcedAndLogout(){const d=document.getElementById('pw-dialog');d.dataset.forced='';d.close();logout();}
+// Con la contraseña temporal el diálogo no se cierra con Escape.
+document.getElementById('pw-dialog').addEventListener('cancel',e=>{if(e.currentTarget.dataset.forced)e.preventDefault();});
 
 /* ============ INIT ============ */
 renderData();

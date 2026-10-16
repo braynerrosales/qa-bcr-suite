@@ -10,7 +10,9 @@ create schema auth;
 create table auth.users (
     id uuid primary key,
     email text,
-    raw_user_meta_data jsonb
+    raw_user_meta_data jsonb,
+    encrypted_password text,
+    last_sign_in_at timestamptz
 );
 create function auth.uid() returns uuid language sql stable as $$
     select coalesce(

@@ -159,6 +159,8 @@ async function setup(context) {
       const { email, password } = req.postDataJSON();
       const u = users[email];
       if (!u || u.password !== password) return json(400, { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' });
+      // Igual que el trigger on_auth_user_access: registra primer y último ingreso.
+      u.last_sign_in_at = new Date().toISOString(); u.first_sign_in_at ??= u.last_sign_in_at;
       return json(200, { access_token: tokenFor(u), token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'r-' + u.id, user: { id: u.id, aud: 'authenticated', role: 'authenticated', email } });
     }
     if (url.pathname === '/auth/v1/user') {
@@ -168,6 +170,7 @@ async function setup(context) {
         const { password } = req.postDataJSON();
         if (password === e[1].password) return json(422, { code: 422, error_code: 'same_password', msg: 'New password should be different from the old password.' });
         e[1].password = password;
+        if (e[1].last_sign_in_at) { e[1].must_change_password = false; e[1].password_changed_at = new Date().toISOString(); }
       }
       return json(200, { id: e[1].id, aud: 'authenticated', role: 'authenticated', email: e[0] });
     }
@@ -177,7 +180,7 @@ async function setup(context) {
       const me = byId(subOf(req))?.[1];
       const visible = Object.entries(users)
         .filter(([, u]) => u.id === me?.id || me?.active)
-        .map(([email, u]) => ({ id: u.id, full_name: u.full_name, email, role: u.role, active: u.active }))
+        .map(([email, u]) => ({ id: u.id, full_name: u.full_name, email, role: u.role, active: u.active, must_change_password: !!u.must_change_password }))
         .sort((a, b) => a.full_name.localeCompare(b.full_name));
       const idEq = url.searchParams.get('id')?.replace(/^eq\./, '');
       const rows = idEq ? visible.filter((p) => p.id === idEq) : visible;
@@ -202,8 +205,13 @@ async function setup(context) {
       created.push(b);
       if (users[b.email]) return json(409, { error: 'Ya existe un usuario con ese correo.' });
       const id = 'a0000000-0000-4000-8000-0000000000' + String(10 + created.length);
-      users[b.email] = { id, password: b.password, full_name: b.full_name, role: b.role, active: true };
+      users[b.email] = { id, password: b.password, full_name: b.full_name, role: b.role, active: true, must_change_password: true };
       return json(200, { id, email: b.email, full_name: b.full_name, role: b.role });
+    }
+    if (url.pathname === '/rest/v1/rpc/admin_user_access') {
+      const me = byId(subOf(req))?.[1];
+      if (me?.role !== 'ADMIN' || !me.active) return json(403, { code: '42501', message: 'Solo un ADMIN puede ver los ingresos' });
+      return json(200, Object.values(users).map((u) => ({ id: u.id, first_sign_in_at: u.first_sign_in_at ?? null, last_sign_in_at: u.last_sign_in_at ?? null, password_changed_at: u.password_changed_at ?? null, must_change_password: !!u.must_change_password })));
     }
     if (url.pathname === '/rest/v1/rpc/get_app_config') {
       if (failConfig) return json(500, { code: 'XX000', message: 'falla simulada' });
@@ -697,7 +705,18 @@ resetData();
   await login(c2.page, 'nora@bcr.test', temp);
   await c2.page.waitForSelector('.layout', { state: 'visible' });
   assert.equal(await c2.page.textContent('#sidebar-user-role'), 'QA Lead');
-  await c2.page.click('.sidebar-user-actions button:has-text("Cambiar contraseña")');
+  // Primer ingreso: el diálogo se abre solo, sin "Cancelar", y Escape no lo cierra.
+  await c2.page.waitForSelector('#pw-dialog[open]');
+  assert.equal(await c2.page.textContent('#pw-title'), 'Cambiá tu contraseña temporal');
+  assert.equal(await c2.page.isVisible('#pw-cancel'), false);
+  assert.equal(await c2.page.isVisible('#pw-logout'), true);
+  await c2.page.keyboard.press('Escape');
+  assert.equal(await c2.page.isVisible('#pw-dialog'), true);
+  await c2.page.fill('#pw-new', temp);
+  await c2.page.fill('#pw-confirm', temp);
+  await c2.page.click('#pw-submit');
+  await c2.page.waitForSelector('#pw-status.error');
+  assert.match(await c2.page.textContent('#pw-status'), /distinta de la actual/);
   await c2.page.fill('#pw-new', 'nueva-clave-segura');
   await c2.page.fill('#pw-confirm', 'otra-cosa-distinta');
   await c2.page.click('#pw-submit');
@@ -707,8 +726,34 @@ resetData();
   await c2.page.waitForSelector('#pw-status.ok');
   assert.equal(users['nora@bcr.test'].password, 'nueva-clave-segura');
   await c2.page.waitForSelector('#pw-dialog', { state: 'hidden' });
-  ok('el usuario nuevo entra con la temporal y cambia su contraseña');
+  ok('primer ingreso: obliga a cambiar la contraseña temporal (sin Cancelar ni Escape)');
   await c2.context.close();
+
+  // Al volver a entrar ya no lo pide, y el ADMIN ve el estado de cada usuario.
+  const c3 = await newPage();
+  await c3.page.goto('http://app.test/index.html');
+  await login(c3.page, 'nora@bcr.test', 'nueva-clave-segura');
+  await c3.page.waitForSelector('.layout', { state: 'visible' });
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(await c3.page.isVisible('#pw-dialog'), false);
+  await c3.context.close();
+  users['nunca@bcr.test'] = { id: 'a0000000-0000-4000-8000-000000000099', password: 'tmp-nunca-1234', full_name: 'Nadia Nunca', role: 'QA', active: true, must_change_password: true };
+  users['temp@bcr.test'] = { id: 'a0000000-0000-4000-8000-000000000098', password: 'tmp-temp-1234', full_name: 'Tomas Temporal', role: 'QA', active: true, must_change_password: true, first_sign_in_at: '2026-10-16T14:00:00Z', last_sign_in_at: '2026-10-16T14:00:00Z' };
+  const c4 = await newPage();
+  await c4.page.goto('http://app.test/index.html');
+  await login(c4.page, 'admin@bcr.test');
+  await c4.page.waitForSelector('.layout', { state: 'visible' });
+  await c4.page.evaluate(() => { showPage('admin'); selectAdminTab('users'); });
+  await c4.page.waitForSelector('#list-users .user-access');
+  const badge = (name) => c4.page.locator('#list-users .crud-item', { hasText: name }).locator('.user-access').textContent();
+  assert.equal(await badge('Nadia Nunca'), 'Nunca entró');
+  assert.equal(await badge('Tomas Temporal'), 'Entró, falta cambiar la contraseña');
+  assert.match(await badge('Nora Nueva'), /^Último ingreso: \d{2}\/\d{2}\/\d{4}/);
+  assert.match(await c4.page.locator('#list-users .crud-item', { hasText: 'Nora Nueva' }).locator('.user-access').getAttribute('title'), /Contraseña cambiada/);
+  await c4.page.screenshot({ path: DIR + 'tests/shot-accesos.png', fullPage: true });
+  delete users['nunca@bcr.test']; delete users['temp@bcr.test'];
+  await c4.context.close();
+  ok('ADMIN ve quién nunca entró, quién sigue con la temporal y el último ingreso');
 }
 
 // 17. QA_LEAD no puede crear usuarios (la función lo rechaza aunque se llame a mano)
