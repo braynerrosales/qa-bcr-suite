@@ -504,7 +504,10 @@
   .fb-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .user-delete { padding: 6px 10px; }
   .inf-dialog { width: min(760px, calc(100vw - 32px)); }
-  .inf-wrap { max-height: 60vh; overflow: auto; }
+  .inf-wrap { max-height: 50vh; overflow: auto; }
+  .inf-horas { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 10px; }
+  .inf-horas label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; flex: 1 1 220px; }
+  .inf-msg { font-size: 14px; line-height: 1.5; white-space: pre-line; background: var(--sheet-2); border: 1px solid var(--rule); border-radius: var(--r-ctl); padding: 10px 12px; margin-bottom: 12px; }
   .inf-table { width: 100%; min-width: 0; }
   .inf-table td, .inf-table th { text-align: left; }
   .inf-table td { font-weight: 400; overflow-wrap: anywhere; }
@@ -517,7 +520,8 @@
     body.print-inf #inf-sub { color: #000; }
     body.print-inf #inf-dialog::backdrop { display: none; }
     body.print-inf .inf-wrap { max-height: none; overflow: visible; }
-    body.print-inf .inf-actions, body.print-inf #inf-status { display: none; }
+    body.print-inf .inf-actions, body.print-inf #inf-status, body.print-inf .inf-horas { display: none; }
+    body.print-inf .inf-msg { background: #fff; border: 0; padding: 0; color: #000; }
     body.print-inf .inf-table th { background: #fff; color: #000; border-bottom: 2px solid #000; }
     body.print-inf .inf-table td { color: #000; }
   }
@@ -688,6 +692,11 @@
 <dialog class="pw-dialog inf-dialog" id="inf-dialog" aria-labelledby="inf-title">
   <div class="admin-card-title" id="inf-title">Informes semanales</div>
   <p class="adj-hint" id="inf-sub"></p>
+  <div class="inf-horas">
+    <label>Envío interno (a Gi y a mí) <input type="time" class="crud-input" id="inf-h1" value="16:30" oninput="renderInfMsg()"></label>
+    <label>Envío al cliente (CJ-OPC-Data-Bus-Gobierno) <input type="time" class="crud-input" id="inf-h2" value="16:50" oninput="renderInfMsg()"></label>
+  </div>
+  <div class="inf-msg" id="inf-msg"></div>
   <div class="inf-wrap"><table class="hrs-table inf-table" id="inf-table"></table></div>
   <div class="status-msg" id="inf-status" role="status"></div>
   <div class="pw-dialog-actions inf-actions">
@@ -2087,7 +2096,22 @@ function informesRows(){
     encargados:r.informe_semanal?((r.encargados||[]).join(', ')||'Sin asignar'):'N/A'
   }));
 }
+// Mensaje de Teams: solo cambian las horas (se recuerdan en este navegador).
+function infHora(v){const [h,m]=(v||'').split(':').map(Number);if(isNaN(h))return '';return (h%12||12)+':'+String(m||0).padStart(2,'0')+(h<12?' am':' pm');}
+function infMsgText(){
+  const h1=infHora(document.getElementById('inf-h1').value),h2=infHora(document.getElementById('inf-h2').value);
+  return ['Hola Todos buenas tardes,','Informes de esta semana:','',
+    `Los que nos envían el informe a Gi y a mí solamente pueden enviarlo a las ${h1}`,
+    `Los que se lo envían al cliente (CJ-OPC-Data-Bus-Gobierno) lo envían a las ${h2}`,
+    'Si alguno me falta o no debería de ir me dicen porfa'];
+}
+function renderInfMsg(){
+  document.getElementById('inf-msg').textContent=infMsgText().join('\n');
+  try{localStorage.setItem('qabcr-inf-horas',JSON.stringify([document.getElementById('inf-h1').value,document.getElementById('inf-h2').value]));}catch(e){}
+}
 function openInformes(){
+  try{const h=JSON.parse(localStorage.getItem('qabcr-inf-horas')||'null');if(Array.isArray(h)){if(h[0])document.getElementById('inf-h1').value=h[0];if(h[1])document.getElementById('inf-h2').value=h[1];}}catch(e){}
+  renderInfMsg();
   const rows=informesRows(),t=document.getElementById('inf-table');
   const hoy=new Date().toLocaleDateString('es-CR',{day:'numeric',month:'long',year:'numeric'});
   const n=rows.filter(r=>r.informe==='Sí').length;
@@ -2103,11 +2127,12 @@ function openInformes(){
 }
 function copyInformes(){
   const rows=informesRows(),cols=['Solicitud','Informe semanal','Encargados'];
-  const text=[cols.join('\t'),...rows.map(r=>[r.nombre,r.informe,r.encargados].join('\t'))].join('\n');
+  const msg=infMsgText();
+  const text=[...msg,'',cols.join('\t'),...rows.map(r=>[r.nombre,r.informe,r.encargados].join('\t'))].join('\n');
   const esc=v=>String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  const html='<table border="1" cellpadding="4" style="border-collapse:collapse"><tr>'+cols.map(c=>'<th>'+c+'</th>').join('')+'</tr>'+rows.map(r=>'<tr><td>'+esc(r.nombre)+'</td><td>'+r.informe+'</td><td>'+esc(r.encargados)+'</td></tr>').join('')+'</table>';
+  const html=msg.map(l=>l?'<div>'+esc(l)+'</div>':'<br>').join('')+'<br><table border="1" cellpadding="4" style="border-collapse:collapse"><tr>'+cols.map(c=>'<th>'+c+'</th>').join('')+'</tr>'+rows.map(r=>'<tr><td>'+esc(r.nombre)+'</td><td>'+r.informe+'</td><td>'+esc(r.encargados)+'</td></tr>').join('')+'</table>';
   const st=document.getElementById('inf-status');
-  const done=()=>{st.className='status-msg ok';st.textContent='Copiado: pegalo en Excel, Teams o un correo.';};
+  const done=()=>{st.className='status-msg ok';st.textContent='Copiado: pegalo en Teams o en un correo. En Teams volvé a escribir @Todos para que avise a todos.';};
   const fail=()=>{st.className='status-msg error';st.textContent='No se pudo copiar. Probá con Imprimir.';};
   if(window.ClipboardItem&&navigator.clipboard?.write)navigator.clipboard.write([new ClipboardItem({'text/plain':new Blob([text],{type:'text/plain'}),'text/html':new Blob([html],{type:'text/html'})})]).then(done).catch(()=>legacyCopy(text)?done():fail());
   else if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(done).catch(()=>legacyCopy(text)?done():fail());

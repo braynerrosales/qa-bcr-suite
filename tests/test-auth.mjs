@@ -1160,8 +1160,11 @@ resetData();
   ]);
   assert.equal(await page.locator('#inf-table b').count(), 0, 'los nombres se escapan');
   assert.match(await page.textContent('#inf-sub'), /abiertas .*: 3, 1 con informe semanal/);
+  assert.match(await page.textContent('#inf-msg'), /enviarlo a las 4:30 pm[\s\S]*lo envían a las 4:50 pm/);
+  await page.fill('#inf-h1', '15:15');
+  assert.match(await page.textContent('#inf-msg'), /enviarlo a las 3:15 pm/);
   await page.click('#inf-dialog button:has-text("Cerrar")');
-  ok('Solicitudes: lista de informes semanales de las abiertas (N/A si no aplica)');
+  ok('Solicitudes: mensaje de informes semanales con las horas y la lista de abiertas (N/A si no aplica)');
 
   const row = page.locator('#sol-body tr[data-id="1"]');
   await row.locator('.sol-enc select').selectOption('Caro Dos');
