@@ -207,7 +207,7 @@ Cada persona del orden tiene un botón **No asistió**: la saca de completados, 
 
 ## Daily: historial
 
-Al terminar el daily, **Guardar daily de hoy** guarda el orden, quién habló y quién no asistió (quien no está en *No asistió* cuenta como que asistió). Hay un registro por daily por día: si se vuelve a guardar el mismo día, la app pregunta y lo reemplaza. Debajo, **Historial** muestra por mes y por daily la asistencia de cada persona (asistió, faltó, % —en amarillo si es menos de 80 %— y cuántas veces empezó) y cada día guardado con quién empezó, quién faltó, el orden y quién lo guardó. Guarda cualquier usuario activo con `daily_guardar()` (solo desde 7 días atrás hasta mañana) y lo leen todos con `daily_historial()`. Requiere `20261019000002_daily_historial.sql`.
+Al terminar el daily, **Guardar daily de hoy** guarda el orden, quién habló y quién no asistió (quien no está en *No asistió* cuenta como que asistió). Hay un registro por daily por día: si se vuelve a guardar el mismo día, la app pregunta y lo reemplaza. La página tiene dos pestañas, **Daily de hoy** (el sorteo) e **Historial**, y las dos usan el Daily 1 o 2 elegido arriba. El historial abre en **Mes**: la asistencia de cada persona (asistió, faltó, % —en amarillo si es menos de 80 %— y cuántas veces empezó) y cada día guardado con quién empezó, quién faltó, el orden y quién lo guardó. En **Semana** muestra solo los días. La pestaña y el período elegidos se recuerdan en ese navegador. Guarda cualquier usuario activo con `daily_guardar()` (solo desde 7 días atrás hasta mañana) y lo leen todos con `daily_historial()`. Requiere `20261019000002_daily_historial.sql`.
 
 ## Diseño
 

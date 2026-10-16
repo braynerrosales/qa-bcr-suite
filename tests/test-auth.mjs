@@ -1039,8 +1039,14 @@ resetData();
   assert.equal(await page.textContent('#absentCount'), '0');
   ok('ausencias: se deshacen desde la fila o la lista, y se limpian al generar otro orden');
 
-  // Historial: guardar el daily de hoy (ausente + uno que habló) y verlo abajo.
+  // Historial: guardar el daily de hoy (ausente + uno que habló) y verlo en su pestaña.
+  assert.equal(await page.isVisible('#dly-hist'), false, 'el historial está en otra pestaña');
+  await page.click('#dly-tab-hist');
+  await page.waitForSelector('#dly-hist-body .sol-empty');
   assert.match(await page.textContent('#dly-hist-body'), /No hay dailies guardados este mes/);
+  assert.equal(await page.inputValue('#dly-mode'), 'month', 'abre en Mes');
+  await page.click('#dly-tab-hoy');
+  assert.equal(await page.isVisible('#rollBtn'), true);
   const order = await page.locator('#listBody .participant-item').evaluateAll((els) => els.map((e) => e.dataset.name));
   await page.locator('#listBody .participant-item').first().click();
   await page.locator('#listBody .participant-item').nth(1).locator('.p-absent-btn').click();
@@ -1052,6 +1058,8 @@ resetData();
   assert.deepEqual(saved.members.map((m) => m.name), order);
   assert.deepEqual([saved.members[0].completed, saved.members[1].absent, saved.created_by, saved.daily_group_id], [true, true, users['qa@bcr.test'].id, 1]);
   assert.equal(saved.members.find((m) => m.name === 'Beto Uno').daily_member_id, 2);
+  await page.click('#dly-save-status .status-link');
+  assert.equal(await page.getAttribute('#dly-tab-hist', 'aria-selected'), 'true');
   await page.waitForSelector('#dly-hist-body .dly-day');
   const dayText = await page.textContent('#dly-hist-body .dly-day-head');
   assert.ok(dayText.includes(`${order.length - 1} de ${order.length} asistieron · empezó ${order[0]} · guardó Quique QA <b>`), dayText);
@@ -1062,7 +1070,16 @@ resetData();
   await page.screenshot({ path: DIR + 'tests/shot-daily-historial.png', fullPage: true });
   let overflowH = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(overflowH <= 0, 'scroll horizontal en historial móvil: ' + overflowH);
-  ok('Daily: guarda el daily de hoy (orden, quién habló y quién no asistió) y lo muestra en el historial');
+  // Semana: solo las tarjetas de cada día.
+  await page.selectOption('#dly-mode', 'week');
+  await page.waitForFunction(() => document.getElementById('dly-hist-month').textContent.startsWith('Semana del'));
+  await page.waitForSelector('#dly-hist-body .dly-day');
+  assert.equal(await page.locator('#dly-hist-body table').count(), 0);
+  assert.equal(await page.getAttribute('#dly-prev', 'aria-label'), 'Semana anterior');
+  await page.selectOption('#dly-mode', 'month');
+  await page.waitForSelector('#dly-hist-body table');
+  ok('Daily: guarda el daily de hoy (orden, quién habló y quién no asistió) y lo muestra en la pestaña Historial, por semana o mes');
+  await page.click('#dly-tab-hoy');
 
   answers.push(false);
   const nd = dialogs.length;
@@ -1077,10 +1094,12 @@ resetData();
   await page.waitForSelector('#dly-save-status.ok:has-text("asisti"):not(:has-text("no asisti"))');
   assert.equal(tables.daily_runs.length, 1, 'un registro por daily por día');
   assert.equal(tables.daily_runs[0].members.some((m) => m.absent), false);
+  await page.click('#dly-tab-hist');
   await page.click('[aria-label="Mes anterior"]');
   await page.waitForSelector('#dly-hist-body .sol-empty');
   await page.click('#dtab2');
-  assert.equal(await page.textContent('#dly-hist-title'), 'Historial del Daily 2');
+  await page.waitForFunction(() => document.getElementById('dly-hist-title').textContent === 'Historial del Daily 2');
+  await page.click('#dly-tab-hoy');
   assert.equal(await page.isVisible('#dly-save'), false);
   ok('Daily: volver a guardar el mismo día pide confirmación y reemplaza; el historial cambia por mes y daily');
   await page.click('#dtab1');

@@ -319,10 +319,11 @@
   .dly-save[hidden] { display: none; }
   .dly-save-hint { font-size: 13px; color: var(--ink-2); flex: 1 1 220px; }
   .dly-save .status-msg { flex-basis: 100%; }
-  .dly-hist { margin-top: 36px; }
+  .dly-tabs { display: flex; width: fit-content; margin-bottom: 18px; }
+  .status-link { background: none; border: 0; padding: 0; margin-left: 6px; font: inherit; font-weight: 700; color: inherit; text-decoration: underline; cursor: pointer; }
   .dly-hist-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-bottom: 12px; }
   .dly-hist-title { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; margin: 0; }
-  .dly-hist-ctrl { display: flex; align-items: center; gap: 8px; }
+  .dly-hist-ctrl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   .dly-hist-ctrl .hrs-period { min-width: 120px; text-align: center; }
   .dly-days { display: grid; gap: 8px; margin-top: 18px; }
   .dly-day { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 10px 14px; font-size: 14px; }
@@ -568,7 +569,10 @@
     tr.sol-late { box-shadow: inset 4px 0 0 var(--bad); }
     tr.sol-late td:first-child { box-shadow: none; animation: none; }
     /* Horas en móvil: cada línea en tres filas, con su etiqueta. */
-    .hrs-page .hrs-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+    .dly-hist-ctrl { width: 100%; }
+    .dly-hist-ctrl .hrs-period { flex: 1 1 100%; order: -1; text-align: left; padding: 0; }
+    .dly-hist-ctrl select { flex: 1; }
+    .hrs-page .hrs-tabs, .daily-page .dly-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
     .hrs-line-head { display: none; }
     .hrs-line { grid-template-columns: 1fr 1fr 44px; grid-template-areas: "soli tipo tipo" "tarea tarea tarea" "horas fact del" "mod mod mod"; gap: 8px; padding: 12px 12px; }
     .hrs-f > span { position: static; width: auto; height: auto; clip: auto; display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 2px; }
@@ -828,6 +832,11 @@
           <div class="dt-count">12 participantes</div>
         </button>
       </div>
+      <div class="hrs-tabs dly-tabs" role="tablist" aria-label="Vista del daily">
+        <button class="hrs-tab" role="tab" id="dly-tab-hoy" aria-controls="dly-hoy" aria-selected="true" onclick="dlyShowTab('hoy')">Daily de hoy</button>
+        <button class="hrs-tab" role="tab" id="dly-tab-hist" aria-controls="dly-hist" aria-selected="false" onclick="dlyShowTab('hist')">Historial</button>
+      </div>
+      <section id="dly-hoy" role="tabpanel" aria-labelledby="dly-tab-hoy">
       <button class="roll-btn d1" id="rollBtn" onclick="roll()">
         <svg class="dice-icon" id="diceIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/></svg>
         <span id="rollLabel">Sortear el orden del Daily 1</span>
@@ -872,13 +881,18 @@
           </div>
         </div>
       </div>
-      <section class="dly-hist" aria-labelledby="dly-hist-title">
+      </section>
+      <section class="dly-hist" id="dly-hist" role="tabpanel" aria-labelledby="dly-tab-hist" hidden>
         <div class="dly-hist-head">
           <h3 class="dly-hist-title" id="dly-hist-title">Historial del Daily 1</h3>
           <div class="dly-hist-ctrl">
-            <button class="btn-secondary" onclick="shiftDailyHistory(-1)" aria-label="Mes anterior">←</button>
+            <select class="user-role-select" id="dly-mode" aria-label="Período" onchange="dlySetMode(this.value)">
+              <option value="week">Semana</option>
+              <option value="month">Mes</option>
+            </select>
+            <button class="btn-secondary" id="dly-prev" onclick="shiftDailyHistory(-1)" aria-label="Mes anterior">←</button>
             <span class="hrs-period" id="dly-hist-month"></span>
-            <button class="btn-secondary" onclick="shiftDailyHistory(1)" aria-label="Mes siguiente">→</button>
+            <button class="btn-secondary" id="dly-next" onclick="shiftDailyHistory(1)" aria-label="Mes siguiente">→</button>
           </div>
         </div>
         <div class="status-msg" id="dly-hist-status" role="status"></div>
@@ -1326,7 +1340,7 @@ function showPage(id) {
   if(id==='admin')renderAdmin();
   if(id==='solicitudes')loadSolicitudes();
   if(id==='horas')openHoras();
-  if(id==='daily')loadDailyHistory();
+  if(id==='daily')dlyShowTab(dlyTab);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1417,7 +1431,7 @@ function selectDaily(num){
   document.getElementById('rollLabel').textContent=`Sortear el orden del Daily ${num}`;
   runCount=0;document.getElementById('runBadge').textContent='—';
   document.getElementById('dly-save').hidden=true;
-  loadDailyHistory();
+  if(dlyTab==='hist')loadDailyHistory();
   document.getElementById('listBody').innerHTML=`<div class="list-empty"><div class="list-empty-text">Tocá <strong>Sortear</strong> para ver quién habla primero en el Daily ${num}.</div></div>`;
 }
 function generateOrder(dailyKey){
@@ -1512,8 +1526,23 @@ function toggleAbsent(el){
 
 /* ============ DAILY: HISTORIAL ============ */
 // Un registro por daily por día (daily_guardar reemplaza si ya se guardó ese día).
-let dlyMonth=null,dlySeq=0;
-function dlyMonthStart(){if(!dlyMonth){const t=new Date();dlyMonth=new Date(t.getFullYear(),t.getMonth(),1);}return dlyMonth;}
+// Pestaña y período se recuerdan en este navegador (si se puede).
+let dlyRef=null,dlySeq=0,dlyTab='hoy',dlyMode='month';
+try{const v=JSON.parse(localStorage.getItem('qabcr-daily-vista')||'{}');if(v.tab==='hist')dlyTab='hist';if(v.mode==='week')dlyMode='week';}catch(e){}
+function dlyRemember(){try{localStorage.setItem('qabcr-daily-vista',JSON.stringify({tab:dlyTab,mode:dlyMode}));}catch(e){}}
+function dlyStart(){
+  if(!dlyRef){const t=new Date();dlyRef=dlyMode==='month'?new Date(t.getFullYear(),t.getMonth(),1):hrsMonday(t);}
+  return dlyRef;
+}
+function dlyShowTab(t){
+  dlyTab=t;dlyRemember();
+  ['hoy','hist'].forEach(k=>{
+    document.getElementById('dly-tab-'+k).setAttribute('aria-selected',String(k===t));
+    document.getElementById('dly-'+k).hidden=k!==t;
+  });
+  if(t==='hist')loadDailyHistory();
+}
+function dlySetMode(m){dlyMode=m;dlyRef=null;dlyRemember();loadDailyHistory();}
 function fmtDay(iso){const [y,m,d]=iso.split('-').map(Number);return ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][new Date(y,m-1,d).getDay()]+' '+d+'/'+m+'/'+y;}
 async function saveDailyRun(){
   const dk=`daily${activeDaily}`,grupo=REFS.groups?.[dk],st=document.getElementById('dly-save-status'),btn=document.getElementById('dly-save-btn');
@@ -1534,16 +1563,21 @@ async function saveDailyRun(){
   const absent=miembros.filter(m=>m.absent).length;
   const verb=n=>n===1?'asistió':'asistieron',came=miembros.length-absent;
   st.className='status-msg ok';st.textContent=`Guardado el Daily ${activeDaily} de hoy: ${came} ${verb(came)}`+(absent?`, ${absent} no ${verb(absent)}.`:'.');
-  dlyMonth=null;
-  loadDailyHistory();
+  const link=Object.assign(document.createElement('button'),{type:'button',className:'status-link',textContent:'Ver en el historial'});
+  link.onclick=()=>dlyShowTab('hist');
+  st.append(' ',link);
+  dlyRef=null;
 }
-function shiftDailyHistory(n){const m=dlyMonthStart();dlyMonth=new Date(m.getFullYear(),m.getMonth()+n,1);loadDailyHistory();}
+function shiftDailyHistory(n){const a=dlyStart();dlyRef=dlyMode==='month'?new Date(a.getFullYear(),a.getMonth()+n,1):hrsAddDays(a,7*n);loadDailyHistory();}
 async function loadDailyHistory(){
   const seq=++dlySeq,dk=`daily${activeDaily}`,grupo=REFS.groups?.[dk];
-  const a=dlyMonthStart(),b=new Date(a.getFullYear(),a.getMonth()+1,0);
-  const m=HRS_MONTHS[a.getMonth()];
+  const month=dlyMode==='month',a=dlyStart(),b=month?new Date(a.getFullYear(),a.getMonth()+1,0):hrsAddDays(a,6);
+  const m=HRS_MONTHS[a.getMonth()],unit=month?'Mes':'Semana';
+  document.getElementById('dly-mode').value=dlyMode;
+  document.getElementById('dly-prev').setAttribute('aria-label',unit+' anterior');
+  document.getElementById('dly-next').setAttribute('aria-label',unit+' siguiente');
   document.getElementById('dly-hist-title').textContent=`Historial del Daily ${activeDaily}`;
-  document.getElementById('dly-hist-month').textContent=m.charAt(0).toUpperCase()+m.slice(1)+' '+a.getFullYear();
+  document.getElementById('dly-hist-month').textContent=month?m.charAt(0).toUpperCase()+m.slice(1)+' '+a.getFullYear():'Semana del '+hrsRangeLabel(a,hrsAddDays(a,4));
   const box=document.getElementById('dly-hist-body'),st=document.getElementById('dly-hist-status');
   if(!grupo||!supabaseClient){box.replaceChildren();return;}
   const {data,error}=await supabaseClient.rpc('daily_historial',{p_grupo:grupo,desde:calcToISO(a),hasta:calcToISO(b)});
@@ -1551,7 +1585,7 @@ async function loadDailyHistory(){
   if(error){st.className='status-msg error';st.textContent='No se pudo cargar el historial'+errorDetail(error)+'.';box.replaceChildren();return;}
   st.className='status-msg';st.textContent='';
   const rows=data||[];
-  if(!rows.length){box.innerHTML='<div class="sol-empty">No hay dailies guardados este mes. Al terminar el daily, tocá <strong>Guardar daily de hoy</strong>.</div>';return;}
+  if(!rows.length){box.innerHTML=`<div class="sol-empty">No hay dailies guardados ${month?'este mes':'esta semana'}. Al terminar el daily, tocá <strong>Guardar daily de hoy</strong> en la pestaña Daily de hoy.</div>`;return;}
   // Días (más reciente primero) y resumen por persona.
   const days=new Map(),people=new Map();
   rows.forEach(r=>{
@@ -1583,7 +1617,7 @@ async function loadDailyHistory(){
     const ord=document.createElement('div');ord.className='dly-day-order';ord.textContent='Orden: '+ms.map(x=>x.member_name).join(' → ');item.append(ord);
     list.append(item);
   });
-  box.replaceChildren(wrap,list);
+  if(month)box.replaceChildren(wrap,list);else box.replaceChildren(list);
 }
 
 /* ============ ADMIN: TABS ============ */
