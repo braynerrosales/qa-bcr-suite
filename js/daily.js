@@ -138,7 +138,7 @@ async function saveDailyRun(){
   btn.disabled=true;st.className='status-msg info';st.textContent='Guardando…';
   // Si ya se guardó hoy, se pregunta antes de reemplazar.
   const prev=await supabaseClient.rpc('daily_historial',{p_grupo:grupo,desde:fecha,hasta:fecha});
-  if(!prev.error&&prev.data?.length&&!confirm(`El Daily ${activeDaily} de hoy ya lo guardó ${prev.data[0].guardado_por||'alguien'}. ¿Reemplazarlo con este?`)){
+  if(!prev.error&&prev.data?.length&&!await uiConfirm(`El Daily ${activeDaily} de hoy ya lo guardó ${prev.data[0].guardado_por||'alguien'}. ¿Reemplazarlo con este?`,{title:'Ya se guardó hoy',ok:'Reemplazar'})){
     btn.disabled=false;st.className='status-msg';st.textContent='';return;
   }
   const miembros=items.map((el,i)=>({daily_member_id:REFS.members[memberKey(dk,el.dataset.name)]||null,name:el.dataset.name,position:i+1,completed:el.classList.contains('done'),absent:el.classList.contains('absent')}));

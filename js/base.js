@@ -109,13 +109,13 @@ function writeErrorMessage(e){
 // así la pantalla siempre muestra lo guardado (también si el cambio falla).
 let saving=false;
 async function persist(action){
-  if(!canManageConfig()){alert('No tenés permiso para modificar la configuración.');return false;}
+  if(!canManageConfig()){uiAlert('No tenés permiso para modificar la configuración.');return false;}
   if(saving)return false;
   saving=true;
   document.body.classList.add('saving');
   let ok=true;
   try{await action();}
-  catch(e){console.error(e);ok=false;alert('⚠ '+writeErrorMessage(e));}
+  catch(e){console.error(e);ok=false;uiError(writeErrorMessage(e));}
   try{await loadConfig();}
   catch(e){console.error(e);showNotice('El cambio se envió, pero no se pudieron recargar los datos'+errorDetail(e)+'.',true);}
   finally{saving=false;document.body.classList.remove('saving');}

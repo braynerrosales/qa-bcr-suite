@@ -515,6 +515,10 @@
     body.print-inf .inf-table td { color: #000; }
   }
   .pw-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+  .ui-msg { margin: 0; font-size: 15px; line-height: 1.5; color: var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
+  .ui-dialog .admin-card-title:not([hidden]) + .ui-msg { color: var(--ink-2); font-size: 14px; }
+  .ui-dialog .crud-btn-add.ui-danger { background: var(--bad); }
+  .ui-dialog .crud-btn-add.ui-danger:hover { background: color-mix(in srgb, var(--bad) 85%, #000); }
 
   /* ── Móvil ───────────────────────────────── */
   .mobile-topbar { display: none; position: sticky; top: 0; z-index: 100; background: var(--sidebar-bg); color: var(--sidebar-ink); padding: 8px 16px 0; gap: 6px 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }

@@ -20,11 +20,11 @@ function renderPeopleAdmin(){
   });
 }
 async function renamePerson(dk,oldName){
-  const newName=prompt('Editar nombre:',oldName);
+  const newName=await uiPrompt('Nombre',oldName,{title:'Editar persona'});
   if(newName===null)return;
   const trimmed=newName.trim();
   if(!trimmed||trimmed===oldName)return;
-  if(DB.people[dk].includes(trimmed)){alert('Ya existe una persona con ese nombre en esta lista.');return;}
+  if(DB.people[dk].includes(trimmed)){uiAlert('Ya existe una persona con ese nombre en esta lista.');return;}
   const id=REFS.members[memberKey(dk,oldName)];
   if(!id)return;
   await persist(async()=>check(await supabaseClient.from('daily_members').update({name:trimmed}).eq('id',id).select('id'),true));
@@ -34,7 +34,7 @@ async function addPerson(dk){
   if(!name)return;
   if(DB.people[dk].includes(name)){input.value='';return;}
   const groupId=REFS.groups[dk];
-  if(!groupId){alert(`No existe el grupo ${dk} en Supabase. Cargá los datos iniciales (seed.sql).`);return;}
+  if(!groupId){uiError(`No existe el grupo ${dk} en Supabase. Cargá los datos iniciales (seed.sql).`);return;}
   const existing=REFS.members[memberKey(dk,name)];
   const ok=await persist(async()=>{
     if(existing)check(await supabaseClient.from('daily_members').update({active:true}).eq('id',existing).select('id'),true);
@@ -43,7 +43,7 @@ async function addPerson(dk){
   if(ok)input.value='';
 }
 async function removePerson(dk,name){
-  if(!confirm(`¿Quitar a "${name}" de ${dk==='daily1'?'Daily 1':'Daily 2'}?`))return;
+  if(!await uiConfirm('Deja de salir en el sorteo. El historial del Daily conserva su nombre.',{title:`¿Quitar a "${name}" de ${dk==='daily1'?'Daily 1':'Daily 2'}?`,ok:'Quitar',danger:true}))return;
   const id=REFS.members[memberKey(dk,name)];
   if(!id)return;
   // Se borra la persona y sus reglas; el histórico del Daily conserva el nombre.
@@ -136,7 +136,7 @@ async function addProject(){
 }
 async function removeProject(){
   if(!selectedAdminProject)return;
-  if(!confirm(`¿Eliminar el proyecto "${selectedAdminProject}" y todas sus plantillas?`))return;
+  if(!await uiConfirm('Se borran también todas sus variantes y plantillas.',{title:`¿Eliminar el proyecto "${selectedAdminProject}"?`,ok:'Eliminar',danger:true}))return;
   const id=REFS.projects[selectedAdminProject];
   if(!id)return;
   // El historial del QA Generator conserva el nombre del proyecto.
@@ -160,8 +160,8 @@ async function addVariant(){
 async function removeVariant(){
   if(!selectedAdminProject)return;
   const variant=document.getElementById('task-variant-select').value;
-  if(!variant){alert('Este proyecto no tiene variante seleccionada para eliminar.');return;}
-  if(!confirm(`¿Eliminar la variante "${variant}" y su plantilla?`))return;
+  if(!variant){uiAlert('Este proyecto no tiene variante seleccionada para eliminar.');return;}
+  if(!await uiConfirm('Se borra también su plantilla.',{title:`¿Eliminar la variante "${variant}"?`,ok:'Eliminar',danger:true}))return;
   const id=REFS.variants[variantKey(selectedAdminProject,variant)];
   if(!id)return;
   selectedAdminVariant='';
