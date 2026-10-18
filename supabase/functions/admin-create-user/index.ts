@@ -89,6 +89,9 @@ Deno.serve(async (req) => {
     if (!target) return reply(404, { error: 'El usuario no existe.' });
     const { error: pwError } = await admin.auth.admin.updateUserById(id, { password });
     if (pwError) return reply(400, { error: 'No se pudo cambiar la contraseña: ' + pwError.message });
+    // Quien estaba dentro con la contraseña vieja no puede renovar su sesión.
+    const { error: sessionsError } = await admin.rpc('admin_cerrar_sesiones', { p_user: id });
+    if (sessionsError) return reply(500, { error: 'La contraseña se cambió, pero no se pudieron cerrar sus sesiones abiertas.' });
     // Después del cambio: el trigger on_auth_user_access apaga el aviso al cambiar
     // la contraseña de alguien que ya entró, y acá se vuelve a pedir el cambio.
     const { error: flagError } = await admin.from('profiles')

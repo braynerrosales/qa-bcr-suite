@@ -97,7 +97,7 @@ erDiagram
 
 | Área | Tablas | Notas |
 |---|---|---|
-| Usuarios | `profiles` | 1 a 1 con `auth.users` (trigger `handle_new_user`). Rol, activo, `en_informe`, primer/último ingreso, `must_change_password`. |
+| Usuarios | `profiles` | 1 a 1 con `auth.users` (trigger `handle_new_user`). Rol, activo, `en_informe`, primer/último ingreso, `must_change_password`. El trigger `profiles_mantener_admin` impide quedarse sin ADMIN activo. |
 | Daily | `daily_groups`, `daily_members`, `daily_rules`, `daily_rule_members` | Personas de cada daily y reglas del sorteo (quiénes pueden empezar, rango, último fijo). |
 | Daily · historial | `daily_runs`, `daily_run_members` | Un registro por daily por día (`unique (daily_group_id, run_date)`); guarda el nombre aunque la persona se borre. |
 | Generar tareas | `projects`, `project_variants`, `templates`, `template_tasks` | Plantillas por proyecto y variante (`variant_id null` = sin variante). |
@@ -120,6 +120,7 @@ Columnas de auditoría: `updated_at` / `updated_by` los pone siempre un trigger 
 | `daily_guardar(grupo, fecha, miembros)` | Guarda o reemplaza el daily del día (fecha entre hace 7 días y mañana) | definer; activos |
 | `daily_historial(grupo, desde, hasta)` | Historial de un daily (máx. 1 año) | definer; activos |
 | `admin_user_access()` | Primer/último ingreso y estado de contraseña de cada usuario | definer; solo ADMIN |
+| `admin_cerrar_sesiones(usuario)` | Borra las sesiones de un usuario (al darle contraseña nueva) | definer; solo `service_role` |
 
 Todas las `security definer` usan `set search_path = ''` y validan rol y parámetros antes de tocar datos.
 
@@ -132,7 +133,7 @@ Deno, desplegada en Supabase con *Verify JWT* desactivado (la función valida el
 1. Verifica el JWT del que llama y que sea **ADMIN activo**.
 2. Según `action`:
    - *(sin action)* **crear usuario**: correo, nombre, rol (`ADMIN`, `QA_LEAD`, `QA`, `BETA`) y contraseña temporal (10–72 caracteres). El perfil nace con `must_change_password`.
-   - `reset_password`: nueva contraseña temporal.
+   - `reset_password`: nueva contraseña temporal; cierra sus sesiones abiertas con `admin_cerrar_sesiones()` (solo `service_role`).
    - `delete_user`: elimina de Auth (no a sí mismo). Rechaza (409) a quien tenga horas o ajustes de horas, para no cambiar informes ya enviados; la base lo impide también (`on delete restrict`). Su historial del QA Generator se borra y en solicitudes y feedback queda el registro sin autor.
 3. Usa la *service role key* desde las variables de entorno de Supabase; nunca llega al navegador.
 
