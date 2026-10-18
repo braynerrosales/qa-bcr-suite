@@ -16,9 +16,9 @@ create temp table cierre as
 select private.horas_abiertas_desde() - 7 as vieja, private.horas_abiertas_desde() as abierta;
 grant select on cierre to authenticated;
 insert into public.horas (user_id, fecha, tipo, soli, tarea, horas, facturable)
-select '00000000-0000-0000-0000-0000000000b7', vieja, 'TRABAJO', 'P3_1', 'Vieja', 8, 8 from cierre
+select '00000000-0000-0000-0000-0000000000b7'::uuid, vieja, 'TRABAJO', 'P3_1', 'Vieja', 8, 8 from cierre
 union all
-select '00000000-0000-0000-0000-0000000000b7', abierta, 'TRABAJO', 'P3_1', 'Abierta', 8, 8 from cierre;
+select '00000000-0000-0000-0000-0000000000b7'::uuid, abierta, 'TRABAJO', 'P3_1', 'Abierta', 8, 8 from cierre;
 
 -- ── QA ──────────────────────────────────────────────────────
 set local role authenticated;
