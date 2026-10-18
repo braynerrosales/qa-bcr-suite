@@ -1353,6 +1353,8 @@ function errorDetail(e){return e&&(e.code||e.message)?` (${[e.code,e.message].fi
 function writeErrorMessage(e){
   if(e&&e.code==='23505')return 'Ya existe un registro con ese nombre.';
   if(e&&(e.code==='42501'||e.code==='PGRST116'))return 'No tenés permiso para este cambio.';
+  // Mensajes propios de la base (raise exception sin código), por ejemplo una semana de horas cerrada.
+  if(e&&e.code==='P0001'&&e.message)return e.message;
   return 'No se pudo guardar'+errorDetail(e)+'.';
 }
 
@@ -2161,6 +2163,9 @@ let HRS=[],hrsWeek=null,hrsUser=null,hrsPeople=null,hrsTab='mine',hrsMode='week'
 function setHrsStatus(kind,text){const st=document.getElementById('hrs-status');st.className=kind?'status-msg '+kind:'status-msg';st.textContent=text||'';}
 function hrsMonday(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-(x.getDay()+6)%7);return x;}
 function hrsAddDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
+// Un QA solo cambia la semana actual y las dos anteriores; la base lo exige igual (trigger horas_cierre).
+function hrsOpenFrom(){return hrsAddDays(hrsMonday(new Date()),-14);}
+function hrsWeekClosed(){return !canManageConfig()&&hrsWeek<hrsOpenFrom();}
 function hrsNum(n){return Math.round((Number(n)||0)*100)/100;}
 function hrsFmt(n){return String(hrsNum(n));}
 function hrsRangeLabel(a,b){
@@ -2215,6 +2220,8 @@ function hrsThisWeek(){hrsWeek=hrsMonday(new Date());setHrsStatus('');loadMyHour
 function hrsPickPerson(id){hrsUser=id;setHrsStatus('');loadMyHours();}
 function renderMyHours(){
   const box=document.getElementById('hrs-days');box.replaceChildren();
+  const closed=hrsWeekClosed();
+  if(closed){const f=hrsOpenFrom();setHrsStatus('info',`Semana cerrada: solo podés cambiar horas desde el lunes ${String(f.getDate()).padStart(2,'0')}/${String(f.getMonth()+1).padStart(2,'0')}. Para corregir esta semana, pedíselo a un QA Lead.`);}
   for(let i=0;i<5;i++){
     const d=hrsAddDays(hrsWeek,i),iso=calcToISO(d),hol=HOLIDAYS_CR.find(h=>h.date===iso);
     const day=document.createElement('section');day.className='hrs-day';day.dataset.date=iso;
@@ -2225,13 +2232,13 @@ function renderMyHours(){
     const tot=document.createElement('span');tot.className='hrs-day-tot';
     head.append(title,tot);
     const lines=document.createElement('div');lines.className='hrs-lines';
-    HRS.filter(r=>r.fecha===iso).forEach(r=>lines.appendChild(hrsLine(r)));
+    HRS.filter(r=>r.fecha===iso).forEach(r=>lines.appendChild(hrsLine(r,closed)));
     const actions=document.createElement('div');actions.className='hrs-day-actions';
     const add=Object.assign(document.createElement('button'),{type:'button',className:'btn-secondary',textContent:'+ Agregar línea'});
     add.setAttribute('aria-label','Agregar línea el '+HRS_DAYS[i].toLowerCase());
     add.addEventListener('click',()=>{const el=hrsNewLine(lines,{fecha:iso});el.querySelector('input').focus();});
-    actions.appendChild(add);
-    if(hol){
+    if(!closed)actions.appendChild(add);
+    if(hol&&!closed){
       const fer=Object.assign(document.createElement('button'),{type:'button',className:'btn-secondary',textContent:'Cargar feriado ('+HRS_DAY_CAP+' h)'});
       fer.addEventListener('click',()=>{fer.remove();hrsSaveLine(hrsNewLine(lines,{fecha:iso,tipo:'FERIADO',tarea:hol.name,horas:HRS_DAY_CAP}));});
       if(!HRS.some(r=>r.fecha===iso))actions.appendChild(fer);
@@ -2246,7 +2253,7 @@ function hrsNewLine(lines,init){
   HRS.push(r);
   const el=hrsLine(r);lines.appendChild(el);return el;
 }
-function hrsLine(r){
+function hrsLine(r,closed){
   const row=document.createElement('div');row.className='hrs-line';row._r=r;
   const field=(label,area,el)=>{const l=document.createElement('label');l.className='hrs-f hrs-'+area;const s=document.createElement('span');s.textContent=label;l.append(s,el);return l;};
   const soli=Object.assign(document.createElement('input'),{type:'text',className:'crud-input',maxLength:60,placeholder:'Ej: P3_141',value:r.soli||''});
@@ -2276,6 +2283,7 @@ function hrsLine(r){
   [soli,tarea,fact].forEach(el=>el.addEventListener('change',()=>hrsSaveLine(row)));
   del.addEventListener('click',()=>hrsDeleteLine(row));
   hrsSyncLine(row);
+  if(closed){row.querySelectorAll('input,select').forEach(el=>el.disabled=true);del.hidden=true;}
   return row;
 }
 function hrsSyncLine(row){

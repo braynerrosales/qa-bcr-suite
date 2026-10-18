@@ -164,21 +164,26 @@ function horasRequest(req, url, me, json) {
     if (!(r.horas > 0 && r.horas <= 24) || r.facturable < 0 || r.facturable > r.horas) return 'horas_check';
     return null;
   };
+  // Igual que el trigger horas_cierre: un QA no toca semanas anteriores a las dos últimas.
+  const openFrom = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7 - 14); return d.toLocaleDateString('en-CA'); })();
+  const closed = (r) => !isLead(me) && r.fecha < openFrom;
+  const closedError = () => json(400, { code: 'P0001', message: 'Esa semana está cerrada: solo podés cambiar horas desde el ' + openFrom.split('-').reverse().join('/') + '. Para corregir una semana anterior, pedíselo a un QA Lead.' });
   const stamp = (r) => Object.assign(r, { updated_by: me.id, updated_at: new Date().toISOString() }, r.tipo !== 'TRABAJO' ? { facturable: 0 } : {});
   if (method === 'POST') {
     const r = stamp({ id: Math.max(0, ...tables.horas.map((x) => x.id)) + 1, user_id: me?.id, tipo: 'TRABAJO', soli: '', tarea: '', facturable: 0, ...body });
     if (!ownOrLead(me, r)) return json(403, { code: '42501', message: 'new row violates row-level security policy for table "horas"' });
     if (checkRow(r)) return json(400, { code: '23514', message: 'violates check constraint ' + checkRow(r) });
+    if (closed(r)) return closedError();
     tables.horas.push(r);
     return json(201, [{ ...r }]);
   }
   if (method === 'PATCH') {
     if ('user_id' in body) return json(403, { code: '42501', message: 'permission denied for table horas' });
-    for (const r of visible) { const n = stamp({ ...r, ...body }); if (checkRow(n)) return json(400, { code: '23514', message: 'check' }); }
+    for (const r of visible) { const n = stamp({ ...r, ...body }); if (checkRow(n)) return json(400, { code: '23514', message: 'check' }); if (closed(r) || closed(n)) return closedError(); }
     visible.forEach((r) => stamp(Object.assign(r, body)));
     return json(200, visible.map((r) => ({ ...r })));
   }
-  if (method === 'DELETE') { tables.horas = tables.horas.filter((r) => !visible.includes(r)); return json(200, visible.map((r) => ({ id: r.id }))); }
+  if (method === 'DELETE') { if (visible.some(closed)) return closedError(); tables.horas = tables.horas.filter((r) => !visible.includes(r)); return json(200, visible.map((r) => ({ id: r.id }))); }
 }
 // Igual que daily_guardar() / daily_historial() (20261019000002_daily_historial.sql).
 function dailyGuardar(me, b) {
@@ -1339,6 +1344,26 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   await until(page, (d) => !document.querySelector(`#hrs-days .hrs-day[data-date="${d}"] .hrs-line`), weekDay(1));
   assert.ok(!tables.horas.some((h) => h === vac));
   ok('Horas (QA): eliminar una línea pide confirmación');
+
+  // Semana cerrada: hace tres semanas el QA ve sus líneas, pero no las puede cambiar.
+  const viejo = new Date(); viejo.setDate(viejo.getDate() - (viejo.getDay() + 6) % 7 - 21);
+  const viejoIso = viejo.toLocaleDateString('en-CA');
+  tables.horas.push({ id: 950, user_id: ids.qa, fecha: viejoIso, tipo: 'TRABAJO', soli: 'P3_9', tarea: 'Semana vieja', horas: 8, facturable: 8 });
+  for (let i = 0; i < 3; i++) await page.click('button[aria-label="Semana anterior"]');
+  await page.waitForSelector('#hrs-status.info:has-text("Semana cerrada")');
+  const oldLine = page.locator(`#hrs-days .hrs-day[data-date="${viejoIso}"] .hrs-line`);
+  assert.equal(await oldLine.locator('[data-f=horas]').isDisabled(), true);
+  assert.equal(await oldLine.locator('.sol-del').isVisible(), false);
+  assert.equal(await page.locator('#hrs-days button:has-text("Agregar línea")').count(), 0);
+  // La base lo rechaza aunque se salte la pantalla.
+  const forced = await page.evaluate(async (id) => (await supabaseClient.from('horas').update({ tarea: 'Cambiada' }).eq('id', id).select('*')).error?.message, 950);
+  assert.match(forced, /Esa semana está cerrada/);
+  assert.equal(tables.horas.find((h) => h.id === 950).tarea, 'Semana vieja');
+  await page.click('button[aria-label="Semana siguiente"]');
+  await page.waitForSelector('#hrs-days button:has-text("Agregar línea")');
+  assert.equal(await page.locator('#hrs-status.info').count(), 0);
+  await page.click('button:has-text("Esta semana")');
+  ok('Horas (QA): semanas anteriores a las dos últimas quedan cerradas (solo lectura, y la base lo rechaza)');
 
   await page.click('#hrs-tab-report');
   await page.waitForSelector('#hrs-report-tables table');

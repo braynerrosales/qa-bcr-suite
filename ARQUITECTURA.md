@@ -70,6 +70,7 @@ Funciones de apoyo en el esquema `private` (no expuesto por la API):
 | `private.is_lead()` | es ADMIN o QA_LEAD activo |
 | `private.is_admin()` | es ADMIN activo |
 | `private.can_use_horas()` | está activo y no es BETA |
+| `private.horas_abiertas_desde()` | lunes de hace dos semanas (hora de Costa Rica): antes de esa fecha un QA no toca sus horas |
 
 ---
 
@@ -103,7 +104,7 @@ erDiagram
 | Generar tareas | `projects`, `project_variants`, `templates`, `template_tasks` | Plantillas por proyecto y variante (`variant_id null` = sin variante). |
 | Historial QA | `qa_generations`, `qa_generation_items`, `qa_generation_tasks`, `ai_usage_log` | Preparadas para guardar lo generado y, a futuro, el uso de IA vía Edge Function. |
 | Solicitudes | `solicitudes` | Lista compartida: informe semanal, encargados (texto), horas, casillas de plan/cierre, fecha de cierre, notas, cerrada. |
-| Horas | `horas`, `horas_ajustes` | Líneas por persona y día; ajustes de leads guardados como **diferencia** (delta) por semana. |
+| Horas | `horas`, `horas_ajustes` | Líneas por persona y día; ajustes de leads guardados como **diferencia** (delta) por semana. Un QA solo cambia la semana actual y las dos anteriores (trigger `horas_cierre`). |
 | Feedback | `feedback` | Autor y fecha los pone un trigger; máximo 20 por persona por día. |
 
 Columnas de auditoría: `updated_at` / `updated_by` los pone siempre un trigger (`*_touch`) con `auth.uid()`; el navegador no puede falsearlos.
@@ -182,6 +183,7 @@ sequenceDiagram
     A->>P: upsert horas (JWT del usuario)
     P->>D: insert/update
     D->>D: RLS: es suya y can_use_horas(), o es lead
+    D->>D: trigger horas_cierre: un QA no toca semanas cerradas
     D->>D: trigger horas_touch: updated_by = auth.uid()
     D-->>A: fila guardada (o 0 filas si no tiene permiso)
 ```
