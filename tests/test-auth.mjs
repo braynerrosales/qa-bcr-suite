@@ -1,10 +1,11 @@
 // Prueba las Fases 2 y 3 con el cliente real de supabase-js y un Supabase simulado en la red.
 import { chromium } from 'playwright-core';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 // Requiere: npm i playwright-core y supabase-js descomprimido en ./package (npm pack @supabase/supabase-js@2.117.2).
-const DIR = new URL('..', import.meta.url).pathname;
+const DIR = fileURLToPath(new URL('..', import.meta.url));
 const SUPA = 'https://demo.supabase.co';
 const html = readFileSync(DIR + 'index.html', 'utf8');
 const configured = html
@@ -1400,6 +1401,8 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   await page.click('#hrs-tab-report');
   const qRow = () => page.locator('#hrs-report-tables tbody tr', { hasText: 'Quique' });
   const factCell = () => qRow().locator('td').nth(2);
+  // La tabla anterior (antes de la corrección) sigue visible mientras recarga: esperar el dato nuevo.
+  await until(page, () => [...document.querySelectorAll('#hrs-report-tables tbody tr')].find((tr) => tr.textContent.includes('Quique'))?.cells[2].textContent === '6.5');
   await page.waitForSelector('#hrs-report-tables .hrs-adj-btn');
   const totalBefore = +(await qRow().locator('td').nth(6).textContent());
   assert.equal(await factCell().textContent(), '6.5');
@@ -1434,7 +1437,8 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   ok('Horas (Lead): ajusta un número del consolidado con motivo; queda marcado y la línea del QA no cambia');
 
   await page.selectOption('#hrs-mode', 'month');
-  await page.waitForSelector('#hrs-report-tables caption:has-text("Octubre")');
+  // has-text no distingue mayúsculas: "Octubre" ya calzaba con "Semana … de octubre" de la tabla anterior.
+  await until(page, () => { const c = [...document.querySelectorAll('#hrs-report-tables caption')]; return c.length > 0 && !c.some((x) => x.textContent.startsWith('Semana')); });
   assert.equal(await page.locator('#hrs-report-tables .hrs-adj-btn').count(), 0, 'en el mes no se ajusta');
   assert.equal(await factCell().textContent(), '7');
   assert.equal(await factCell().getAttribute('class'), 'adj');
