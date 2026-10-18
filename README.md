@@ -127,6 +127,14 @@ Seguridad de la página publicada:
 
 **Pruebas** (`tests/test-auth.mjs`): Playwright con el cliente real de supabase-js y un Supabase simulado en la red. Cubre sin configuración, login correcto e incorrecto, sesión persistente, logout, usuario desactivado, usuario eliminado, permisos de QA / QA_LEAD / ADMIN, pestaña Usuarios (guardado y rechazo), vista móvil sin scroll horizontal y ausencia de errores de JavaScript.
 
+GitHub Actions (`.github/workflows/pruebas.yml`) la corre sola en cada PR y en cada push a `main`. En local:
+
+```bash
+npm install --no-save playwright-core@1.64.1 && npx playwright-core install chromium
+npm pack @supabase/supabase-js@2.117.2 && tar xzf supabase-supabase-js-2.117.2.tgz
+node tests/test-auth.mjs
+```
+
 ## Fase 3: datos en Supabase
 
 La app ya no usa `qa-bcr-suite-data.json` ni el archivo vinculado: personas, reglas, proyectos, variantes y plantillas se leen y se guardan en Supabase, y todo el equipo ve lo mismo.
