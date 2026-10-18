@@ -2993,7 +2993,7 @@ async function deleteUser(id,btn){
 }
 async function resetUserPassword(id,btn){
   const u=USERS.find(x=>x.id===id);if(!u||!isAdmin())return;
-  if(!confirm(`¿Generar una contraseña temporal nueva para ${u.full_name}? La contraseña actual deja de servir.`))return;
+  if(!confirm(`¿Generar una contraseña temporal nueva para ${u.full_name}? La contraseña actual deja de servir y se cierran sus sesiones abiertas.`))return;
   const st=document.getElementById('user-create-status'),password=randomPassword();
   closeInvite();
   st.className='status-msg info';st.textContent='Generando contraseña…';btn.disabled=true;
