@@ -99,14 +99,14 @@ psql -d qabcr -f out/seed.sql -f out/verify-seed.sql -f supabase/tests/rls_test.
 
 Parte de `qa-bcr-suite_6.html`; los cambios están en `app/cambios-fase2.diff`. Desde la Fase 3 los datos vienen de Supabase (ver abajo).
 
-**Configurar antes de publicar** — en el bloque `AUTH (Supabase)` del script:
+**Configurar antes de publicar** — en `js/config.js`:
 
 ```js
 const SUPABASE_URL='https://<tu-proyecto>.supabase.co';
 const SUPABASE_ANON_KEY='<anon / publishable key>';
 ```
 
-Están en *Project Settings → API*. La anon key puede ir en el HTML público: lo que protege los datos es el RLS. **Nunca** pongas la `service_role` key. En *Authentication → URL Configuration* agrega la URL de GitHub Pages como *Site URL*.
+Están en *Project Settings → API*. La anon key puede ir en la página pública: lo que protege los datos es el RLS. **Nunca** pongas la `service_role` key. En *Authentication → URL Configuration* agrega la URL de GitHub Pages como *Site URL*.
 
 Qué hace:
 
