@@ -1,22 +1,29 @@
 // Prueba las Fases 2 y 3 con el cliente real de supabase-js y un Supabase simulado en la red.
 import { chromium } from 'playwright-core';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 // Requiere: npm i playwright-core y supabase-js descomprimido en ./package (npm pack @supabase/supabase-js@2.117.2).
 const DIR = fileURLToPath(new URL('..', import.meta.url));
 const SUPA = 'https://demo.supabase.co';
+// La app: index.html con la CSP apuntando al Supabase simulado; css/ y js/ se sirven tal cual,
+// salvo js/config.js (URL y clave del simulado). sin-config.html carga una configuración vacía.
 const html = readFileSync(DIR + 'index.html', 'utf8');
 const configured = html
-  .replace(/const SUPABASE_URL='[^']*';/, `const SUPABASE_URL='${SUPA}';`)
-  .replace(/const SUPABASE_ANON_KEY='[^']*';/, "const SUPABASE_ANON_KEY='anon-test-key';")
   .replaceAll(/https:\/\/[a-z0-9]+\.supabase\.co(?=[ ;])/g, SUPA)
   .replaceAll(/wss:\/\/[a-z0-9]+\.supabase\.co(?=[ ;])/g, SUPA.replace('https', 'wss'));
-// Copia sin configurar: sin URL ni clave.
-const unconfigured = html
+const unconfigured = html.replace('src="js/config.js"', 'src="js/sin-config.js"');
+const config = readFileSync(DIR + 'js/config.js', 'utf8');
+const configJs = config
+  .replace(/const SUPABASE_URL='[^']*';/, `const SUPABASE_URL='${SUPA}';`)
+  .replace(/const SUPABASE_ANON_KEY='[^']*';/, "const SUPABASE_ANON_KEY='anon-test-key';");
+const emptyConfigJs = config
   .replace(/const SUPABASE_URL='[^']*';/, "const SUPABASE_URL='';")
   .replace(/const SUPABASE_ANON_KEY='[^']*';/, "const SUPABASE_ANON_KEY='';");
+const STATIC = /^\/(css\/[\w-]+\.css|js\/[\w-]+\.js|img\/[\w-]+\.png)$/;
+const TYPES = { css: 'text/css', js: 'application/javascript', png: 'image/png' };
+
 const supabaseJs = readFileSync(DIR + 'package/dist/umd/supabase.js', 'utf8');
 
 const users = {
@@ -288,8 +295,12 @@ async function setup(context) {
     (r) => r.fulfill({ contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body: supabaseJs }));
   await context.route('http://app.test/**', (r) => {
     const url = r.request().url();
-    if (url.endsWith('/index.html')) return r.fulfill({ contentType: 'text/html', body: configured });
-    if (url.endsWith('/sin-config.html')) return r.fulfill({ contentType: 'text/html', body: unconfigured });
+    const path = new URL(url).pathname;
+    if (path === '/index.html') return r.fulfill({ contentType: 'text/html', body: configured });
+    if (path === '/sin-config.html') return r.fulfill({ contentType: 'text/html', body: unconfigured });
+    if (path === '/js/config.js') return r.fulfill({ contentType: TYPES.js, body: configJs });
+    if (path === '/js/sin-config.js') return r.fulfill({ contentType: TYPES.js, body: emptyConfigJs });
+    if (STATIC.test(path)) return r.fulfill({ contentType: TYPES[path.split('.').pop()], body: readFileSync(DIR + path.slice(1)) });
     return r.fulfill({ status: 404, body: '' });
   });
   await context.route(`${SUPA}/**`, async (r) => {
@@ -422,7 +433,7 @@ async function newPage(viewport = { width: 1280, height: 800 }) {
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('dialog', (d) => { dialogs.push(d.message()); const a = answers.shift(); a === false ? d.dismiss() : d.accept(typeof a === 'string' ? a : undefined); });
-  page.on('console', (m) => { if (/Content Security Policy|integrity/i.test(m.text())) errors.push(m.text()); });
+  page.on('console', (m) => { if (/Content Security Policy|integrity|Acción desconocida/i.test(m.text())) errors.push(m.text()); });
   return { context, page };
 }
 async function login(page, email, password = 'pw') {
@@ -1674,3 +1685,11 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
 await browser.close();
 assert.deepEqual(errors, [], 'errores de JS en la página: ' + errors.join(' | '));
 ok('sin errores de JavaScript ni bloqueos de CSP/integridad en la página');
+
+// La CSP no permite scripts inline: ni <script> sin src ni atributos on*.
+assert.doesNotMatch(html, /script-src[^;]*'unsafe-inline'/);
+assert.doesNotMatch(html, /<script(?![^>]*\ssrc=)[^>]*>/);
+for (const f of ['index.html', ...readdirSync(DIR + 'js').map((f) => 'js/' + f)]) {
+  assert.doesNotMatch(readFileSync(DIR + f, 'utf8'), /\son[a-z]+=["']/, f + ' tiene un manejador inline');
+}
+ok('CSP sin unsafe-inline para scripts y sin manejadores inline en el HTML ni en las plantillas');

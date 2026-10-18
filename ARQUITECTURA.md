@@ -4,7 +4,7 @@ Herramienta interna del equipo QA de Babel para el trabajo que hace para el BCR.
 
 - **Publicada en:** GitHub Pages (`https://braynerrosales.github.io/qa-bcr-suite/`), desde la rama `main`.
 - **Datos:** Supabase (Postgres + Auth + Realtime + Edge Functions).
-- **Sin servidor propio y sin build:** un solo `index.html` con HTML, CSS y JavaScript sin frameworks.
+- **Sin servidor propio y sin build:** `index.html` (solo el HTML), `css/styles.css` y un archivo de JavaScript por módulo en `js/`, sin frameworks. Se publican tal cual.
 
 ---
 
@@ -30,7 +30,16 @@ flowchart LR
 ## 2. Estructura del repositorio
 
 ```
-index.html                     la app completa (HTML + CSS + JS, ~3 100 líneas)
+index.html                     el HTML de la app (pantallas y diálogos) y la CSP
+css/styles.css                 estilos (tokens de color, modo oscuro, responsive)
+js/                            JavaScript sin build, cargado en este orden por index.html:
+  config.js                    URL de Supabase y anon key
+  base.js                      modelo de datos (get_app_config, copia local) y navegación
+  qa.js daily.js admin.js solicitudes.js horas.js calc.js   un archivo por módulo
+  auth.js                      sesión, permisos por rol y contraseña
+  feedback.js usuarios.js      Feedback y Administración → Usuarios
+  acciones.js                  qué hace cada botón (data-click, data-change…; ver §7)
+  init.js                      arranque: va último, cuando ya existen todas las funciones
 img/                           logos (Babel en login y menú; BCR solo después de iniciar sesión)
 supabase/
   migrations/                  esquema, RLS y funciones, en orden de fecha (se corren en el SQL Editor)
@@ -140,15 +149,17 @@ Deno, desplegada en Supabase con *Verify JWT* desactivado (la función valida el
 
 ---
 
-## 7. La app (`index.html`)
+## 7. La app (`index.html`, `css/`, `js/`)
 
 ### Carga y sesión
-1. Carga `supabase-js` (versión fija desde jsDelivr) y aplica una **CSP** estricta: scripts solo propios y ese archivo, conexiones solo al proyecto de Supabase.
+1. Carga `supabase-js` (versión fija desde jsDelivr, con SRI) y aplica una **CSP** estricta: solo los scripts de `js/` y ese archivo (sin `'unsafe-inline'`), conexiones solo al proyecto de Supabase.
+   - Por eso el HTML no lleva `onclick` ni `onchange`: cada botón o campo dice qué función llama con `data-click`, `data-change`, `data-input`, `data-submit` o `data-enter`, y sus argumentos en `data-args` (JSON). `js/acciones.js` escucha esos eventos en `document`; si la función necesita el elemento o sus `data-*`, está en `ACCIONES`.
+   - Los archivos de `js/` son scripts clásicos (no módulos) y comparten las funciones globales. Un archivo nuevo va antes de `acciones.js` e `init.js`.
 2. Pantalla de login (público: solo logo de Babel). Si `must_change_password`, obliga a cambiar la contraseña antes de entrar.
 3. `loadConfig()` trae la configuración por `get_app_config()`. Se guarda una copia en `localStorage` solo como respaldo de lectura si Supabase no responde (aviso «Sin conexión»; no se puede guardar).
 4. `applyPermissions()` muestra u oculta secciones según el rol; `showPage()` además bloquea entrar por código a una página sin permiso.
 
-### Módulos (bloques `/* ===== … ===== */` del script)
+### Módulos (un archivo por módulo en `js/`)
 
 | Módulo | Qué hace | Datos |
 |---|---|---|
@@ -198,7 +209,7 @@ sequenceDiagram
 
 | Tipo | Archivo | Cómo |
 |---|---|---|
-| Punta a punta | `tests/test-auth.mjs` | Playwright con el cliente real de supabase-js y un Supabase simulado en la red; ~96 comprobaciones (login, permisos por rol, cada módulo, móvil, sin errores de JS ni de CSP) |
+| Punta a punta | `tests/test-auth.mjs` | Playwright con el cliente real de supabase-js y un Supabase simulado en la red; ~99 comprobaciones (login, permisos por rol, cada módulo, móvil, sin errores de JS ni de CSP, sin manejadores inline) |
 | Permisos en la base | `supabase/tests/*.sql` | Se corren en el SQL Editor; imprimen «OK …» o abortan con «FALLO …» y terminan en ROLLBACK |
 | Postgres local | `local-test/` | Imitación de Supabase para probar migraciones antes de correrlas en la base real |
 | UI | `CLAUDE.md` | Revisar con taste-skill y web-design-guidelines, y verificar con capturas de Playwright CLI antes de dar un cambio por terminado |
@@ -207,7 +218,7 @@ sequenceDiagram
 
 ## 10. Despliegue y operación
 
-1. **App:** push a `main` → GitHub Pages publica `index.html`. Los usuarios recargan con Ctrl+F5.
+1. **App:** push a `main` → GitHub Pages publica `index.html`, `css/`, `js/` e `img/`. Los usuarios recargan con Ctrl+F5 (GitHub Pages guarda los archivos en caché unos minutos).
 2. **Base:** cada migración nueva se corre una vez en el SQL Editor de Supabase, en orden de fecha (si el editor cambió de rol, empezar con `reset role;`).
 3. **Edge Function:** se vuelve a desplegar a mano (Code → Deploy) cuando cambia `supabase/functions/admin-create-user/index.ts`.
 4. **Cargas de datos** (solicitudes desde Excel, seed inicial): scripts SQL generados aparte, idempotentes, que emparejan por código (P3_081, OPC_47) y nunca borran; no se suben al repo.
