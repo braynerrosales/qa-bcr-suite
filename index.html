@@ -2977,10 +2977,11 @@ async function createUser(event){
 }
 // Contraseña olvidada: el ADMIN genera una temporal nueva (la Edge Function la
 // cambia en Auth y vuelve a pedir el cambio al entrar) y la comparte con el mensaje.
-// Eliminar es definitivo (borra también sus horas); para que alguien no entre más alcanza con desmarcar "Activo".
+// Eliminar es definitivo y solo vale para quien no tiene horas (se conservan para los informes);
+// para que alguien no entre más alcanza con desmarcar "Activo".
 async function deleteUser(id,btn){
   const u=USERS.find(x=>x.id===id);if(!u||!isAdmin()||id===currentUser.id)return;
-  if(!confirm(`¿Eliminar a ${u.full_name} (${u.email||'sin correo'})?\n\nSe borran su usuario y sus horas registradas, y no se puede deshacer.\nSi solo querés que no entre más, cancelá y desmarcá "Activo".`))return;
+  if(!confirm(`¿Eliminar a ${u.full_name} (${u.email||'sin correo'})?\n\nSe borra su usuario y no se puede deshacer. Si tiene horas registradas no se elimina, para no cambiar los informes.\nSi solo querés que no entre más, cancelá y desmarcá "Activo".`))return;
   const st=document.getElementById('users-status');
   st.className='status-msg info';st.textContent='Eliminando…';btn.disabled=true;
   const {error}=await supabaseClient.functions.invoke('admin-create-user',{body:{action:'delete_user',id}});

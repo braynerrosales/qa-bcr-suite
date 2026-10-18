@@ -54,7 +54,8 @@ Deno.serve(async (req) => {
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return reply(400, { error: 'Datos inválidos.' }); }
 
-  // Eliminar un usuario: se borra de Auth y, en cascada, su perfil, sus horas y su historial.
+  // Eliminar un usuario: se borra de Auth y, en cascada, su perfil y su historial del QA Generator.
+  // Quien tiene horas no se elimina (la base también lo impide): cambiarían los informes ya enviados.
   if (body.action === 'delete_user') {
     const id = String(body.id ?? '');
     if (!UUID_RE.test(id)) return reply(400, { error: 'Usuario inválido.' });
@@ -62,6 +63,14 @@ Deno.serve(async (req) => {
     const { data: target, error: targetError } = await admin.from('profiles').select('id').eq('id', id).maybeSingle();
     if (targetError) return reply(500, { error: 'No se pudo buscar el usuario.' });
     if (!target) return reply(404, { error: 'El usuario no existe.' });
+    const [horas, ajustes] = await Promise.all([
+      admin.from('horas').select('id', { count: 'exact', head: true }).eq('user_id', id),
+      admin.from('horas_ajustes').select('id', { count: 'exact', head: true }).eq('user_id', id),
+    ]);
+    if (horas.error || ajustes.error) return reply(500, { error: 'No se pudo revisar si el usuario tiene horas.' });
+    if ((horas.count ?? 0) + (ajustes.count ?? 0) > 0) {
+      return reply(409, { error: 'Tiene horas registradas: no se elimina para no cambiar los informes. Para que no entre más, desmarcá "Activo".' });
+    }
     const { error: delError } = await admin.auth.admin.deleteUser(id);
     if (delError) return reply(400, { error: 'No se pudo eliminar el usuario: ' + delError.message });
     return reply(200, { id });
