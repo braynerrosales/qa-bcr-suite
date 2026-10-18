@@ -36,8 +36,7 @@ supabase/
   migrations/                  esquema, RLS y funciones, en orden de fecha (se corren en el SQL Editor)
   functions/admin-create-user/ Edge Function (Deno) para administrar usuarios
   tests/                       pruebas SQL de permisos (terminan en ROLLBACK, no dejan datos)
-  alinear-base-existente.sql   ajusta una base creada antes de las migraciones (idempotente)
-  permisos-tablas.sql          GRANT de tablas para la Data API
+  alinear-base-existente.sql   ajusta una base creada antes de las migraciones (solo antes de 20261016…)
 scripts/migrate-data.mjs       convierte el JSON de la app vieja en seed.sql / verify-seed.sql
 local-test/                    imitación mínima de Supabase para probar en un Postgres local
 tests/test-auth.mjs            pruebas de punta a punta (Playwright + Supabase simulado)
@@ -134,7 +133,7 @@ Deno, desplegada en Supabase con *Verify JWT* desactivado (la función valida el
 2. Según `action`:
    - *(sin action)* **crear usuario**: correo, nombre, rol (`ADMIN`, `QA_LEAD`, `QA`, `BETA`) y contraseña temporal (10–72 caracteres). El perfil nace con `must_change_password`.
    - `reset_password`: nueva contraseña temporal.
-   - `delete_user`: elimina de Auth (no a sí mismo); los datos asociados se borran o quedan con autor nulo según cada FK.
+   - `delete_user`: elimina de Auth (no a sí mismo). Rechaza (409) a quien tenga horas o ajustes de horas, para no cambiar informes ya enviados; la base lo impide también (`on delete restrict`). Su historial del QA Generator se borra y en solicitudes y feedback queda el registro sin autor.
 3. Usa la *service role key* desde las variables de entorno de Supabase; nunca llega al navegador.
 
 ---

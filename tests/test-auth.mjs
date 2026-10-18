@@ -343,8 +343,11 @@ async function setup(context) {
         const t = byId(b.id);
         if (!t) return json(404, { error: 'El usuario no existe.' });
         if (b.id === me.id) return json(400, { error: 'No podés eliminar tu propio usuario.' });
+        // Quien tiene horas no se elimina (FK on delete restrict).
+        if (tables.horas.some((h) => h.user_id === b.id) || tables.horas_ajustes.some((a) => a.user_id === b.id)) {
+          return json(409, { error: 'Tiene horas registradas: no se elimina para no cambiar los informes. Para que no entre más, desmarcá "Activo".' });
+        }
         delete users[t[0]];
-        tables.horas = tables.horas.filter((h) => h.user_id !== b.id);
         tables.feedback.forEach((f) => { if (f.user_id === b.id) f.user_id = null; });
         return json(200, { id: b.id });
       }
@@ -1564,14 +1567,20 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   answers.push(false);
   await del.click();
   assert.ok(users['borrar@bcr.test'], 'si cancela no se elimina');
-  assert.match(dialogs.at(-1), /Se borran su usuario y sus horas registradas/);
+  assert.match(dialogs.at(-1), /Si tiene horas registradas no se elimina/);
+  answers.push(true);
+  await del.click();
+  await page.waitForSelector('#users-status.error:has-text("Tiene horas registradas")');
+  assert.ok(users['borrar@bcr.test'], 'con horas no se elimina');
+  assert.equal(tables.horas.some((h) => h.id === 900), true, 'sus horas se conservan');
+  ok('ADMIN: no elimina a quien tiene horas (se conservan para los informes)');
+  tables.horas = tables.horas.filter((h) => h.id !== 900);
   answers.push(true);
   await del.click();
   await page.waitForSelector('#users-status.ok:has-text("Bruno Borrar fue eliminado")');
   await until(page, () => !document.querySelector('#list-users').textContent.includes('Bruno Borrar'));
   assert.equal(users['borrar@bcr.test'], undefined);
-  assert.equal(tables.horas.some((h) => h.id === 900), false);
-  ok('ADMIN: elimina un usuario (con confirmación; no a sí mismo)');
+  ok('ADMIN: elimina un usuario sin horas (con confirmación; no a sí mismo)');
   await context.close();
 }
 {

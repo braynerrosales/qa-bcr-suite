@@ -8,7 +8,6 @@ supabase/migrations/
   20261015000002_rls.sql      funciones de rol + políticas
   20261015000003_rpc.sql      get_app_config() y save_template()
 supabase/tests/rls_test.sql   pruebas de permisos (terminan en ROLLBACK)
-supabase/permisos-tablas.sql  solo los GRANT de tabla (ya incluidos en las migraciones)
 scripts/migrate-data.mjs      JSON actual → seed.sql + verify-seed.sql
 local-test/                   imitación de Supabase para probar en Postgres local
 ```
@@ -25,7 +24,7 @@ Usa `supabase/alinear-base-existente.sql` **en lugar de** las tres migraciones. 
 - crea `get_app_config()` y `save_template()`.
 - da los permisos de tabla (`GRANT`) que necesita la app: los proyectos nuevos de Supabase no los dan por defecto y sin ellos la app recibe `42501 permission denied`.
 
-Si ya ejecutaste una versión anterior del script y ves ese error, basta con ejecutar `supabase/permisos-tablas.sql`.
+Si ya ejecutaste una versión anterior del script y ves ese error, vuelve a ejecutar `alinear-base-existente.sql` (incluye los GRANT) **antes** de correr las migraciones siguientes. No lo ejecutes después de ellas: sus GRANT son los de la Fase 1 y deshacen los permisos por columna de `profiles` que agregan `20261017000001_acceso_usuarios.sql` y `20261018000002_horas_informe.sql`.
 
 Corre en una transacción y es idempotente: si algo falla no cambia nada, y se puede volver a ejecutar. Después sigue desde el paso 4 de abajo (si la base ya tiene datos, `seed.sql` se niega a correr; ejecuta igual `verify-seed.sql`).
 

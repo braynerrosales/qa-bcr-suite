@@ -6,6 +6,11 @@
 -- no cumple una restricción), no se aplica nada y el error dice qué fila
 -- o restricción lo impidió.
 --
+-- ⚠ Solo para una base que todavía no tiene las migraciones 20261016… en
+-- adelante. No lo ejecutes después de ellas: sus GRANT son los de la Fase 1
+-- (select de toda la tabla profiles) y deshacen los permisos por columna de
+-- 20261017000001_acceso_usuarios.sql y 20261018000002_horas_informe.sql.
+--
 -- Qué hace:
 --   1. Agrega las columnas que faltan (profiles.email, qa_generations.project_name/variant_name).
 --   2. Ajusta NOT NULL y valores por defecto.
