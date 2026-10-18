@@ -49,6 +49,7 @@ supabase/
 scripts/migrate-data.mjs       convierte el JSON de la app vieja en seed.sql / verify-seed.sql
 local-test/                    imitación mínima de Supabase para probar en un Postgres local
 tests/test-auth.mjs            pruebas de punta a punta (Playwright + Supabase simulado)
+.github/workflows/pruebas.yml  GitHub Actions: corre esa prueba en cada PR
 app/cambios-fase2.diff         registro de los cambios de la Fase 2 sobre el HTML original
 .claude/                       skills de diseño y verificación (taste-skill, web-design-guidelines, playwright-cli)
 CLAUDE.md                      regla de trabajo para cambios de UI
@@ -210,6 +211,7 @@ sequenceDiagram
 | Tipo | Archivo | Cómo |
 |---|---|---|
 | Punta a punta | `tests/test-auth.mjs` | Playwright con el cliente real de supabase-js y un Supabase simulado en la red; ~99 comprobaciones (login, permisos por rol, cada módulo, móvil, sin errores de JS ni de CSP, sin manejadores inline) |
+| Automática (CI) | `.github/workflows/pruebas.yml` | GitHub Actions corre la prueba de punta a punta en cada PR y en cada push a `main`; si falla, guarda las capturas como artefacto |
 | Permisos en la base | `supabase/tests/*.sql` | Se corren en el SQL Editor; imprimen «OK …» o abortan con «FALLO …» y terminan en ROLLBACK |
 | Postgres local | `local-test/` | Imitación de Supabase para probar migraciones antes de correrlas en la base real |
 | UI | `CLAUDE.md` | Revisar con taste-skill y web-design-guidelines, y verificar con capturas de Playwright CLI antes de dar un cambio por terminado |

@@ -1,0 +1,45 @@
+# Corre la prueba de punta a punta (tests/test-auth.mjs) en cada PR y en cada push a main.
+# No usa secretos ni la base real: Supabase está simulado dentro de la prueba.
+name: Pruebas
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Prueba de punta a punta
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: America/Costa_Rica
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      # Mismas versiones que la app y la prueba usan en local.
+      - name: Instalar Playwright y supabase-js
+        run: |
+          npm install --no-save --no-package-lock playwright-core@1.64.1
+          npx playwright-core install --with-deps chromium
+          npm pack @supabase/supabase-js@2.117.2
+          tar xzf supabase-supabase-js-2.117.2.tgz
+
+      - name: Prueba
+        run: node tests/test-auth.mjs
+
+      - name: Guardar capturas si falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas
+          path: tests/shot-*.png
+          if-no-files-found: ignore
