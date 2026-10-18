@@ -144,7 +144,7 @@ async function createUser(event){
 // para que alguien no entre más alcanza con desmarcar "Activo".
 async function deleteUser(id,btn){
   const u=USERS.find(x=>x.id===id);if(!u||!isAdmin()||id===currentUser.id)return;
-  if(!confirm(`¿Eliminar a ${u.full_name} (${u.email||'sin correo'})?\n\nSe borra su usuario y no se puede deshacer. Si tiene horas registradas no se elimina, para no cambiar los informes.\nSi solo querés que no entre más, cancelá y desmarcá "Activo".`))return;
+  if(!await uiConfirm(`${u.email||'Sin correo'}\n\nSe borra su usuario y no se puede deshacer. Si tiene horas registradas no se elimina, para no cambiar los informes.\nSi solo querés que no entre más, cancelá y desmarcá "Activo".`,{title:`¿Eliminar a ${u.full_name}?`,ok:'Eliminar',danger:true}))return;
   const st=document.getElementById('users-status');
   st.className='status-msg info';st.textContent='Eliminando…';btn.disabled=true;
   const {error}=await supabaseClient.functions.invoke('admin-create-user',{body:{action:'delete_user',id}});
@@ -156,7 +156,7 @@ async function deleteUser(id,btn){
 }
 async function resetUserPassword(id,btn){
   const u=USERS.find(x=>x.id===id);if(!u||!isAdmin())return;
-  if(!confirm(`¿Generar una contraseña temporal nueva para ${u.full_name}? La contraseña actual deja de servir y se cierran sus sesiones abiertas.`))return;
+  if(!await uiConfirm('La contraseña actual deja de servir y se cierran sus sesiones abiertas.',{title:`¿Nueva contraseña temporal para ${u.full_name}?`,ok:'Generar'}))return;
   const st=document.getElementById('user-create-status'),password=randomPassword();
   closeInvite();
   st.className='status-msg info';st.textContent='Generando contraseña…';btn.disabled=true;

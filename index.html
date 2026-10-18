@@ -56,6 +56,18 @@
   </div>
 </div>
 
+<dialog class="pw-dialog ui-dialog" id="ui-dialog" aria-labelledby="ui-title" aria-describedby="ui-msg">
+  <form id="ui-form">
+    <div class="admin-card-title" id="ui-title"></div>
+    <p class="ui-msg" id="ui-msg"></p>
+    <input class="crud-input" id="ui-input" type="text" maxlength="120" autocomplete="off" aria-labelledby="ui-msg" hidden>
+    <div class="pw-dialog-actions">
+      <button type="button" class="btn-secondary" id="ui-cancel">Cancelar</button>
+      <button type="submit" class="crud-btn-add" id="ui-ok">Aceptar</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog class="pw-dialog" id="pw-dialog" aria-labelledby="pw-title">
   <form data-submit="changePassword">
     <div class="admin-card-title" id="pw-title">Cambiar contraseña</div>
@@ -658,6 +670,7 @@
 <script src="js/auth.js"></script>
 <script src="js/feedback.js"></script>
 <script src="js/usuarios.js"></script>
+<script src="js/dialogos.js"></script>
 <script src="js/acciones.js"></script>
 <script src="js/init.js"></script>
 </body>

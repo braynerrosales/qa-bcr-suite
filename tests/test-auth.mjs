@@ -424,15 +424,35 @@ async function setup(context) {
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
 const ok = (m) => console.log('OK  ' + m);
 const errors = [];
-const dialogs = [];   // mensajes de alert/confirm/prompt
-const answers = [];   // respuestas en orden: string para prompt, false para cancelar
+const dialogs = [];   // título y mensaje de cada diálogo de la app
+const answers = [];   // respuestas en orden: string para pedir texto, false para cancelar
 
+// Los avisos de error no frenan la página: se espera a que aparezca el último.
+async function waitDialog(re) {
+  for (let i = 0; i < 100 && !re.test(dialogs.at(-1) ?? ''); i++) await new Promise((r) => setTimeout(r, 50));
+  assert.match(dialogs.at(-1) ?? '', re, dialogs.join(' | '));
+}
 async function newPage(viewport = { width: 1280, height: 800 }) {
   const context = await browser.newContext({ viewport });
   await setup(context);
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
-  page.on('dialog', (d) => { dialogs.push(d.message()); const a = answers.shift(); a === false ? d.dismiss() : d.accept(typeof a === 'string' ? a : undefined); });
+  // La app no usa alert/confirm/prompt: si aparece uno del navegador, es un error.
+  page.on('dialog', (d) => { errors.push('diálogo del navegador: ' + d.message()); d.dismiss(); });
+  // Su diálogo (#ui-dialog) se responde con sus propios botones, en el orden de answers.
+  await page.exposeFunction('__uiAnswer', (msg) => { dialogs.push(msg); const a = answers.shift(); return a === undefined ? true : a; });
+  await page.addInitScript(() => {
+    new MutationObserver(async () => {
+      const d = document.getElementById('ui-dialog');
+      if (!d || !d.open || d.dataset.test || window.__manualDialog) return;
+      d.dataset.test = '1';
+      const title = document.getElementById('ui-title').textContent;
+      const a = await window.__uiAnswer([title, document.getElementById('ui-msg').textContent].filter(Boolean).join(' · '));
+      if (typeof a === 'string') document.getElementById('ui-input').value = a;
+      document.getElementById(a === false ? 'ui-cancel' : 'ui-ok').click();
+      delete d.dataset.test;
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ['open'] });
+  });
   page.on('console', (m) => { if (/Content Security Policy|integrity|Acción desconocida/i.test(m.text())) errors.push(m.text()); });
   return { context, page };
 }
@@ -662,7 +682,7 @@ const lastWrite = () => writes[writes.length - 1];
   await page.evaluate(() => addPerson('daily1'));
   await page.evaluate(async () => { document.getElementById('newp-daily1').value = 'Intruso'; await addPerson('daily1'); });
   assert.equal(writes.length, n);
-  assert.match(dialogs.pop(), /No tenés permiso/);
+  await waitDialog(/No tenés permiso/);
   ok('QA: la app no intenta escribir (y el RLS lo bloquearía igual)');
 
   const cache = await page.evaluate(() => JSON.parse(localStorage.getItem('qaBcrSuiteCache_v3')));
@@ -768,7 +788,7 @@ const lastWrite = () => writes[writes.length - 1];
   failNextWrite = '23505';
   await page.locator('#list-people-daily1 .crud-item:has-text("Eva Renombrada") button[title="Editar"]').click();
   await until(page, () => !document.body.classList.contains('saving'));
-  assert.ok(dialogs.some((d) => /Ya existe un registro con ese nombre/.test(d)), dialogs.join(' | '));
+  await waitDialog(/Ya existe un registro con ese nombre/);
   assert.equal(await page.locator('#list-people-daily1 .crud-item:has-text("Eva Renombrada")').count(), 1);
   ok('si Supabase rechaza el cambio, avisa y la lista muestra lo guardado');
 
@@ -1506,7 +1526,7 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   await tueHol.locator('.hrs-line [data-f=horas]').fill('4');
   await tueHol.locator('.hrs-line [data-f=horas]').press('Tab');
   await until(page, () => document.querySelector('#hrs-days .hrs-day[data-date="2026-09-15"] [data-f=horas]').value === '8');
-  assert.ok(dialogs.at(-1).includes('No tenés permiso'));
+  await waitDialog(/No tenés permiso/);
   ok('Horas: si Supabase rechaza el cambio, avisa y vuelve a mostrar lo guardado');
   await page.screenshot({ path: DIR + 'tests/shot-horas.png', fullPage: true });
   await context.close();
@@ -1680,6 +1700,38 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   await adm.context.close();
   delete users['beta@bcr.test'];
   ok('ADMIN: puede crear usuarios con rol Beta');
+}
+
+{
+  // El diálogo propio con el teclado, en celular, claro y oscuro.
+  const { context, page } = await newPage({ width: 390, height: 760 });
+  await page.goto('http://app.test/index.html');
+  await login(page, 'admin@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.evaluate(() => { window.__manualDialog = true; window.__r = uiConfirm('Se borra también su plantilla.', { title: '¿Eliminar la variante "urgente"?', ok: 'Eliminar', danger: true }); });
+  await page.waitForSelector('#ui-dialog[open]');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'ui-cancel', 'al borrar, el foco arranca en Cancelar');
+  await page.screenshot({ path: DIR + 'tests/shot-dialogo.png' });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.screenshot({ path: DIR + 'tests/shot-dialogo-oscuro.png' });
+  await page.keyboard.press('Escape');
+  assert.equal(await page.evaluate(() => window.__r), false);
+  await page.evaluate(() => { window.__r = uiPrompt('Nombre', 'Ana', { title: 'Editar persona' }); });
+  await page.waitForSelector('#ui-dialog[open]');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'ui-input');
+  await page.fill('#ui-input', 'Ana María');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => window.__r), 'Ana María');
+  await page.evaluate(() => { window.__r = Promise.all([uiAlert('Primero'), uiAlert('Segundo')]); });
+  await page.waitForSelector('#ui-dialog[open]');
+  assert.equal(await page.textContent('#ui-msg'), 'Primero');
+  await page.click('#ui-ok');
+  await page.waitForFunction(() => document.getElementById('ui-msg').textContent === 'Segundo');
+  await page.click('#ui-ok');
+  await page.evaluate(() => window.__r);
+  assert.equal(await page.isVisible('#ui-dialog'), false);
+  await context.close();
+  ok('diálogo propio: foco en Cancelar al borrar, Escape cancela, Enter guarda el texto, uno detrás de otro');
 }
 
 await browser.close();

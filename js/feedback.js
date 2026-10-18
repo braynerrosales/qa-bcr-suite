@@ -69,7 +69,7 @@ async function feedbackWrite(run,btn){
   await loadFeedbackAdmin();
 }
 function setFeedbackRead(id,leido,btn){feedbackWrite(()=>supabaseClient.from('feedback').update({leido}).eq('id',id).select('id'),btn);}
-function deleteFeedback(id,btn){
-  if(!confirm('¿Eliminar este feedback? No se puede deshacer.'))return;
+async function deleteFeedback(id,btn){
+  if(!await uiConfirm('No se puede deshacer.',{title:'¿Eliminar este feedback?',ok:'Eliminar',danger:true}))return;
   feedbackWrite(()=>supabaseClient.from('feedback').delete().eq('id',id).select('id'),btn);
 }

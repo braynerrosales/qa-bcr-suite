@@ -38,6 +38,7 @@ js/                            JavaScript sin build, cargado en este orden por i
   qa.js daily.js admin.js solicitudes.js horas.js calc.js   un archivo por módulo
   auth.js                      sesión, permisos por rol y contraseña
   feedback.js usuarios.js      Feedback y Administración → Usuarios
+  dialogos.js                  avisos y preguntas con el diseño de la app (uiAlert, uiConfirm, uiPrompt)
   acciones.js                  qué hace cada botón (data-click, data-change…; ver §7)
   init.js                      arranque: va último, cuando ya existen todas las funciones
 img/                           logos (Babel en login y menú; BCR solo después de iniciar sesión)
@@ -178,6 +179,7 @@ Deno, desplegada en Supabase con *Verify JWT* desactivado (la función valida el
 ### Diseño
 - Tokens de color en `:root` con modo oscuro automático; azul institucional y un solo acento (naranja de Babel).
 - Tipografía Public Sans (cifras tabulares en tablas); IBM Plex Mono solo para editar plantillas.
+- Avisos y confirmaciones en un diálogo propio (`js/dialogos.js`), nunca `alert`/`confirm`/`prompt` del navegador: sigue el modo oscuro, y al borrar algo el foco arranca en Cancelar.
 - Accesibilidad: foco visible, etiquetas en todos los campos, Daily usable con teclado, `prefers-reduced-motion`, sin zoom bloqueado.
 - Responsive: menú lateral en computadora y barra superior en celular; tablas anchas se desplazan dentro de su recuadro.
 
@@ -210,7 +212,7 @@ sequenceDiagram
 
 | Tipo | Archivo | Cómo |
 |---|---|---|
-| Punta a punta | `tests/test-auth.mjs` | Playwright con el cliente real de supabase-js y un Supabase simulado en la red; ~99 comprobaciones (login, permisos por rol, cada módulo, móvil, sin errores de JS ni de CSP, sin manejadores inline) |
+| Punta a punta | `tests/test-auth.mjs` | Playwright con el cliente real de supabase-js y un Supabase simulado en la red; ~100 comprobaciones (login, permisos por rol, cada módulo, móvil, sin errores de JS ni de CSP, sin manejadores inline) |
 | Automática (CI) | `.github/workflows/pruebas.yml` | GitHub Actions corre la prueba de punta a punta en cada PR y en cada push a `main`; si falla, guarda las capturas como artefacto |
 | Permisos en la base | `supabase/tests/*.sql` | Se corren en el SQL Editor; imprimen «OK …» o abortan con «FALLO …» y terminan en ROLLBACK |
 | Postgres local | `local-test/` | Imitación de Supabase para probar migraciones antes de correrlas en la base real |

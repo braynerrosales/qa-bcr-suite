@@ -129,7 +129,7 @@ function solRow(r){
   name.setAttribute('aria-label','Nombre de la solicitud');
   name.addEventListener('change',()=>{
     const v=name.value.replace(/\s+/g,' ').trim();
-    if(!v){name.value=r.nombre;alert('El nombre no puede quedar vacío.');return;}
+    if(!v){name.value=r.nombre;uiAlert('El nombre no puede quedar vacío.');return;}
     name.value=v;name.title=v;
     saveSolicitud(r.id,{nombre:v});
   });
@@ -217,7 +217,7 @@ async function saveSolicitud(id,patch,after){
   if(after)after();
   renderSolStats();
   const {data,error}=await supabaseClient.from('solicitudes').update(patch).eq('id',id).select('id');
-  if(error||!data||!data.length){alert('⚠ '+writeErrorMessage(error||{code:'42501'}));await loadSolicitudes();}
+  if(error||!data||!data.length){uiError(writeErrorMessage(error||{code:'42501'}));await loadSolicitudes();}
 }
 async function addSolicitud(event){
   event.preventDefault();
@@ -226,7 +226,7 @@ async function addSolicitud(event){
   btn.disabled=true;
   const {error}=await supabaseClient.from('solicitudes').insert({nombre});
   btn.disabled=false;
-  if(error){alert('⚠ '+writeErrorMessage(error));return;}
+  if(error){uiError(writeErrorMessage(error));return;}
   input.value='';
   document.getElementById('sol-search').value='';
   if(document.getElementById('sol-filter').value==='done')document.getElementById('sol-filter').value='open';
@@ -235,9 +235,9 @@ async function addSolicitud(event){
 }
 async function deleteSolicitud(id){
   const r=SOL.find(x=>x.id===id);if(!r)return;
-  if(!confirm(`¿Eliminar la solicitud "${r.nombre}"? No se puede deshacer.`))return;
+  if(!await uiConfirm(r.nombre+'\n\nNo se puede deshacer.',{title:'¿Eliminar esta solicitud?',ok:'Eliminar',danger:true}))return;
   const {data,error}=await supabaseClient.from('solicitudes').delete().eq('id',id).select('id');
-  if(error||!data||!data.length)alert('⚠ '+writeErrorMessage(error||{code:'42501'}));
+  if(error||!data||!data.length)uiError(writeErrorMessage(error||{code:'42501'}));
   await loadSolicitudes();
 }
 /* ── Informes semanales: lista de las abiertas para copiar o imprimir ── */

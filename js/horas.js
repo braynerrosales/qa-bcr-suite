@@ -168,7 +168,7 @@ async function hrsWrite(row){
     ?await supabaseClient.from('horas').insert({...v,user_id:r.user_id}).select('*')
     :await supabaseClient.from('horas').update(v).eq('id',r.id).select('*');
   if(res.error||!res.data||!res.data.length){
-    alert('⚠ '+writeErrorMessage(res.error||{code:'42501'}));
+    uiError(writeErrorMessage(res.error||{code:'42501'}));
     await loadMyHours();
     return;
   }
@@ -177,11 +177,11 @@ async function hrsWrite(row){
 }
 async function hrsDeleteLine(row){
   const r=row._r;
-  if(r.id!=null&&!confirm('¿Eliminar esta línea'+(r.tarea?` ("${r.tarea}")`:'')+'?'))return;
+  if(r.id!=null&&!await uiConfirm((r.tarea?`«${r.tarea}», `:'')+`${r.horas||0} h.`,{title:'¿Eliminar esta línea?',ok:'Eliminar',danger:true}))return;
   await r._p;
   if(r.id!=null){
     const {data,error}=await supabaseClient.from('horas').delete().eq('id',r.id).select('id');
-    if(error||!data||!data.length){alert('⚠ '+writeErrorMessage(error||{code:'42501'}));await loadMyHours();return;}
+    if(error||!data||!data.length){uiError(writeErrorMessage(error||{code:'42501'}));await loadMyHours();return;}
   }
   HRS=HRS.filter(x=>x!==r);row.remove();hrsTotals();
 }
