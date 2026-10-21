@@ -42,6 +42,7 @@
 
 <div class="mobile-topbar">
   <span class="mobile-logo"><img src="img/babel-mark.png" width="16" height="21" alt="">QA BCR</span>
+  <button type="button" class="avisos-btn" id="mavisos-btn" data-click="toggleAvisos" aria-label="Avisos" aria-haspopup="dialog" aria-expanded="false" aria-controls="avisos-panel" hidden><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M12 3a6 6 0 0 0-6 6v3.6L4.3 15.4A1 1 0 0 0 5.2 17h13.6a1 1 0 0 0 .9-1.6L18 12.6V9a6 6 0 0 0-6-6Zm-2.5 15a2.5 2.5 0 0 0 5 0Z" fill="currentColor"/></svg><span class="fb-badge nav-count" aria-hidden="true" hidden></span></button>
   <div class="mobile-nav-btns">
     <button class="mobile-nav-btn active" data-click="showPage" data-args='["home"]'>Inicio</button>
     <button class="mobile-nav-btn" data-click="showPage" data-args='["qa"]'>Tareas</button>
@@ -74,6 +75,10 @@
   </form>
 </dialog>
 
+<dialog class="avisos-panel" id="avisos-panel" aria-labelledby="avisos-title">
+  <h2 class="avisos-title" id="avisos-title">Avisos</h2>
+  <ul class="avisos-list" id="avisos-list"></ul>
+</dialog>
 <dialog class="pw-dialog" id="pw-dialog" aria-labelledby="pw-title">
   <form data-submit="changePassword">
     <div class="admin-card-title" id="pw-title">Cambiar contraseña</div>
@@ -196,6 +201,7 @@
         <div class="brand-name">QA BCR Suite</div>
         <div class="brand-sub">Babel</div>
       </div>
+      <button type="button" class="avisos-btn" id="avisos-btn" data-click="toggleAvisos" aria-label="Avisos" aria-haspopup="dialog" aria-expanded="false" aria-controls="avisos-panel" hidden><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M12 3a6 6 0 0 0-6 6v3.6L4.3 15.4A1 1 0 0 0 5.2 17h13.6a1 1 0 0 0 .9-1.6L18 12.6V9a6 6 0 0 0-6-6Zm-2.5 15a2.5 2.5 0 0 0 5 0Z" fill="currentColor"/></svg><span class="fb-badge nav-count" aria-hidden="true" hidden></span></button>
     </div>
     <nav class="sidebar-nav" aria-label="Secciones">
       <button class="nav-item item-home active" data-click="showPage" data-args='["home"]' id="nav-home">Inicio</button>
@@ -712,6 +718,7 @@
 <script src="js/daily.js"></script>
 <script src="js/admin.js"></script>
 <script src="js/solicitudes.js"></script>
+<script src="js/avisos.js"></script>
 <script src="js/horas.js"></script>
 <script src="js/calc.js"></script>
 <script src="js/auth.js"></script>

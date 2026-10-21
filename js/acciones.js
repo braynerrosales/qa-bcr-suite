@@ -4,6 +4,7 @@
 // data-submit o data-enter (Enter en un campo), y sus argumentos en data-args (JSON).
 // Si la función necesita el elemento, su valor o sus data-*, está en ACCIONES.
 const ACCIONES={
+  toggleAvisos:el=>toggleAvisos(el),
   closeDialog:el=>document.getElementById(el.dataset.dialog).close(),
   toggleTheme:el=>toggleTheme(el),
   themeAuto:el=>themeAuto(el),

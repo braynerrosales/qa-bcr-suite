@@ -137,7 +137,7 @@ function showPage(id) {
   document.getElementById('page-'+id).classList.add('active');
   document.getElementById('nav-'+id).classList.add('active');
   if(id==='admin')renderAdmin();
-  if(id==='solicitudes')solMarkSeen().then(loadSolicitudes);
+  if(id==='solicitudes')SOL_LOADING=solMarkSeen().then(loadSolicitudes);
   if(id==='horas')openHoras();
   if(id==='daily')dlyShowTab(dlyTab);
   window.scrollTo({ top: 0, behavior: 'smooth' });
