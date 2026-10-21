@@ -26,7 +26,7 @@ function solSubscribe(){
     .subscribe(status=>{
       const live=status==='SUBSCRIBED';
       document.getElementById('sol-live').hidden=!live;
-      if(live){if(solLiveOnce)loadSolicitudes();solLiveOnce=true;}
+      if(live){if(solLiveOnce){loadSolicitudes();solBadgeSoon();}solLiveOnce=true;}
     });
 }
 // Avisos: cuántas solicitudes creó o pasó a "Plan enviado" otra persona desde tu última visita.

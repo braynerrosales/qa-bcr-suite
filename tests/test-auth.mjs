@@ -1502,6 +1502,14 @@ resetData();
   assert.equal(await adm.page.isVisible('#sol-badge'), false, 'la respuesta vieja encendió el contador');
   ok('Solicitudes: una respuesta atrasada del contador no lo enciende con la pantalla abierta');
 
+  // Si se corta el tiempo real, al reconectar se vuelve a pedir el contador (lo de mientras no llega en vivo).
+  await adm.page.click('#nav-daily');
+  tables.solicitudes.push({ ...fila, id: 303, nombre: 'Solicitud P3_303 Sin conexión', created_at: new Date().toISOString() });
+  for (const s of [...rtSockets]) await s.ws.close();
+  await adm.page.waitForSelector('#sol-badge:not([hidden])', { timeout: 15000 });
+  assert.equal(await adm.page.textContent('#sol-badge'), '1');
+  ok('Solicitudes: al reconectarse el tiempo real, el contador se pone al día');
+
   // Cierra sesión y entra un QA en la misma pestaña: ni contador ni canal del anterior.
   const negadas = rpcCalls.denied || 0;
   await adm.page.evaluate(() => logout());
