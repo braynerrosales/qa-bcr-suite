@@ -12,6 +12,8 @@ function selectAdminTab(tab){
 function renderAdmin(){renderPeopleAdmin();renderRulesAdmin();renderTaskProjectList();}
 
 /* ============ ADMIN: PERSONAS (CRUD) ============ */
+// Color de proyecto para style="": solo #rrggbb (la base también lo exige), nunca otro CSS.
+function projColor(c){return /^#[0-9a-f]{6}$/i.test(c||'')?c:'#888888';}
 function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function renderPeopleAdmin(){
   ['daily1','daily2'].forEach(dk=>{
@@ -91,7 +93,7 @@ let selectedAdminProject=null,selectedAdminVariant='';
 function renderTaskProjectList(){
   const box=document.getElementById('task-project-list');
   const keys=Object.keys(DB.projects);
-  box.innerHTML=keys.map(k=>`<button class="proj-btn ${k===selectedAdminProject?'active':''}" data-code="${escapeHtml(k)}" data-click="selectAdminProject"><span class="proj-dot" style="background:${escapeHtml(DB.projects[k].color||'#888888')}"></span> ${escapeHtml(k)}</button>`).join('');
+  box.innerHTML=keys.map(k=>`<button class="proj-btn ${k===selectedAdminProject?'active':''}" data-code="${escapeHtml(k)}" data-click="selectAdminProject"><span class="proj-dot" style="background:${projColor(DB.projects[k].color)}"></span> ${escapeHtml(k)}</button>`).join('');
   if(selectedAdminProject&&!DB.projects[selectedAdminProject]){selectedAdminProject=null;document.getElementById('task-editor-wrap').style.display='none';}
   else if(selectedAdminProject)fillVariantSelect(selectedAdminVariant);
 }

@@ -32,6 +32,8 @@ const users = {
   'qa@bcr.test': { id: 'a0000000-0000-4000-8000-000000000003', password: 'pw', full_name: 'Quique QA <b>', role: 'QA', active: true },
   'off@bcr.test': { id: 'a0000000-0000-4000-8000-000000000004', password: 'pw', full_name: 'Inactivo', role: 'QA', active: false },
 };
+// Pedidos a la base hechos con la contraseña temporal (la base real no da permisos hasta cambiarla).
+const tempCalls = [];
 const byId = (id) => Object.entries(users).find(([, u]) => u.id === id);
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const tokenFor = (u) => `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: u.id, role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 })}.sig`;
@@ -329,6 +331,11 @@ async function setup(context) {
       return json(200, { id: e[1].id, aud: 'authenticated', role: 'authenticated', email: e[0] });
     }
     if (url.pathname === '/auth/v1/logout') return r.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } });
+    // Como private.app_role(): con la contraseña temporal solo se lee el propio perfil.
+    if (url.pathname.startsWith('/rest/v1/') && url.pathname !== '/rest/v1/profiles' && byId(subOf(req))?.[1].must_change_password) {
+      tempCalls.push(url.pathname);
+      return json(403, { code: '42501', message: 'permission denied' });
+    }
 
     if (url.pathname === '/rest/v1/profiles') {
       const me = byId(subOf(req))?.[1];
@@ -924,10 +931,10 @@ resetData();
   const c2 = await newPage();
   await c2.page.goto('http://app.test/index.html');
   await login(c2.page, 'nora@bcr.test', temp);
-  await c2.page.waitForSelector('.layout', { state: 'visible' });
-  assert.equal(await c2.page.textContent('#sidebar-user-role'), 'QA Lead');
-  // Primer ingreso: el diálogo se abre solo, sin "Cancelar", y Escape no lo cierra.
+  // Primer ingreso: el diálogo se abre solo, antes de cargar la app, sin "Cancelar", y Escape no lo cierra.
   await c2.page.waitForSelector('#pw-dialog[open]');
+  assert.equal(await c2.page.isVisible('.layout'), false);
+  await c2.page.screenshot({ path: DIR + 'tests/shot-temporal.png' });
   assert.equal(await c2.page.textContent('#pw-title'), 'Cambiá tu contraseña temporal');
   assert.equal(await c2.page.isVisible('#pw-cancel'), false);
   assert.equal(await c2.page.isVisible('#pw-logout'), true);
@@ -949,7 +956,12 @@ resetData();
   await c2.page.waitForSelector('#pw-status.ok');
   assert.equal(users['nora@bcr.test'].password, 'nueva-clave-segura');
   await c2.page.waitForSelector('#pw-dialog', { state: 'hidden' });
-  ok('primer ingreso: obliga a cambiar la contraseña temporal (sin Cancelar ni Escape)');
+  // Con la contraseña nueva entra y carga los datos; antes no pidió nada más que su perfil.
+  await c2.page.waitForSelector('.layout', { state: 'visible' });
+  assert.equal(await c2.page.textContent('#sidebar-user-role'), 'QA Lead');
+  await c2.page.waitForSelector('#project-grid .proj-btn', { state: 'attached' });
+  assert.deepEqual(tempCalls, []);
+  ok('primer ingreso: obliga a cambiar la contraseña temporal antes de cargar la app (sin Cancelar ni Escape)');
   await c2.context.close();
 
   // Al volver a entrar ya no lo pide, y el ADMIN ve el estado de cada usuario.
@@ -1841,6 +1853,28 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   await page.waitForTimeout(800);
   await page.screenshot({ path: DIR + 'tests/shot-tema-movil.png' });
   ok('Tema en celular: el interruptor está junto a los botones de cuenta');
+  await context.close();
+}
+
+// Seguridad: no toma la sesión de un enlace y no se muestra dentro de un iframe de otro sitio.
+{
+  const { context, page } = await newPage();
+  const qa = users['qa@bcr.test'];
+  await page.goto(`http://app.test/index.html#access_token=${tokenFor(qa)}&refresh_token=r-${qa.id}&expires_in=3600&token_type=bearer&type=magiclink`);
+  await page.waitForSelector('#auth-form', { state: 'visible' });
+  assert.equal(await page.isVisible('.layout'), false);
+  ok('un enlace con #access_token no inicia sesión: hay que entrar con correo y contraseña');
+
+  await context.route('http://otro.test/**', (r) => r.fulfill({ contentType: 'text/html', body: '<iframe src="http://app.test/index.html" width="800" height="600"></iframe>' }));
+  await page.goto('http://otro.test/');
+  await new Promise((r) => setTimeout(r, 800));
+  if (!page.url().startsWith('http://app.test/')) {
+    const frame = page.frames().find((f) => f.url().startsWith('http://app.test/'));
+    assert.ok(frame, 'no cargó el iframe');
+    await frame.waitForLoadState('domcontentloaded');
+    assert.equal(await frame.evaluate(() => getComputedStyle(document.documentElement).display), 'none');
+  }
+  ok('dentro de un iframe de otro sitio la app no se muestra (clickjacking)');
   await context.close();
 }
 

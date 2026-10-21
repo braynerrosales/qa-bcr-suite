@@ -176,6 +176,13 @@ En la app: *Administración → Usuarios* → nombre, correo, rol y contraseña 
 
 **Siempre queda un ADMIN:** la base rechaza quitarle el rol, desactivar o eliminar al último ADMIN activo (`20261022000001_admins_y_sesiones.sql`, pruebas en `supabase/tests/admins_test.sql`); la app muestra «Tiene que quedar al menos un ADMIN activo.».
 
+**Endurecimiento de permisos** (`20261024000001_seguridad.sql`, pruebas en `supabase/tests/seguridad_test.sql`):
+- Un usuario nuevo nace **inactivo**: solo lo activa la función al crearlo desde la app. Si alguien se registrara por su cuenta, no ve nada.
+- Con la **contraseña temporal** la base no da permisos: la app pide el cambio antes de cargar los datos.
+- El historial del Daily solo se guarda con `daily_guardar`, y un día ya guardado solo lo reemplaza quien lo guardó o un QA Lead/ADMIN.
+- Un ADMIN no le cambia la contraseña ni elimina a otro ADMIN: primero hay que cambiarle el rol.
+- **Orden al publicar:** primero la Edge Function `admin-create-user` y después la migración. Con la función vieja, los usuarios creados como QA quedarían inactivos.
+
 **Cambiar nombre:** en la lista, *Cambiar nombre* edita el nombre en la misma fila (Enter guarda, Esc cancela). Sirve también para el propio usuario. Lo guarda `profiles.full_name` (solo ADMIN, por RLS); no hace falta SQL nuevo.
 
 **Eliminar usuario:** en la lista, *Eliminar* (no aparece en tu propio usuario) pide confirmación y lo borra con la función `admin-create-user` (`action: 'delete_user'`): se borran su usuario, su perfil y su historial del QA Generator; en lo que modificó queda el registro sin el «modificado por». A quien tiene horas o ajustes de horas no se lo puede eliminar (`20261021000001_conservar_horas_al_eliminar.sql`), para no cambiar informes ya enviados: para que no entre más, desmarcá *Activo*. Requiere `20261019000001_feedback_y_eliminar_usuarios.sql` y volver a publicar la función (pegar `index.ts` → *Deploy*, *Verify JWT* desactivado).

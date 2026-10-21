@@ -9,6 +9,12 @@ begin;
 insert into auth.users (id, email, raw_user_meta_data) values
     ('00000000-0000-0000-0000-0000000000e1', 'beta@test.local', '{"full_name":"Test Beta"}'),
     ('00000000-0000-0000-0000-0000000000e2', 'lead@test.local', '{"full_name":"Test Lead"}');
+-- Los perfiles nacen inactivos y con la contraseña temporal (20261024000001_seguridad.sql): se dejan listos.
+update public.profiles set active = true, must_change_password = false
+where id in (
+    '00000000-0000-0000-0000-0000000000e1',
+    '00000000-0000-0000-0000-0000000000e2'
+);
 update public.profiles set role = 'BETA'    where id = '00000000-0000-0000-0000-0000000000e1';
 update public.profiles set role = 'QA_LEAD' where id = '00000000-0000-0000-0000-0000000000e2';
 

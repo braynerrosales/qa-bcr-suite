@@ -12,6 +12,14 @@ insert into auth.users (id, email, raw_user_meta_data) values
     ('00000000-0000-0000-0000-00000000000b', 'lead@test.local',     '{"full_name":"Test Lead"}'),
     ('00000000-0000-0000-0000-00000000000c', 'qa@test.local',       '{"full_name":"Test QA"}'),
     ('00000000-0000-0000-0000-00000000000d', 'inactivo@test.local', '{"full_name":"Test Inactivo"}');
+-- Los perfiles nacen inactivos y con la contraseña temporal (20261024000001_seguridad.sql): se dejan listos.
+update public.profiles set active = true, must_change_password = false
+where id in (
+    '00000000-0000-0000-0000-00000000000a',
+    '00000000-0000-0000-0000-00000000000b',
+    '00000000-0000-0000-0000-00000000000c',
+    '00000000-0000-0000-0000-00000000000d'
+);
 
 update public.profiles set role = 'ADMIN'   where id = '00000000-0000-0000-0000-00000000000a';
 update public.profiles set role = 'QA_LEAD' where id = '00000000-0000-0000-0000-00000000000b';
@@ -103,9 +111,8 @@ begin
         raise notice 'OK: QA no puede guardar generaciones a nombre de otro';
     end;
 
-    insert into public.daily_runs (daily_group_id) values ((select group_id from test_ids));
-    insert into public.daily_run_members (daily_run_id, member_name, position)
-        values (currval(pg_get_serial_sequence('public.daily_runs', 'id')), 'Persona', 1);
+    -- El Daily se registra con daily_guardar (20261024000001_seguridad.sql).
+    perform * from public.daily_guardar((select group_id from test_ids), current_date, '[{"name":"Persona","position":1}]');
     update public.daily_run_members set completed = true
         where daily_run_id = currval(pg_get_serial_sequence('public.daily_runs', 'id'));
     raise notice 'OK: QA registra un Daily y marca completados';

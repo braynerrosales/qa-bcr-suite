@@ -11,6 +11,9 @@ const ALLOWED_ORIGINS = ['https://braynerrosales.github.io'];
 const ROLES = ['ADMIN', 'QA_LEAD', 'QA', 'BETA'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Un ADMIN no le cambia la contraseña ni elimina a otro ADMIN: así nadie entra con la cuenta de otro.
+// Para hacerlo, primero se le quita el rol (queda a la vista en la lista).
+const ADMIN_TARGET = 'Es ADMIN: primero cambiale el rol en la lista.';
 
 function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') ?? '';
@@ -47,9 +50,11 @@ Deno.serve(async (req) => {
   if (!token) return reply(401, { error: 'Falta la sesión.' });
   const { data: auth, error: authError } = await admin.auth.getUser(token);
   if (authError || !auth.user) return reply(401, { error: 'La sesión no es válida. Iniciá sesión de nuevo.' });
-  const { data: me, error: meError } = await admin.from('profiles').select('role, active').eq('id', auth.user.id).maybeSingle();
+  const { data: me, error: meError } = await admin.from('profiles').select('role, active, must_change_password').eq('id', auth.user.id).maybeSingle();
   if (meError) return reply(500, { error: 'No se pudo comprobar tu perfil.' });
   if (!me || !me.active || me.role !== 'ADMIN') return reply(403, { error: 'Solo un ADMIN puede crear usuarios.' });
+  // Igual que en la base: con la contraseña temporal no hay permisos.
+  if (me.must_change_password) return reply(403, { error: 'Cambiá tu contraseña temporal antes de administrar usuarios.' });
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return reply(400, { error: 'Datos inválidos.' }); }
@@ -60,9 +65,10 @@ Deno.serve(async (req) => {
     const id = String(body.id ?? '');
     if (!UUID_RE.test(id)) return reply(400, { error: 'Usuario inválido.' });
     if (id === auth.user.id) return reply(400, { error: 'No podés eliminar tu propio usuario.' });
-    const { data: target, error: targetError } = await admin.from('profiles').select('id').eq('id', id).maybeSingle();
+    const { data: target, error: targetError } = await admin.from('profiles').select('id, role').eq('id', id).maybeSingle();
     if (targetError) return reply(500, { error: 'No se pudo buscar el usuario.' });
     if (!target) return reply(404, { error: 'El usuario no existe.' });
+    if (target.role === 'ADMIN') return reply(403, { error: ADMIN_TARGET });
     const [horas, ajustes] = await Promise.all([
       admin.from('horas').select('id', { count: 'exact', head: true }).eq('user_id', id),
       admin.from('horas_ajustes').select('id', { count: 'exact', head: true }).eq('user_id', id),
@@ -84,9 +90,10 @@ Deno.serve(async (req) => {
     const id = String(body.id ?? '');
     if (!UUID_RE.test(id)) return reply(400, { error: 'Usuario inválido.' });
     if (id === auth.user.id) return reply(400, { error: 'Para tu propia contraseña usá "Clave".' });
-    const { data: target, error: targetError } = await admin.from('profiles').select('id').eq('id', id).maybeSingle();
+    const { data: target, error: targetError } = await admin.from('profiles').select('id, role').eq('id', id).maybeSingle();
     if (targetError) return reply(500, { error: 'No se pudo buscar el usuario.' });
     if (!target) return reply(404, { error: 'El usuario no existe.' });
+    if (target.role === 'ADMIN') return reply(403, { error: ADMIN_TARGET });
     const { error: pwError } = await admin.auth.admin.updateUserById(id, { password });
     if (pwError) return reply(400, { error: 'No se pudo cambiar la contraseña: ' + pwError.message });
     // Quien estaba dentro con la contraseña vieja no puede renovar su sesión.
@@ -108,7 +115,7 @@ Deno.serve(async (req) => {
   if (!fullName || fullName.length > 120) return reply(400, { error: 'Falta el nombre completo (máximo 120 caracteres).' });
   if (!ROLES.includes(role)) return reply(400, { error: 'Rol inválido.' });
 
-  // 3. Crear en Auth (confirmado: no depende del correo). El trigger crea el perfil como QA.
+  // 3. Crear en Auth (confirmado: no depende del correo). El trigger crea el perfil como QA inactivo.
   const { data: created, error: createError } = await admin.auth.admin.createUser({
     email, password, email_confirm: true, user_metadata: { full_name: fullName },
   });
@@ -117,9 +124,8 @@ Deno.serve(async (req) => {
     return reply(exists ? 409 : 400, { error: exists ? 'Ya existe un usuario con ese correo.' : 'No se pudo crear el usuario: ' + createError?.message });
   }
   const id = created.user.id;
-  if (role !== 'QA') {
-    const { error: roleError } = await admin.from('profiles').update({ role }).eq('id', id);
-    if (roleError) return reply(500, { error: 'Usuario creado como QA, pero no se pudo asignar el rol. Cambialo en la lista.', id });
-  }
+  // Solo lo que crea un ADMIN acá queda activo (alguien registrado por su cuenta no).
+  const { error: roleError } = await admin.from('profiles').update({ role, active: true }).eq('id', id);
+  if (roleError) return reply(500, { error: 'Usuario creado, pero no se pudo activar ni asignar el rol. Marcá "Activo" y elegí el rol en la lista.', id });
   return reply(200, { id, email, full_name: fullName, role });
 });

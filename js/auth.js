@@ -34,7 +34,9 @@ function showApp(){
 async function initAuth(){
   if(!SUPABASE_URL||!SUPABASE_ANON_KEY){showAuth('blocked','Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY en js/config.js.');return;}
   if(!window.supabase){showAuth('blocked','No se pudo cargar la librería de Supabase. Revisá la conexión y recargá la página.');return;}
-  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  // La app solo entra con correo y contraseña: no toma una sesión que venga en el enlace (#access_token=…),
+  // así nadie hace entrar a otra persona con su cuenta mandándole un link.
+  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{detectSessionInUrl:false}});
   // Solo UI aquí: supabase-js no permite llamar a otros métodos de auth dentro de este callback.
   supabaseClient.auth.onAuthStateChange(event=>{
     if(event==='SIGNED_OUT'){currentUser=null;clearCache();showAuth('login');}
@@ -71,6 +73,9 @@ async function enterWithSession(){
   }
   if(!currentUser){showAuth('blocked','Tu usuario no tiene perfil en QA BCR Suite. Pedile a un administrador que lo revise.');return;}
   if(!currentUser.active){showAuth('blocked','Tu usuario está desactivado. Pedile a un administrador que lo reactive.');return;}
+  // Primer ingreso con la contraseña temporal: la base no da permisos hasta cambiarla,
+  // así que se pide antes de cargar nada. Al cambiarla, changePassword vuelve a entrar.
+  if(currentUser.must_change_password){showAuth('password');openPasswordDialog(true);return;}
   try{
     await loadConfig();
   }catch(e){
@@ -83,8 +88,6 @@ async function enterWithSession(){
     showNotice(`Sin conexión con Supabase: se muestran los datos guardados el ${new Date(cache.savedAt).toLocaleString()}. Los cambios no se guardarán.`,true);
   }
   showApp();
-  // Primer ingreso con la contraseña temporal: hay que cambiarla antes de usar la app.
-  if(currentUser.must_change_password)openPasswordDialog(true);
 }
 
 function loginErrorMessage(error){

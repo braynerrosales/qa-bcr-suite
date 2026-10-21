@@ -240,9 +240,9 @@ async function changePassword(event){
     return;
   }
   st.className='status-msg ok';st.textContent='Contraseña actualizada.';
-  if(currentUser)currentUser.must_change_password=false;
-  const d=document.getElementById('pw-dialog');d.dataset.forced='';
-  setTimeout(()=>d.close(),1200);
+  const d=document.getElementById('pw-dialog'),forced=!!d.dataset.forced;d.dataset.forced='';
+  // Era la temporal: recién ahora la base da permisos, así que se entra de nuevo y se cargan los datos.
+  setTimeout(()=>{d.close();if(forced)enterWithSession();},1200);
 }
 function closeForcedAndLogout(){const d=document.getElementById('pw-dialog');d.dataset.forced='';d.close();logout();}
 // Con la contraseña temporal el diálogo no se cierra con Escape.

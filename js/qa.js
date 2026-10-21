@@ -5,7 +5,7 @@ let selectedProject=null, selectedVariant=null;
 function renderProjectButtons(){
   const grid=document.getElementById('project-grid');
   const keys=Object.keys(DB.projects);
-  grid.innerHTML=keys.length?keys.map(key=>`<button class="proj-btn" data-type="${escapeHtml(key)}" data-click="selectProject"><span class="proj-dot" style="background:${escapeHtml(DB.projects[key].color||'#888888')}"></span> ${escapeHtml(key)}</button>`).join(''):'<div class="crud-empty">No hay proyectos configurados.</div>';
+  grid.innerHTML=keys.length?keys.map(key=>`<button class="proj-btn" data-type="${escapeHtml(key)}" data-click="selectProject"><span class="proj-dot" style="background:${projColor(DB.projects[key].color)}"></span> ${escapeHtml(key)}</button>`).join(''):'<div class="crud-empty">No hay proyectos configurados.</div>';
 }
 // Tras recargar los datos, mantiene el proyecto y la variante elegidos si siguen existiendo.
 function refreshQaSelection(){

@@ -8,6 +8,12 @@ begin;
 insert into auth.users (id, email, raw_user_meta_data) values
     ('00000000-0000-0000-0000-0000000000b7', 'cierre-qa@test.local',   '{"full_name":"Cierre QA"}'),
     ('00000000-0000-0000-0000-0000000000b8', 'cierre-lead@test.local', '{"full_name":"Cierre Lead"}');
+-- Los perfiles nacen inactivos y con la contraseña temporal (20261024000001_seguridad.sql): se dejan listos.
+update public.profiles set active = true, must_change_password = false
+where id in (
+    '00000000-0000-0000-0000-0000000000b7',
+    '00000000-0000-0000-0000-0000000000b8'
+);
 update public.profiles set role = 'QA_LEAD' where id = '00000000-0000-0000-0000-0000000000b8';
 
 -- Una línea en una semana cerrada (hace tres semanas) y otra en la más vieja abierta.

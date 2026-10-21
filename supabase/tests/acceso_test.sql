@@ -7,6 +7,9 @@ begin;
 insert into auth.users (id, email, raw_user_meta_data, encrypted_password) values
     ('00000000-0000-0000-0000-0000000000a2', 'acc-admin@test.local', '{"full_name":"Acc Admin"}', 'x'),
     ('00000000-0000-0000-0000-0000000000c2', 'acc-qa@test.local',    '{"full_name":"Acc QA"}',    'temporal');
+-- Los perfiles nacen inactivos y con la contraseña temporal (20261024000001_seguridad.sql): se dejan listos.
+update public.profiles set active = true where id in ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000c2');
+update public.profiles set must_change_password = false where id = '00000000-0000-0000-0000-0000000000a2';
 update public.profiles set role = 'ADMIN' where id = '00000000-0000-0000-0000-0000000000a2';
 
 do $$
