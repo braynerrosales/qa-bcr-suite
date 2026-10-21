@@ -583,7 +583,9 @@ async function login(page, email, password = 'pw') {
   ok('ADMIN: cambia el rol y ve "Guardado"');
 
   rejectNextPatch = true;
-  await qaRow.locator('input[type=checkbox]').uncheck();
+  // click y no uncheck: la app vuelve a marcar la casilla al fallar, y uncheck reintentaría el clic
+  // (el segundo cambio ya no se rechaza y se guarda).
+  await qaRow.locator('input[type=checkbox]').click();
   await page.waitForSelector('#users-status.error');
   await page.waitForFunction(() => document.querySelector('#list-users .crud-item:nth-child(3) input[type=checkbox]')?.checked !== undefined);
   const checked = await page.locator('#list-users .crud-item', { hasText: 'qa@bcr.test' }).locator('input[type=checkbox]').isChecked();
@@ -1613,7 +1615,7 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
 
   rejectNextPatch = true;
   const qbox = page.locator('#hrs-picker-list label', { hasText: 'Quique' }).locator('input');
-  await qbox.uncheck();
+  await qbox.click(); // click y no uncheck: ver "ADMIN: si Supabase rechaza el cambio"
   await page.waitForSelector('#hrs-status.error');
   assert.equal(await qbox.isChecked(), true, 'si no se guarda, la casilla vuelve a como estaba');
   ok('Horas (ADMIN): si no se puede guardar la elección, avisa y deja la casilla como estaba');
