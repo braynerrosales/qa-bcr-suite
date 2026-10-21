@@ -33,9 +33,12 @@ function solSubscribe(){
 // Cada usuario tiene su propio visto (solicitudes_novedades / solicitudes_marcar_visto).
 let solBadgeTimer=null;
 function setSolBadge(n){
-  ['sol-badge','msol-badge'].forEach(id=>{
+  // El número va en el nombre del botón: el lector de pantalla no lee un aria-label en un span.
+  [['nav-solicitudes','sol-badge'],['mnav-solicitudes','msol-badge']].forEach(([btn,id])=>{
     const b=document.getElementById(id);
-    b.hidden=!n;b.textContent=n||'';b.setAttribute('aria-label',n===1?'1 novedad':(n||0)+' novedades');
+    b.hidden=!n;b.textContent=n||'';
+    if(n)document.getElementById(btn).setAttribute('aria-label','Solicitudes, '+(n===1?'1 novedad':n+' novedades'));
+    else document.getElementById(btn).removeAttribute('aria-label');
   });
 }
 async function refreshSolBadge(){

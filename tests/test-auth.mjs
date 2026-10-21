@@ -1421,10 +1421,17 @@ resetData();
   rtPush('INSERT', { ...fila });
   await adm.page.waitForSelector('#sol-badge:not([hidden])');
   assert.equal(await adm.page.textContent('#sol-badge'), '1');
-  assert.equal(await adm.page.getAttribute('#sol-badge', 'aria-label'), '1 novedad');
+  // El número es parte del nombre del botón (un aria-label en un span no lo lee el lector de pantalla).
+  assert.equal(await adm.page.getAttribute('#nav-solicitudes', 'aria-label'), 'Solicitudes, 1 novedad');
+  assert.equal(await adm.page.getAttribute('#mnav-solicitudes', 'aria-label'), 'Solicitudes, 1 novedad');
+  assert.equal(await adm.page.getAttribute('#sol-badge', 'aria-hidden'), 'true');
   assert.equal(await adm.page.textContent('#msol-badge'), '1');
   assert.equal(await adm.page.getAttribute('#msol-badge', 'hidden'), null);
   assert.equal(await lead.page.isVisible('#sol-badge'), false, 'el autor no ve su propio aviso');
+  await adm.page.screenshot({ path: DIR + 'tests/shot-sol-aviso.png' });
+  await adm.page.emulateMedia({ colorScheme: 'dark' });
+  await adm.page.screenshot({ path: DIR + 'tests/shot-sol-aviso-oscuro.png' });
+  await adm.page.emulateMedia({ colorScheme: 'light' });
 
   // Una ráfaga de cambios en vivo se junta en una sola consulta por pestaña.
   await new Promise((r) => setTimeout(r, 500));
@@ -1442,6 +1449,11 @@ resetData();
   assert.equal(await tag(adm.page, fila.id).textContent(), 'Nueva');
   assert.equal(await adm.page.isVisible('#sol-badge'), false);
   assert.equal(await adm.page.locator('#sol-body .sol-new:not([hidden])').count(), 1, 'solo lo nuevo lleva etiqueta');
+  assert.equal(await adm.page.getAttribute('#nav-solicitudes', 'aria-label'), null, 'sin novedades el botón se llama Solicitudes');
+  await adm.page.screenshot({ path: DIR + 'tests/shot-sol-etiqueta.png' });
+  await adm.page.emulateMedia({ colorScheme: 'dark' });
+  await adm.page.screenshot({ path: DIR + 'tests/shot-sol-etiqueta-oscuro.png' });
+  await adm.page.emulateMedia({ colorScheme: 'light' });
   // Mientras está en la pantalla, lo que llega en vivo se etiqueta y no sube el contador.
   const vistos = rpcCalls.marcarVisto;
   // Una abierta, sin plan enviado y de antes (sin autor).
@@ -1490,6 +1502,20 @@ resetData();
   ok('Solicitudes: QA no tiene contador ni canal, aunque antes hubiera entrado un ADMIN en la misma pestaña');
   await adm.context.close();
   await lead.context.close();
+
+  // En el celular el contador va en el menú de arriba.
+  const mob = await newPage({ width: 375, height: 812 });
+  vistas[admId] = new Date(Date.parse(fila.created_at) - 1000).toISOString();
+  await mob.page.goto('http://app.test/index.html');
+  await login(mob.page, 'admin@bcr.test');
+  await mob.page.waitForSelector('#msol-badge:not([hidden])');
+  assert.ok(await mob.page.isVisible('#msol-badge'));
+  const overflow = await mob.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert.ok(overflow <= 0, 'scroll horizontal con el contador en móvil: ' + overflow);
+  await mob.page.locator('#mnav-solicitudes').scrollIntoViewIfNeeded();
+  await mob.page.screenshot({ path: DIR + 'tests/shot-sol-aviso-movil.png' });
+  ok('Solicitudes en móvil: el contador se ve en el menú de arriba sin desbordar');
+  await mob.context.close();
 }
 
 // 20. Horas: cada QA carga las suyas; leads corrigen las de todos; consolidado para todos
