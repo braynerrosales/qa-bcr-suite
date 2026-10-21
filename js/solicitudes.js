@@ -63,10 +63,11 @@ function solBadgeSoon(){clearTimeout(solBadgeTimer);solBadgeTimer=setTimeout(ref
 let SOL_SEEN_PREV=null,SOL_LOADING=Promise.resolve();
 async function solMarkSeen({keepPrev=false}={}){
   const {data,error}=await supabaseClient.rpc('solicitudes_marcar_visto');
-  if(error){if(!keepPrev)SOL_SEEN_PREV=null;return;}
+  if(error){if(!keepPrev)SOL_SEEN_PREV=null;return null;}
   if(!keepPrev)SOL_SEEN_PREV=data;
   solBadgeGen++;clearTimeout(solBadgeTimer);
   setSolBadge(0);
+  return data;
 }
 function solNovedad(r){
   if(!SOL_SEEN_PREV)return null;
@@ -77,8 +78,9 @@ function solNovedad(r){
 }
 function solEditing(){return document.getElementById('sol-body').contains(document.activeElement);}
 function solOnChange(p){
-  if(solPageOpen()){if(p.new&&solNovedad(p.new))solMarkSeen({keepPrev:true});}
-  else if(avisosOpen())refreshAvisosOpen();
+  // Con la campana abierta (en cualquier pantalla) se recarga su lista y se marca visto.
+  if(avisosOpen())refreshAvisosOpen();
+  else if(solPageOpen()){if(p.new&&solNovedad(p.new))solMarkSeen({keepPrev:true});}
   else solBadgeSoon();
   const body=document.getElementById('sol-body');
   if(p.eventType==='DELETE'){

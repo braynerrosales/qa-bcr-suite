@@ -57,6 +57,7 @@ const rpcCalls = { novedades: 0, marcarVisto: 0 };
 let rejectNextVisto = false;
 let delayNovedades = 0; // ms: respuesta atrasada del contador
 let failAvisos = false; // solicitudes_avisos responde 500
+const avisosDelays = []; // ms de demora para las próximas respuestas de solicitudes_avisos
 const isoDay = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('en-CA'); };
 const solicitudesIniciales = () => [
   { id: 1, nombre: 'Solicitud P3_081 Gobierno <b>Digital</b>', informe_semanal: true, encargados: ['Beto Uno'], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: true, cierre_enviado: false, cierra: isoDay(5), observaciones: '', cerrada: false },
@@ -422,7 +423,9 @@ async function setup(context) {
       const me = byId(subOf(req))?.[1];
       if (!isLead(me)) return json(403, { code: '42501', message: 'Sin permiso' });
       if (failAvisos) return json(500, { code: 'XX000', message: 'falla simulada' });
-      return json(200, solAvisos(me));
+      const rows = solAvisos(me), d = avisosDelays.shift();
+      if (d) await new Promise((r) => setTimeout(r, d));
+      return json(200, rows);
     }
     if (url.pathname === '/rest/v1/rpc/solicitudes_novedades' || url.pathname === '/rest/v1/rpc/solicitudes_marcar_visto') {
       const me = byId(subOf(req))?.[1];
@@ -1647,6 +1650,43 @@ resetData();
   await adm.page.click('#nav-daily');
   await adm.page.waitForSelector('#avisos-panel', { state: 'hidden' });
   ok('Campana: si falla la carga se puede reintentar; cambiar de pantalla cierra el panel');
+
+  // Esc cierra aunque el foco ya no esté dentro del panel.
+  await adm.page.click('#avisos-btn');
+  await adm.page.waitForSelector('#avisos-panel[open] .aviso');
+  await adm.page.evaluate(() => document.activeElement.blur());
+  await adm.page.keyboard.press('Escape');
+  await adm.page.waitForSelector('#avisos-panel', { state: 'hidden' });
+  ok('Campana: Esc la cierra aunque el foco esté afuera');
+
+  // Con Solicitudes abierta, el panel también se actualiza en vivo y no pierde el foco.
+  const nuevaFila = (id, nombre) => {
+    const r = { ...fila, id, nombre, cerrada: false, cierre_enviado: false, created_at: new Date().toISOString() };
+    tables.solicitudes.push(r); rtPush('INSERT', { ...r }); return r;
+  };
+  const primero = () => adm.page.locator('#avisos-list .aviso-txt').first().textContent();
+  await adm.page.click('#nav-solicitudes');
+  await adm.page.waitForSelector('#sol-body tr');
+  await adm.page.click('#avisos-btn');
+  await adm.page.waitForSelector('#avisos-panel[open] .aviso');
+  nuevaFila(410, 'Solicitud P3_410 Con la tabla');
+  await until(adm.page, () => document.querySelector('#avisos-list .aviso-txt')?.textContent === 'Laura Lead creó Solicitud P3_410 Con la tabla');
+  await adm.page.locator('#avisos-list .aviso').nth(1).focus();
+  const enfocado = await adm.page.evaluate(() => document.activeElement.querySelector('.aviso-txt')?.textContent);
+  nuevaFila(411, 'Solicitud P3_411 Foco');
+  await until(adm.page, () => document.querySelector('#avisos-list .aviso-txt')?.textContent === 'Laura Lead creó Solicitud P3_411 Foco');
+  assert.equal(await adm.page.evaluate(() => document.activeElement.querySelector?.('.aviso-txt')?.textContent), enfocado, 'el foco sigue en el mismo aviso');
+  ok('Campana: con Solicitudes abierta se actualiza en vivo y conserva el aviso enfocado');
+
+  // Una carga lenta no pisa a una más nueva.
+  avisosDelays.push(1500);
+  nuevaFila(412, 'Solicitud P3_412 Lenta');
+  await new Promise((r) => setTimeout(r, 450));
+  nuevaFila(413, 'Solicitud P3_413 Rápida');
+  await new Promise((r) => setTimeout(r, 2500));
+  assert.equal(await primero(), 'Laura Lead creó Solicitud P3_413 Rápida', 'la respuesta vieja pisó la lista');
+  ok('Campana: una carga atrasada no reemplaza a una más nueva');
+  await adm.page.keyboard.press('Escape');
   await adm.context.close();
   await lead.context.close();
 

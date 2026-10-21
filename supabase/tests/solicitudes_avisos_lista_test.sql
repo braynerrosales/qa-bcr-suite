@@ -3,6 +3,8 @@
 -- Corre dentro de una transacción que termina en ROLLBACK: no deja nada guardado.
 -- Cada prueba imprime "OK ..." o aborta con "FALLO ...".
 -- now() no avanza dentro de la transacción: las fechas se preparan como superusuario.
+-- En una base con datos reales, la lista también trae avisos de otras solicitudes de los últimos
+-- 7 días: por eso los chequeos miran solo las de esta prueba (nombre 'Li-...').
 
 begin;
 
@@ -64,7 +66,7 @@ begin
     end if;
     raise notice 'OK: sin avisos de más de 7 días ni de planes destildados';
 
-    if exists (select 1 from public.solicitudes_avisos() where sin_ver) then
+    if exists (select 1 from public.solicitudes_avisos() where sin_ver and nombre like 'Li-%') then
         raise exception 'FALLO: sin visto guardado algún aviso sale sin ver';
     end if;
     if exists (select 1 from public.solicitudes_vistas where user_id = auth.uid()) then
@@ -85,9 +87,9 @@ begin
     if n <> 2 then raise exception 'FALLO: Li-plan debería salir como nueva y como plan (sale % veces)', n; end if;
     raise notice 'OK: la misma solicitud sale como creada y como plan enviado';
 
-    select count(*) into n from public.solicitudes_avisos() where sin_ver;
+    select count(*) into n from public.solicitudes_avisos() where sin_ver and nombre like 'Li-%';
     if n <> 2 then raise exception 'FALLO: deberían salir 2 sin ver (los de Li-plan) y salen %', n; end if;
-    if exists (select 1 from public.solicitudes_avisos() where sin_ver and nombre <> 'Li-plan') then
+    if exists (select 1 from public.solicitudes_avisos() where sin_ver and nombre like 'Li-%' and nombre <> 'Li-plan') then
         raise exception 'FALLO: sale sin ver un aviso anterior al visto';
     end if;
     raise notice 'OK: sin_ver marca solo lo posterior al visto';
@@ -98,10 +100,10 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 do $$
 declare n int;
 begin
-    if exists (select 1 from public.solicitudes_avisos() where tipo = 'nueva') then
+    if exists (select 1 from public.solicitudes_avisos() where tipo = 'nueva' and nombre like 'Li-%') then
         raise exception 'FALLO: el autor ve sus propias solicitudes creadas';
     end if;
-    select count(*) into n from public.solicitudes_avisos() where tipo = 'plan';
+    select count(*) into n from public.solicitudes_avisos() where tipo = 'plan' and nombre like 'Li-%';
     if n <> 1 then raise exception 'FALLO: el autor debería ver el plan de otro (ve %)', n; end if;
     raise notice 'OK: el autor no ve lo suyo y sí lo de otros';
 end $$ language plpgsql;
@@ -129,7 +131,7 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
 do $$
 begin
-    if exists (select 1 from public.solicitudes_avisos() where tipo = 'plan') then
+    if exists (select 1 from public.solicitudes_avisos() where tipo = 'plan' and nombre like 'Li-%') then
         raise exception 'FALLO: sigue el aviso de una persona borrada';
     end if;
     raise notice 'OK: al borrar a una persona su aviso sale de la lista';
