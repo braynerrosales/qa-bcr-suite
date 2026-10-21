@@ -11,7 +11,7 @@ Además del número junto a «Solicitudes», una campana que al tocarla muestra 
 | Tema | Decisión |
 |---|---|
 | Convivencia | Campana **y** número en «Solicitudes». Muestran el mismo conteo y se ponen en cero juntos. |
-| Qué lista | Los últimos **10** avisos de los últimos **7 días**, hechos por otra persona. Los no vistos van resaltados; los vistos, en gris. |
+| Qué lista | Los últimos **10** avisos de los últimos **7 días**, propios y de otras personas. Lo propio dice «Creaste …» / «Pasaste … a Plan enviado», nunca sale resaltado y no suma al número (cambio del 2026-10-21). Los no vistos van resaltados; los vistos, en gris. |
 | Visto | Abrir la campana marca visto, igual que entrar a Solicitudes. Es la misma marca por persona de hoy (`solicitudes_marcar_visto`). |
 | Quién | QA Lead y Admin activos, como hoy. QA no ve la campana. |
 

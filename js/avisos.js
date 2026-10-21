@@ -1,6 +1,6 @@
-// QA BCR Suite — Campana de avisos (QA Lead y Admin): qué solicitudes agregó o pasó a
-// "Plan enviado" otra persona en los últimos 7 días (solicitudes_avisos). Abrirla marca visto,
-// igual que entrar a Solicitudes; lo posterior al visto anterior sale resaltado.
+// QA BCR Suite — Campana de avisos (QA Lead y Admin): qué solicitudes se agregaron o pasaron a
+// "Plan enviado" en los últimos 7 días (solicitudes_avisos), también las propias. Abrirla marca
+// visto, igual que entrar a Solicitudes; lo de otros posterior al visto anterior sale resaltado.
 let AVISOS_PREV=null,avisosBtn=null,avisosTimer=null;
 // Cada apertura y cada carga lleva su número: una respuesta vieja (de una apertura anterior
 // o de una carga más lenta) no pisa a la más nueva.
@@ -51,10 +51,12 @@ function renderAvisos(rows){
   const focused=document.activeElement?.closest?.('#avisos-list .aviso')?.dataset.key;
   list.replaceChildren(...rows.map(r=>{
     const li=document.createElement('li');
-    const b=Object.assign(document.createElement('button'),{type:'button',className:'aviso'+(prev&&new Date(r.fecha)>prev?' aviso-nuevo':'')});
+    const b=Object.assign(document.createElement('button'),{type:'button',className:'aviso'+(!r.propio&&prev&&new Date(r.fecha)>prev?' aviso-nuevo':'')});
     b.dataset.key=r.solicitud_id+':'+r.tipo;
     const txt=document.createElement('span');txt.className='aviso-txt';
-    txt.textContent=(r.autor||'Alguien')+(r.tipo==='plan'?` pasó ${r.nombre} a Plan enviado`:` creó ${r.nombre}`);
+    // Lo propio también se lista (sin resaltar), en segunda persona.
+    txt.textContent=r.propio?(r.tipo==='plan'?`Pasaste ${r.nombre} a Plan enviado`:`Creaste ${r.nombre}`)
+      :(r.autor||'Alguien')+(r.tipo==='plan'?` pasó ${r.nombre} a Plan enviado`:` creó ${r.nombre}`);
     const when=document.createElement('small');when.textContent=solAgo(r.fecha);
     b.append(txt,when);
     b.addEventListener('click',()=>goToSolicitud(r.solicitud_id));

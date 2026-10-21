@@ -167,16 +167,17 @@ function solStampNew(item, me) {
   const now = new Date().toISOString();
   return { updated_by: me.id, updated_at: now, created_at: now, created_by: me.id, ...(item.plan_enviado ? { plan_enviado_at: now, plan_enviado_by: me.id } : {}) };
 }
-// Igual que solicitudes_avisos() (20261026000001_solicitudes_avisos_lista.sql).
+// Igual que solicitudes_avisos() (20261027000001_solicitudes_avisos_propios.sql).
 function solAvisos(me) {
   const desde = new Date(Date.now() - 7 * 864e5).toISOString(), visto = vistas[me.id];
   const nombre = (id) => byId(id)?.[1].full_name ?? null;
   const ev = [];
   for (const s of tables.solicitudes) {
-    if (s.created_by && s.created_by !== me.id && s.created_at > desde) ev.push({ solicitud_id: s.id, nombre: s.nombre, tipo: 'nueva', autor: nombre(s.created_by), fecha: s.created_at });
-    if (s.plan_enviado && s.plan_enviado_by && s.plan_enviado_by !== me.id && s.plan_enviado_at > desde) ev.push({ solicitud_id: s.id, nombre: s.nombre, tipo: 'plan', autor: nombre(s.plan_enviado_by), fecha: s.plan_enviado_at });
+    if (s.created_by && s.created_at > desde) ev.push({ solicitud_id: s.id, nombre: s.nombre, tipo: 'nueva', autor: nombre(s.created_by), fecha: s.created_at, quien: s.created_by });
+    if (s.plan_enviado && s.plan_enviado_by && s.plan_enviado_at > desde) ev.push({ solicitud_id: s.id, nombre: s.nombre, tipo: 'plan', autor: nombre(s.plan_enviado_by), fecha: s.plan_enviado_at, quien: s.plan_enviado_by });
   }
-  return ev.sort((a, b) => b.fecha.localeCompare(a.fecha) || b.solicitud_id - a.solicitud_id).slice(0, 10).map((e) => ({ ...e, sin_ver: !!visto && e.fecha > visto }));
+  return ev.sort((a, b) => b.fecha.localeCompare(a.fecha) || b.solicitud_id - a.solicitud_id).slice(0, 10)
+    .map(({ quien, ...e }) => ({ ...e, propio: quien === me.id, sin_ver: quien !== me.id && !!visto && e.fecha > visto }));
 }
 // Igual que solicitudes_novedades(): lo que otros crearon o pasaron a plan enviado desde tu último visto.
 function solNovedades(me) {
@@ -1623,6 +1624,17 @@ resetData();
   rtPush('UPDATE', { ...sol }, { id: sol.id });
   await until(adm.page, (t) => document.querySelector('#avisos-list .aviso-txt')?.textContent === t, `Laura Lead pasó ${sol.nombre} a Plan enviado`);
   ok('Campana: con el panel abierto, lo que llega en vivo aparece arriba');
+
+  // Lo propio también está en la lista, sin resaltar y sin sumar al número.
+  assert.equal(await lead.page.isVisible('#avisos-btn .nav-count'), false, 'lo propio no suma al número');
+  await lead.page.click('#avisos-btn');
+  await lead.page.waitForSelector('#avisos-panel[open] .aviso');
+  const propios = await lead.page.locator('#avisos-list .aviso-txt').allTextContents();
+  assert.equal(propios[0], `Pasaste ${sol.nombre} a Plan enviado`);
+  assert.ok(propios.includes('Creaste Solicitud P3_400 <b>Campana</b>'), propios.join(' | '));
+  assert.equal(await lead.page.locator('#avisos-list .aviso-nuevo').count(), 0, 'lo propio no sale resaltado');
+  await lead.page.keyboard.press('Escape');
+  ok('Campana: lo propio aparece en la lista sin resaltar ni sumar al número');
 
   // Ir a una solicitud cerrada con el filtro en "Abiertas": cambia a "Todas" y resalta la fila.
   fila.cerrada = true; fila.cierre_enviado = true;

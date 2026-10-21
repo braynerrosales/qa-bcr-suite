@@ -95,17 +95,22 @@ begin
     raise notice 'OK: sin_ver marca solo lo posterior al visto';
 end $$ language plpgsql;
 
--- ── El autor no ve lo suyo ─────────────────────────────────
+-- ── El autor ve lo suyo marcado como propio y nunca sin ver ──
+reset role;
+insert into public.solicitudes_vistas (user_id, visto_at) values ('00000000-0000-0000-0000-0000000000b1', now() - interval '1 day');
+set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b1","role":"authenticated"}', true);
 do $$
 declare n int;
 begin
-    if exists (select 1 from public.solicitudes_avisos() where tipo = 'nueva' and nombre like 'Li-%') then
-        raise exception 'FALLO: el autor ve sus propias solicitudes creadas';
+    select count(*) into n from public.solicitudes_avisos() where tipo = 'nueva' and nombre like 'Li-%' and propio;
+    if n = 0 then raise exception 'FALLO: el autor no ve sus propias solicitudes creadas'; end if;
+    if exists (select 1 from public.solicitudes_avisos() where propio and sin_ver) then
+        raise exception 'FALLO: lo propio sale sin ver';
     end if;
-    select count(*) into n from public.solicitudes_avisos() where tipo = 'plan' and nombre like 'Li-%';
-    if n <> 1 then raise exception 'FALLO: el autor debería ver el plan de otro (ve %)', n; end if;
-    raise notice 'OK: el autor no ve lo suyo y sí lo de otros';
+    select count(*) into n from public.solicitudes_avisos() where tipo = 'plan' and nombre like 'Li-%' and not propio and sin_ver;
+    if n <> 1 then raise exception 'FALLO: el autor debería ver sin ver el plan de otro (ve %)', n; end if;
+    raise notice 'OK: el autor ve lo suyo como propio, sin resaltar, y lo de otros sin ver';
 end $$ language plpgsql;
 
 -- ── Sin permiso: QA y lead desactivado ─────────────────────
