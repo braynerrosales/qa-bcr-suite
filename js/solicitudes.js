@@ -4,12 +4,14 @@ let SOL=[];
 const SOL_CHECKS=[['informe_semanal','Informe semanal'],['pend_plan','Pendiente de plan'],['pend_actualizar','Pendiente de actualizar'],['plan_enviado','Plan enviado'],['cierre_enviado','Cierre enviado']];
 function setSolStatus(kind,text){const st=document.getElementById('sol-status');st.className=kind?'status-msg '+kind:'status-msg';st.textContent=text||'';}
 let SOL_NAMES=new Map(),solChannel=null,solLiveOnce=false;
-async function loadSolicitudes(){
+// idle: es una recarga automática; si mientras tanto alguien empezó a editar, no pisa lo que escribe.
+async function loadSolicitudes(idle=false){
   if(!canManageConfig())return;
   const [{data,error},people]=await Promise.all([
     supabaseClient.from('solicitudes').select('*').order('id'),
     supabaseClient.from('profiles').select('id,full_name')
   ]);
+  if(idle&&solEditing())return;
   if(error){setSolStatus('error','No se pudieron cargar las solicitudes'+errorDetail(error)+'.');return;}
   if(!people.error)SOL_NAMES=new Map((people.data||[]).map(p=>[p.id,p.full_name]));
   SOL=data||[];setSolStatus('');renderSolicitudes();
@@ -29,6 +31,17 @@ function solSubscribe(){
       if(live){if(solLiveOnce){loadSolicitudes();solBadgeSoon();}solLiveOnce=true;}
     });
 }
+// Por si un cambio no llegó en vivo (conexión caída, pestaña dormida): se vuelve a pedir
+// al volver a la pestaña y cada 2 minutos. La tabla no se recarga mientras se edita.
+function solEditing(){return !!document.querySelector('#sol-body :focus, dialog[open]');}
+function solRefresh(){
+  if(document.hidden||!currentUser||!canManageConfig())return;
+  if(avisosOpen())refreshAvisosOpen();
+  else if(solPageOpen()){if(!solEditing())loadSolicitudes(true);}
+  else solBadgeSoon();
+}
+document.addEventListener('visibilitychange',solRefresh);
+setInterval(solRefresh,120000);
 // Avisos: cuántas solicitudes creó o pasó a "Plan enviado" otra persona desde tu última visita.
 // Cada usuario tiene su propio visto (solicitudes_novedades / solicitudes_marcar_visto).
 let solBadgeTimer=null,solBadgeGen=0;
@@ -317,7 +330,8 @@ function renderNuevaEncargados(){
 }
 // "P3_081", "P2_191", "OPC_47": el código que identifica la solicitud dentro del nombre
 // (sin ceros a la izquierda, para que P3_081 y P3_81 cuenten como la misma).
-function solCodigo(nombre){const m=(nombre||'').match(/(P\d+|OPC)_?\s?(\d+)/i);return m?m[1].toUpperCase()+'_'+Number(m[2]):null;}
+// "P3_1XX" (código a medio escribir) no es P3_1: el número no puede seguir con letras.
+function solCodigo(nombre){const m=(nombre||'').match(/(P\d+|OPC)_?\s?(\d+)(?![\dA-Z])/i);return m?m[1].toUpperCase()+'_'+Number(m[2]):null;}
 async function addSolicitud(event){
   event.preventDefault();
   const nameEl=document.getElementById('sol-new-name'),btn=document.getElementById('sol-new-btn');

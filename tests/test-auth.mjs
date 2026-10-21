@@ -1377,6 +1377,20 @@ resetData();
   assert.deepEqual([otra.pend_plan, otra.plan_enviado, otra.pend_actualizar, otra.horas, otra.cierra, otra.informe_semanal, otra.encargados], [false, false, false, null, null, false, []]);
   ok('Solicitudes: avisa si ya hay una con el mismo código; "Sin estado" no marca ninguna casilla');
 
+  // "P3_1XX" no es un código (no es P3_1 = P3_001): no pregunta.
+  tables.solicitudes.push({ ...tables.solicitudes.find((s) => s.id === 3), id: 900, nombre: 'Solicitud P3_001 Vieja', cerrada: true });
+  await page.click('#sol-reload');
+  await page.waitForSelector('#sol-status.ok:has-text("Lista actualizada")');
+  await page.click('#sol-new-open');
+  await page.waitForSelector('#sol-new-dialog[open]');
+  await page.fill('#sol-new-name', 'Solicitud P3_1XX 2');
+  const dlgAntes = dialogs.length;
+  await page.click('#sol-new-btn');
+  await page.waitForSelector('#sol-new-dialog', { state: 'hidden' });
+  assert.equal(dialogs.length, dlgAntes, 'no pregunta por un código a medio escribir');
+  assert.ok(tables.solicitudes.some((s) => s.nombre === 'Solicitud P3_1XX 2'));
+  ok('Solicitudes: un código a medio escribir (P3_1XX) no cuenta como repetido');
+
   tables.solicitudes.find((s) => s.id === 3).nombre = 'QA_OPC_47 Cambiada por otro lead';
   await page.click('#sol-reload');
   await page.waitForSelector('#sol-status.ok:has-text("Lista actualizada")');
@@ -1708,6 +1722,19 @@ resetData();
   assert.equal(await primero(), 'Laura Lead creó Solicitud P3_413 Rápida', 'la respuesta vieja pisó la lista');
   ok('Campana: una carga atrasada no reemplaza a una más nueva');
   await adm.page.keyboard.press('Escape');
+
+  // Si un cambio no llegó en vivo, se trae al volver a la pestaña (y cada 2 minutos).
+  const sinVivo = (id, nombre) => tables.solicitudes.push({ ...fila, id, nombre, cerrada: false, cierre_enviado: false, created_at: new Date().toISOString() });
+  const volver = () => adm.page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  sinVivo(420, 'Solicitud P3_420 Sin vivo');
+  await adm.page.focus('#sol-search'); // el buscador no es editar una fila
+  await volver();
+  await adm.page.waitForSelector('#sol-body tr[data-id="420"]');
+  await adm.page.click('#nav-home');
+  sinVivo(421, 'Solicitud P3_421 Sin vivo');
+  await volver();
+  await adm.page.waitForSelector('#sol-badge:not([hidden])');
+  ok('Solicitudes: al volver a la pestaña trae lo que no llegó en vivo (tabla y número)');
   await adm.context.close();
   await lead.context.close();
 
