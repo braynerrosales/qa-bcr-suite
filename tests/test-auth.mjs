@@ -56,6 +56,8 @@ let vistas = {};
 const rpcCalls = { novedades: 0, marcarVisto: 0 };
 let rejectNextVisto = false;
 let delayNovedades = 0; // ms: respuesta atrasada del contador
+let failAvisos = false; // solicitudes_avisos responde 500
+const avisosDelays = []; // ms de demora para las próximas respuestas de solicitudes_avisos
 const isoDay = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('en-CA'); };
 const solicitudesIniciales = () => [
   { id: 1, nombre: 'Solicitud P3_081 Gobierno <b>Digital</b>', informe_semanal: true, encargados: ['Beto Uno'], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: true, cierre_enviado: false, cierra: isoDay(5), observaciones: '', cerrada: false },
@@ -164,6 +166,17 @@ const r201 = (json) => json(201, null);
 function solStampNew(item, me) {
   const now = new Date().toISOString();
   return { updated_by: me.id, updated_at: now, created_at: now, created_by: me.id, ...(item.plan_enviado ? { plan_enviado_at: now, plan_enviado_by: me.id } : {}) };
+}
+// Igual que solicitudes_avisos() (20261026000001_solicitudes_avisos_lista.sql).
+function solAvisos(me) {
+  const desde = new Date(Date.now() - 7 * 864e5).toISOString(), visto = vistas[me.id];
+  const nombre = (id) => byId(id)?.[1].full_name ?? null;
+  const ev = [];
+  for (const s of tables.solicitudes) {
+    if (s.created_by && s.created_by !== me.id && s.created_at > desde) ev.push({ solicitud_id: s.id, nombre: s.nombre, tipo: 'nueva', autor: nombre(s.created_by), fecha: s.created_at });
+    if (s.plan_enviado && s.plan_enviado_by && s.plan_enviado_by !== me.id && s.plan_enviado_at > desde) ev.push({ solicitud_id: s.id, nombre: s.nombre, tipo: 'plan', autor: nombre(s.plan_enviado_by), fecha: s.plan_enviado_at });
+  }
+  return ev.sort((a, b) => b.fecha.localeCompare(a.fecha) || b.solicitud_id - a.solicitud_id).slice(0, 10).map((e) => ({ ...e, sin_ver: !!visto && e.fecha > visto }));
 }
 // Igual que solicitudes_novedades(): lo que otros crearon o pasaron a plan enviado desde tu último visto.
 function solNovedades(me) {
@@ -405,6 +418,14 @@ async function setup(context) {
       const id = 'a0000000-0000-4000-8000-0000000000' + String(10 + created.length);
       users[b.email] = { id, password: b.password, full_name: b.full_name, role: b.role, active: true, must_change_password: true };
       return json(200, { id, email: b.email, full_name: b.full_name, role: b.role });
+    }
+    if (url.pathname === '/rest/v1/rpc/solicitudes_avisos') {
+      const me = byId(subOf(req))?.[1];
+      if (!isLead(me)) return json(403, { code: '42501', message: 'Sin permiso' });
+      if (failAvisos) return json(500, { code: 'XX000', message: 'falla simulada' });
+      const rows = solAvisos(me), d = avisosDelays.shift();
+      if (d) await new Promise((r) => setTimeout(r, d));
+      return json(200, rows);
     }
     if (url.pathname === '/rest/v1/rpc/solicitudes_novedades' || url.pathname === '/rest/v1/rpc/solicitudes_marcar_visto') {
       const me = byId(subOf(req))?.[1];
@@ -1538,6 +1559,160 @@ resetData();
   await mob.page.screenshot({ path: DIR + 'tests/shot-sol-aviso-movil.png' });
   ok('Solicitudes en móvil: el contador se ve en el menú de arriba sin desbordar');
   await mob.context.close();
+}
+
+// 19c. Campana de avisos: la lista de qué se agregó o pasó a plan enviado
+{
+  const adm = await newPage();
+  const lead = await newPage();
+  const admId = users['admin@bcr.test'].id;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  vistas = {};
+  await adm.page.goto('http://app.test/index.html');
+  await login(adm.page, 'admin@bcr.test');
+  await adm.page.waitForSelector('.layout', { state: 'visible' });
+  await adm.page.click('#nav-daily');
+  while (!vistas[admId]) await wait(50);
+  await wait(20);
+
+  await lead.page.goto('http://app.test/index.html');
+  await login(lead.page, 'lead@bcr.test');
+  await lead.page.waitForSelector('.layout', { state: 'visible' });
+  await lead.page.click('#home-solicitudes');
+  await lead.page.waitForSelector('#sol-body tr');
+  await lead.page.click('#sol-new-open');
+  await lead.page.waitForSelector('#sol-new-dialog[open]');
+  await lead.page.fill('#sol-new-name', 'Solicitud P3_400 <b>Campana</b>');
+  await lead.page.selectOption('#sol-new-estado', '');
+  await lead.page.click('#sol-new-btn');
+  await lead.page.waitForSelector('#sol-new-dialog', { state: 'hidden' });
+  const fila = tables.solicitudes.find((s) => s.nombre === 'Solicitud P3_400 <b>Campana</b>');
+  rtPush('INSERT', { ...fila });
+  await adm.page.waitForSelector('#avisos-btn .nav-count:not([hidden])');
+  assert.equal(await adm.page.textContent('#avisos-btn .nav-count'), '1');
+  assert.equal(await adm.page.getAttribute('#avisos-btn', 'aria-label'), 'Avisos, 1 sin ver');
+
+  const items = () => adm.page.locator('#avisos-list .aviso');
+  await adm.page.click('#avisos-btn');
+  await adm.page.waitForSelector('#avisos-panel[open] .aviso');
+  assert.equal(await items().first().locator('.aviso-txt').textContent(), 'Laura Lead creó Solicitud P3_400 <b>Campana</b>');
+  assert.equal(await adm.page.locator('#avisos-panel b').count(), 0, 'el nombre se ve como texto');
+  assert.equal(await items().first().getAttribute('class'), 'aviso aviso-nuevo');
+  assert.equal(await adm.page.evaluate(() => document.activeElement.classList.contains('aviso')), true, 'el foco va al primer aviso');
+  assert.equal(await adm.page.isVisible('#sol-badge'), false);
+  assert.equal(await adm.page.isVisible('#avisos-btn .nav-count'), false);
+  assert.equal(await adm.page.getAttribute('#avisos-btn', 'aria-expanded'), 'true');
+  await adm.page.screenshot({ path: DIR + 'tests/shot-avisos.png' });
+  await adm.page.emulateMedia({ colorScheme: 'dark' });
+  await adm.page.screenshot({ path: DIR + 'tests/shot-avisos-oscuro.png' });
+  await adm.page.emulateMedia({ colorScheme: 'light' });
+  await adm.page.keyboard.press('Escape');
+  await adm.page.waitForSelector('#avisos-panel', { state: 'hidden' });
+  assert.equal(await adm.page.evaluate(() => document.activeElement.id), 'avisos-btn');
+  assert.equal(await adm.page.getAttribute('#avisos-btn', 'aria-label'), 'Avisos');
+  assert.equal(await adm.page.getAttribute('#avisos-btn', 'aria-expanded'), 'false');
+  await adm.page.click('#avisos-btn');
+  await adm.page.waitForSelector('#avisos-panel[open] .aviso');
+  assert.equal(await adm.page.locator('#avisos-list .aviso-nuevo').count(), 0, 'la segunda vez ya está visto');
+  ok('Campana: muestra quién agregó qué, resalta lo nuevo, marca visto y se cierra con Esc');
+
+  // Con el panel abierto, lo que llega en vivo aparece arriba.
+  const sol = tables.solicitudes.find((s) => !s.cerrada && !s.plan_enviado && s.id !== fila.id);
+  await lead.page.locator(`#sol-body tr[data-id="${sol.id}"] input[aria-label="Plan enviado"]`).check();
+  while (!sol.plan_enviado_by) await wait(50);
+  rtPush('UPDATE', { ...sol }, { id: sol.id });
+  await until(adm.page, (t) => document.querySelector('#avisos-list .aviso-txt')?.textContent === t, `Laura Lead pasó ${sol.nombre} a Plan enviado`);
+  ok('Campana: con el panel abierto, lo que llega en vivo aparece arriba');
+
+  // Ir a una solicitud cerrada con el filtro en "Abiertas": cambia a "Todas" y resalta la fila.
+  fila.cerrada = true; fila.cierre_enviado = true;
+  await adm.page.locator('#avisos-list .aviso', { hasText: 'P3_400' }).click();
+  await adm.page.waitForSelector(`#sol-body tr[data-id="${fila.id}"].sol-flash`);
+  assert.equal(await adm.page.isVisible('#page-solicitudes'), true);
+  assert.equal(await adm.page.inputValue('#sol-filter'), 'all');
+  assert.equal(await adm.page.isVisible('#avisos-panel'), false);
+  // Una que ya no existe: avisa.
+  await adm.page.click('#avisos-btn');
+  await adm.page.waitForSelector('#avisos-panel[open] .aviso');
+  tables.solicitudes = tables.solicitudes.filter((s) => s.id !== sol.id);
+  await adm.page.locator('#avisos-list .aviso', { hasText: `pasó ${sol.nombre} a Plan enviado` }).click();
+  while (!dialogs.includes('Esa solicitud ya no existe.')) await wait(50);
+  ok('Campana: tocar un aviso lleva a la solicitud (aunque esté cerrada) o avisa si ya no existe');
+
+  // Si falla la carga, se puede reintentar; cambiar de pantalla cierra el panel.
+  failAvisos = true;
+  await adm.page.click('#avisos-btn');
+  await adm.page.waitForSelector('#avisos-panel[open] .avisos-error');
+  assert.equal(await adm.page.textContent('#avisos-panel .avisos-error span'), 'No se pudieron cargar los avisos.');
+  failAvisos = false;
+  await adm.page.click('#avisos-panel .avisos-error button');
+  await adm.page.waitForSelector('#avisos-panel[open] .aviso');
+  await adm.page.click('#nav-daily');
+  await adm.page.waitForSelector('#avisos-panel', { state: 'hidden' });
+  ok('Campana: si falla la carga se puede reintentar; cambiar de pantalla cierra el panel');
+
+  // Esc cierra aunque el foco ya no esté dentro del panel.
+  await adm.page.click('#avisos-btn');
+  await adm.page.waitForSelector('#avisos-panel[open] .aviso');
+  await adm.page.evaluate(() => document.activeElement.blur());
+  await adm.page.keyboard.press('Escape');
+  await adm.page.waitForSelector('#avisos-panel', { state: 'hidden' });
+  ok('Campana: Esc la cierra aunque el foco esté afuera');
+
+  // Con Solicitudes abierta, el panel también se actualiza en vivo y no pierde el foco.
+  const nuevaFila = (id, nombre) => {
+    const r = { ...fila, id, nombre, cerrada: false, cierre_enviado: false, created_at: new Date().toISOString() };
+    tables.solicitudes.push(r); rtPush('INSERT', { ...r }); return r;
+  };
+  const primero = () => adm.page.locator('#avisos-list .aviso-txt').first().textContent();
+  await adm.page.click('#nav-solicitudes');
+  await adm.page.waitForSelector('#sol-body tr');
+  await adm.page.click('#avisos-btn');
+  await adm.page.waitForSelector('#avisos-panel[open] .aviso');
+  nuevaFila(410, 'Solicitud P3_410 Con la tabla');
+  await until(adm.page, () => document.querySelector('#avisos-list .aviso-txt')?.textContent === 'Laura Lead creó Solicitud P3_410 Con la tabla');
+  await adm.page.locator('#avisos-list .aviso').nth(1).focus();
+  const enfocado = await adm.page.evaluate(() => document.activeElement.querySelector('.aviso-txt')?.textContent);
+  nuevaFila(411, 'Solicitud P3_411 Foco');
+  await until(adm.page, () => document.querySelector('#avisos-list .aviso-txt')?.textContent === 'Laura Lead creó Solicitud P3_411 Foco');
+  assert.equal(await adm.page.evaluate(() => document.activeElement.querySelector?.('.aviso-txt')?.textContent), enfocado, 'el foco sigue en el mismo aviso');
+  ok('Campana: con Solicitudes abierta se actualiza en vivo y conserva el aviso enfocado');
+
+  // Una carga lenta no pisa a una más nueva.
+  avisosDelays.push(1500);
+  nuevaFila(412, 'Solicitud P3_412 Lenta');
+  await new Promise((r) => setTimeout(r, 450));
+  nuevaFila(413, 'Solicitud P3_413 Rápida');
+  await new Promise((r) => setTimeout(r, 2500));
+  assert.equal(await primero(), 'Laura Lead creó Solicitud P3_413 Rápida', 'la respuesta vieja pisó la lista');
+  ok('Campana: una carga atrasada no reemplaza a una más nueva');
+  await adm.page.keyboard.press('Escape');
+  await adm.context.close();
+  await lead.context.close();
+
+  // En el celular: la campana arriba y el panel sin desbordar.
+  const mob = await newPage({ width: 375, height: 812 });
+  await mob.page.goto('http://app.test/index.html');
+  await login(mob.page, 'admin@bcr.test');
+  await mob.page.waitForSelector('#mavisos-btn', { state: 'visible' });
+  await mob.page.click('#mavisos-btn');
+  await mob.page.waitForSelector('#avisos-panel[open] .aviso');
+  const overflow = await mob.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert.ok(overflow <= 0, 'scroll horizontal con el panel abierto en móvil: ' + overflow);
+  const box = await mob.page.locator('#avisos-panel').boundingBox();
+  assert.ok(box.x >= 15 && box.x + box.width <= 360, 'el panel queda dentro de la pantalla: ' + JSON.stringify(box));
+  await mob.page.screenshot({ path: DIR + 'tests/shot-avisos-movil.png' });
+  ok('Campana en móvil: arriba, con el panel dentro de la pantalla');
+  await mob.context.close();
+
+  const qa = await newPage();
+  await qa.page.goto('http://app.test/index.html');
+  await login(qa.page, 'qa@bcr.test');
+  await qa.page.waitForSelector('.layout', { state: 'visible' });
+  assert.equal(await qa.page.isVisible('#avisos-btn'), false);
+  assert.equal(await qa.page.locator('#mavisos-btn').getAttribute('hidden'), '');
+  ok('Campana: QA no la ve');
+  await qa.context.close();
 }
 
 // 20. Horas: cada QA carga las suyas; leads corrigen las de todos; consolidado para todos
