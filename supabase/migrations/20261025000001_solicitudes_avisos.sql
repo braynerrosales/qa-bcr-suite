@@ -12,7 +12,8 @@ alter table public.solicitudes
     add column plan_enviado_by uuid references public.profiles(id) on delete set null;
 
 -- Mismo trigger de antes (20261016000002) más el autor y el plan enviado.
--- Las columnas nuevas no están en los grant por columna: solo las escribe este trigger.
+-- Las columnas nuevas no están en los grant por columna: el cliente no las escribe.
+-- En UPDATE no se restauran desde OLD, así ON DELETE SET NULL puede limpiarlas.
 create or replace function public.solicitudes_touch()
 returns trigger
 language plpgsql
@@ -24,10 +25,6 @@ begin
     if tg_op = 'INSERT' then
         new.created_at = now();
         new.created_by = auth.uid();
-    else
-        new.created_by = old.created_by;
-        new.plan_enviado_at = old.plan_enviado_at;
-        new.plan_enviado_by = old.plan_enviado_by;
     end if;
     if new.plan_enviado and (tg_op = 'INSERT' or not old.plan_enviado) then
         new.plan_enviado_at = now();

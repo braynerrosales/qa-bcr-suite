@@ -87,6 +87,12 @@ end $$ language plpgsql;
 -- Volver a tildar (otra persona) actualiza quién y cuándo.
 reset role;
 update public.solicitudes set plan_enviado_at = now() - interval '1 day' where nombre = 'Solicitud P9_101 Lead';
+do $$
+begin
+    if (select plan_enviado_at from public.solicitudes where nombre = 'Solicitud P9_101 Lead') >= now() then
+        raise exception 'FALLO: no se pudo preparar una fecha de plan anterior';
+    end if;
+end $$ language plpgsql;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000e1","role":"authenticated"}', true);
 do $$
@@ -94,7 +100,7 @@ declare r record;
 begin
     update public.solicitudes set plan_enviado = true where nombre = 'Solicitud P9_101 Lead';
     select * into r from public.solicitudes where nombre = 'Solicitud P9_101 Lead';
-    if r.plan_enviado_by is distinct from '00000000-0000-0000-0000-0000000000e1' or r.plan_enviado_at < now() then
+    if r.plan_enviado_by is distinct from '00000000-0000-0000-0000-0000000000e1' or r.plan_enviado_at <> now() then
         raise exception 'FALLO: volver a tildar no actualizó plan_enviado_* (% / %)', r.plan_enviado_by, r.plan_enviado_at;
     end if;
     raise notice 'OK: volver a tildar plan enviado registra a la nueva persona y la nueva fecha';
@@ -182,4 +188,18 @@ begin
 end $$ language plpgsql;
 
 reset role;
+
+-- ── Borrar a una persona deja sus solicitudes sin autor ─────
+do $$
+declare r record;
+begin
+    delete from auth.users where id = '00000000-0000-0000-0000-0000000000e1';
+    select * into r from public.solicitudes where nombre = 'Solicitud P9_101 Lead';
+    if r.plan_enviado_by is not null then raise exception 'FALLO: plan_enviado_by sigue apuntando a un perfil borrado'; end if;
+    delete from auth.users where id = '00000000-0000-0000-0000-0000000000b1';
+    select * into r from public.solicitudes where nombre = 'Solicitud P9_101 Lead';
+    if r.created_by is not null then raise exception 'FALLO: created_by sigue apuntando a un perfil borrado'; end if;
+    raise notice 'OK: al borrar un perfil, sus solicitudes quedan sin autor (on delete set null)';
+end $$ language plpgsql;
+
 rollback;
