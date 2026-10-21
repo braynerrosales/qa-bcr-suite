@@ -538,8 +538,13 @@
   .aviso { display: block; width: 100%; text-align: left; padding: 10px 16px 10px 30px; border: 0; border-top: 1px solid var(--rule); background: transparent; color: var(--ink-2); font: inherit; font-size: 13px; position: relative; overflow-wrap: anywhere; }
   .aviso:hover { background: var(--sheet-2); }
   .aviso:focus-visible { outline: 2px solid var(--mark); outline-offset: -2px; }
-  .aviso small { display: block; margin-top: 2px; font-size: 11px; color: var(--ink-3); }
-  .aviso-nuevo { color: var(--ink); font-weight: 700; }
+  .aviso-nombre { display: block; color: var(--ink); }
+  .aviso-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--ink-2); }
+  .aviso-tipo { flex: none; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 10px; color: color-mix(in srgb, var(--bcr) 78%, var(--ink)); background: color-mix(in srgb, var(--bcr) 12%, var(--sheet)); }
+  .aviso-tipo.is-plan { color: color-mix(in srgb, var(--ok) 78%, var(--ink)); background: color-mix(in srgb, var(--ok) 12%, var(--sheet)); }
+  .aviso-quien { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .aviso small { flex: none; margin-left: auto; font-size: 11px; color: var(--ink-3); }
+  .aviso-nuevo .aviso-nombre { font-weight: 700; }
   .aviso-nuevo::before { content: ''; position: absolute; left: 13px; top: 16px; width: 8px; height: 8px; border-radius: 50%; background: var(--mark); }
   .avisos-empty, .avisos-error { padding: 12px 16px; font-size: 13px; color: var(--ink-2); border-top: 1px solid var(--rule); }
   .avisos-error { display: flex; align-items: center; justify-content: space-between; gap: 10px; }

@@ -35,6 +35,7 @@ async function loadAvisos(focus=false){
   renderAvisos(error?null:(data||[]));
   if(focus)(document.querySelector('#avisos-list button')||avisosPanel()).focus();
 }
+function avisoSpan(cls,text){const s=document.createElement('span');s.className=cls;s.textContent=text;return s;}
 function avisosMsg(cls,text){const li=document.createElement('li');li.className=cls;li.textContent=text;return li;}
 function renderAvisos(rows){
   const list=document.getElementById('avisos-list');
@@ -53,12 +54,18 @@ function renderAvisos(rows){
     const li=document.createElement('li');
     const b=Object.assign(document.createElement('button'),{type:'button',className:'aviso'+(!r.propio&&prev&&new Date(r.fecha)>prev?' aviso-nuevo':'')});
     b.dataset.key=r.solicitud_id+':'+r.tipo;
-    const txt=document.createElement('span');txt.className='aviso-txt';
+    // Se ve en dos líneas (nombre; tipo, quién y cuándo). El lector de pantalla lee la frase completa.
     // Lo propio también se lista (sin resaltar), en segunda persona.
-    txt.textContent=r.propio?(r.tipo==='plan'?`Pasaste ${r.nombre} a Plan enviado`:`Creaste ${r.nombre}`)
-      :(r.autor||'Alguien')+(r.tipo==='plan'?` pasó ${r.nombre} a Plan enviado`:` creó ${r.nombre}`);
+    const txt=avisoSpan('aviso-txt sr-only',r.propio?(r.tipo==='plan'?`Pasaste ${r.nombre} a Plan enviado`:`Creaste ${r.nombre}`)
+      :(r.autor||'Alguien')+(r.tipo==='plan'?` pasó ${r.nombre} a Plan enviado`:` creó ${r.nombre}`));
+    const nombre=avisoSpan('aviso-nombre',r.nombre);
+    const tipo=avisoSpan('aviso-tipo'+(r.tipo==='plan'?' is-plan':''),r.tipo==='plan'?'Plan enviado':'Nueva');
+    const quien=avisoSpan('aviso-quien',r.propio?'Vos':(r.autor||'Alguien'));
+    [nombre,tipo,quien].forEach(el=>el.setAttribute('aria-hidden','true'));
+    const meta=avisoSpan('aviso-meta','');
     const when=document.createElement('small');when.textContent=solAgo(r.fecha);
-    b.append(txt,when);
+    meta.append(tipo,quien,when);
+    b.append(txt,nombre,meta);
     b.addEventListener('click',()=>goToSolicitud(r.solicitud_id));
     li.append(b);return li;
   }));

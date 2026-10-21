@@ -1598,6 +1598,12 @@ resetData();
   await adm.page.waitForSelector('#avisos-panel[open] .aviso');
   assert.equal(await items().first().locator('.aviso-txt').textContent(), 'Laura Lead creó Solicitud P3_400 <b>Campana</b>');
   assert.equal(await adm.page.locator('#avisos-panel b').count(), 0, 'el nombre se ve como texto');
+  // Se ve en dos líneas: el nombre arriba; abajo, el tipo como etiqueta y quién lo hizo.
+  // La frase completa queda solo para el lector de pantalla.
+  assert.equal(await items().first().locator('.aviso-nombre').textContent(), 'Solicitud P3_400 <b>Campana</b>');
+  assert.equal(await items().first().locator('.aviso-tipo').textContent(), 'Nueva');
+  assert.equal(await items().first().locator('.aviso-quien').textContent(), 'Laura Lead');
+  assert.ok((await items().first().locator('.aviso-txt').boundingBox()).width <= 1, 'la frase completa no se ve');
   assert.equal(await items().first().getAttribute('class'), 'aviso aviso-nuevo');
   assert.equal(await adm.page.evaluate(() => document.activeElement.classList.contains('aviso')), true, 'el foco va al primer aviso');
   assert.equal(await adm.page.isVisible('#sol-badge'), false);
@@ -1623,6 +1629,8 @@ resetData();
   while (!sol.plan_enviado_by) await wait(50);
   rtPush('UPDATE', { ...sol }, { id: sol.id });
   await until(adm.page, (t) => document.querySelector('#avisos-list .aviso-txt')?.textContent === t, `Laura Lead pasó ${sol.nombre} a Plan enviado`);
+  assert.equal(await adm.page.locator('#avisos-list .aviso-tipo').first().textContent(), 'Plan enviado');
+  assert.equal(await adm.page.locator('#avisos-list .aviso-tipo').first().getAttribute('class'), 'aviso-tipo is-plan');
   ok('Campana: con el panel abierto, lo que llega en vivo aparece arriba');
 
   // Lo propio también está en la lista, sin resaltar y sin sumar al número.
@@ -1633,6 +1641,7 @@ resetData();
   assert.equal(propios[0], `Pasaste ${sol.nombre} a Plan enviado`);
   assert.ok(propios.includes('Creaste Solicitud P3_400 <b>Campana</b>'), propios.join(' | '));
   assert.equal(await lead.page.locator('#avisos-list .aviso-nuevo').count(), 0, 'lo propio no sale resaltado');
+  assert.equal(await lead.page.locator('#avisos-list .aviso-quien').first().textContent(), 'Vos');
   await lead.page.keyboard.press('Escape');
   ok('Campana: lo propio aparece en la lista sin resaltar ni sumar al número');
 
