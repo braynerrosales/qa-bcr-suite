@@ -26,11 +26,53 @@ function solSubscribe(){
     .subscribe(status=>{
       const live=status==='SUBSCRIBED';
       document.getElementById('sol-live').hidden=!live;
-      if(live){if(solLiveOnce)loadSolicitudes();solLiveOnce=true;}
+      if(live){if(solLiveOnce){loadSolicitudes();solBadgeSoon();}solLiveOnce=true;}
     });
+}
+// Avisos: cuántas solicitudes creó o pasó a "Plan enviado" otra persona desde tu última visita.
+// Cada usuario tiene su propio visto (solicitudes_novedades / solicitudes_marcar_visto).
+let solBadgeTimer=null,solBadgeGen=0;
+function solPageOpen(){return document.getElementById('page-solicitudes').classList.contains('active');}
+function setSolBadge(n){
+  // El número va en el nombre del botón: el lector de pantalla no lee un aria-label en un span.
+  [['nav-solicitudes','sol-badge'],['mnav-solicitudes','msol-badge']].forEach(([btn,id])=>{
+    const b=document.getElementById(id);
+    b.hidden=!n;b.textContent=n||'';
+    if(n)document.getElementById(btn).setAttribute('aria-label','Solicitudes, '+(n===1?'1 novedad':n+' novedades'));
+    else document.getElementById(btn).removeAttribute('aria-label');
+  });
+}
+async function refreshSolBadge(){
+  if(!canManageConfig()){setSolBadge(0);return;}
+  const gen=++solBadgeGen;
+  const {data,error}=await supabaseClient.rpc('solicitudes_novedades');
+  // Una respuesta vieja (ya se marcó visto o llegó otra después) no pisa el contador.
+  if(gen!==solBadgeGen||solPageOpen())return;
+  setSolBadge(error?0:data);
+}
+// Una ráfaga de cambios en vivo se junta en una sola consulta.
+function solBadgeSoon(){clearTimeout(solBadgeTimer);solBadgeTimer=setTimeout(refreshSolBadge,300);}
+// Al abrir Solicitudes: guarda el visto anterior (para etiquetar las filas) y pone el contador en cero.
+// keepPrev: lo que llega en vivo con la pantalla abierta se marca visto sin cambiar las etiquetas.
+let SOL_SEEN_PREV=null;
+async function solMarkSeen({keepPrev=false}={}){
+  const {data,error}=await supabaseClient.rpc('solicitudes_marcar_visto');
+  if(error){if(!keepPrev)SOL_SEEN_PREV=null;return;}
+  if(!keepPrev)SOL_SEEN_PREV=data;
+  solBadgeGen++;clearTimeout(solBadgeTimer);
+  setSolBadge(0);
+}
+function solNovedad(r){
+  if(!SOL_SEEN_PREV)return null;
+  const prev=new Date(SOL_SEEN_PREV),mine=currentUser.id;
+  if(r.created_by&&r.created_by!==mine&&new Date(r.created_at)>prev)return 'nueva';
+  if(r.plan_enviado_by&&r.plan_enviado_by!==mine&&new Date(r.plan_enviado_at)>prev)return 'plan';
+  return null;
 }
 function solEditing(){return document.getElementById('sol-body').contains(document.activeElement);}
 function solOnChange(p){
+  if(solPageOpen()){if(p.new&&solNovedad(p.new))solMarkSeen({keepPrev:true});}
+  else solBadgeSoon();
   const body=document.getElementById('sol-body');
   if(p.eventType==='DELETE'){
     const id=p.old&&p.old.id;
@@ -133,6 +175,7 @@ function solRow(r){
     name.value=v;name.title=v;
     saveSolicitud(r.id,{nombre:v});
   });
+  const tag=document.createElement('span');tag.className='sol-new';tag.hidden=true;
   const checks={};
   SOL_CHECKS.forEach(([field,label])=>{
     const c=Object.assign(document.createElement('input'),{type:'checkbox',checked:!!r[field]});
@@ -165,7 +208,7 @@ function solRow(r){
   del.setAttribute('aria-label','Eliminar solicitud');
   del.addEventListener('click',()=>deleteSolicitud(r.id));
   const enc=document.createElement('div');enc.className='sol-enc';
-  tr.append(solCell('','',name),solCell('Informe semanal','',checks.informe_semanal),solCell('Encargado','sol-wide',enc),solCell('Horas','',horas),
+  tr.append(solCell('','',name,tag),solCell('Informe semanal','',checks.informe_semanal),solCell('Encargado','sol-wide',enc),solCell('Horas','',horas),
     solCell('Pend. plan','',checks.pend_plan),solCell('Pend. actualizar','',checks.pend_actualizar),solCell('Plan enviado','',checks.plan_enviado),
     solCell('Cierre enviado','',checks.cierre_enviado),solCell('Cierra','sol-wide',wrapCierra),solCell('Observaciones','sol-wide',obs),
     solCell('','sol-plain',badge,mod),solCell('','sol-plain',del));
@@ -181,6 +224,8 @@ function updateSolRow(tr,r){
   tr.classList.toggle('sol-done',!!r.cerrada);
   tr.classList.toggle('sol-late',solLate(r));
   tr.querySelector('.sol-name').classList.toggle('urgent',!!d&&d.color==='red');
+  const nov=solNovedad(r),tag=tr.querySelector('.sol-new');
+  tag.hidden=!nov;tag.textContent=nov==='nueva'?'Nueva':nov==='plan'?'Plan enviado':'';
   const badge=tr.querySelector('td:nth-last-child(2) span');
   badge.className='sol-badge'+(r.cerrada?' done':'');badge.textContent=r.cerrada?'Cerrada':'Abierta';
   solModified(tr.querySelector('.sol-mod'),r);

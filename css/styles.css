@@ -289,6 +289,9 @@
   .sol-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: .03em; color: color-mix(in srgb, var(--bad) 78%, var(--ink)); background: color-mix(in srgb, var(--bad) 12%, var(--sheet)); }
   .sol-badge.done { color: color-mix(in srgb, var(--ok) 78%, var(--ink)); background: color-mix(in srgb, var(--ok) 12%, var(--sheet)); }
   .sol-mod { display: block; margin-top: 4px; font-size: 11px; color: var(--ink-2); white-space: nowrap; }
+  /* Novedad desde tu última visita (creada o pasada a plan enviado por otra persona). */
+  .nav-count { font-variant-numeric: tabular-nums; }
+  .sol-new { display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; color: var(--mark-ink); background: var(--mark); }
   .sol-header-actions { display: flex; align-items: center; gap: 10px; }
   .sol-live { font-size: 12px; font-weight: 600; color: color-mix(in srgb, var(--ok) 78%, var(--ink)); white-space: nowrap; }
   .sol-del { background: none; border: 0; color: var(--ink-2); font-size: 16px; padding: 2px 6px; }
