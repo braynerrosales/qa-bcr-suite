@@ -1435,6 +1435,47 @@ resetData();
   assert.equal(await adm.page.textContent('#sol-badge'), '1');
   ok('Solicitudes: los demás QA Lead y Admin ven el contador de novedades en vivo; el autor no');
 
+  // Al abrir Solicitudes se marcan las novedades y el contador vuelve a cero.
+  const tag = (pg, id) => pg.locator(`#sol-body tr[data-id="${id}"] .sol-new`);
+  await adm.page.click('#nav-solicitudes');
+  await adm.page.waitForSelector(`#sol-body tr[data-id="${fila.id}"] .sol-new:not([hidden])`);
+  assert.equal(await tag(adm.page, fila.id).textContent(), 'Nueva');
+  assert.equal(await adm.page.isVisible('#sol-badge'), false);
+  assert.equal(await adm.page.locator('#sol-body .sol-new:not([hidden])').count(), 1, 'solo lo nuevo lleva etiqueta');
+  // Mientras está en la pantalla, lo que llega en vivo se etiqueta y no sube el contador.
+  const vistos = rpcCalls.marcarVisto;
+  // Una abierta, sin plan enviado y de antes (sin autor).
+  const sol3 = tables.solicitudes.find((s) => !s.cerrada && !s.plan_enviado && !s.created_by);
+  await lead.page.locator(`#sol-body tr[data-id="${sol3.id}"] input[aria-label="Plan enviado"]`).check();
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(sol3.plan_enviado_by, users['lead@bcr.test'].id);
+  rtPush('UPDATE', { ...sol3 }, { id: sol3.id });
+  await adm.page.waitForSelector(`#sol-body tr[data-id="${sol3.id}"] .sol-new:not([hidden])`);
+  assert.equal(await tag(adm.page, sol3.id).textContent(), 'Plan enviado');
+  await new Promise((r) => setTimeout(r, 600));
+  assert.equal(await adm.page.isVisible('#sol-badge'), false);
+  assert.ok(rpcCalls.marcarVisto > vistos, 'vuelve a marcar visto');
+  // Segunda visita sin novedades: no queda ninguna etiqueta.
+  await adm.page.click('#nav-daily');
+  await adm.page.click('#nav-solicitudes');
+  await until(adm.page, () => document.querySelectorAll('#sol-body tr').length > 0);
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(await adm.page.locator('#sol-body .sol-new:not([hidden])').count(), 0);
+  ok('Solicitudes: al abrir se marcan las novedades («Nueva», «Plan enviado») y el contador vuelve a cero');
+
+  // Si no se puede marcar visto, la pantalla carga igual, sin etiquetas, y el contador sigue.
+  await adm.page.click('#nav-daily');
+  tables.solicitudes.push({ ...fila, id: 301, nombre: 'Solicitud P3_301 Otra', created_at: new Date().toISOString() });
+  rtPush('INSERT', tables.solicitudes.at(-1));
+  await adm.page.waitForSelector('#sol-badge:not([hidden])');
+  rejectNextVisto = true;
+  await adm.page.click('#nav-solicitudes');
+  await adm.page.waitForSelector('#sol-body tr[data-id="301"]');
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(await adm.page.locator('#sol-body .sol-new:not([hidden])').count(), 0);
+  assert.equal(await adm.page.textContent('#sol-badge'), '1');
+  ok('Solicitudes: si no se puede marcar visto, la lista carga igual y el contador queda como estaba');
+
   // Cierra sesión y entra un QA en la misma pestaña: ni contador ni canal del anterior.
   const negadas = rpcCalls.denied || 0;
   await adm.page.evaluate(() => logout());

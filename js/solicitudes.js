@@ -45,9 +45,26 @@ async function refreshSolBadge(){
 }
 // Una ráfaga de cambios en vivo se junta en una sola consulta.
 function solBadgeSoon(){clearTimeout(solBadgeTimer);solBadgeTimer=setTimeout(refreshSolBadge,300);}
+// Al abrir Solicitudes: guarda el visto anterior (para etiquetar las filas) y pone el contador en cero.
+// keepPrev: lo que llega en vivo con la pantalla abierta se marca visto sin cambiar las etiquetas.
+let SOL_SEEN_PREV=null;
+async function solMarkSeen({keepPrev=false}={}){
+  const {data,error}=await supabaseClient.rpc('solicitudes_marcar_visto');
+  if(error){if(!keepPrev)SOL_SEEN_PREV=null;return;}
+  if(!keepPrev)SOL_SEEN_PREV=data;
+  setSolBadge(0);
+}
+function solNovedad(r){
+  if(!SOL_SEEN_PREV)return null;
+  const prev=new Date(SOL_SEEN_PREV),mine=currentUser.id;
+  if(r.created_by&&r.created_by!==mine&&new Date(r.created_at)>prev)return 'nueva';
+  if(r.plan_enviado_by&&r.plan_enviado_by!==mine&&new Date(r.plan_enviado_at)>prev)return 'plan';
+  return null;
+}
 function solEditing(){return document.getElementById('sol-body').contains(document.activeElement);}
 function solOnChange(p){
-  solBadgeSoon();
+  if(document.getElementById('page-solicitudes').classList.contains('active')){if(p.new&&solNovedad(p.new))solMarkSeen({keepPrev:true});}
+  else solBadgeSoon();
   const body=document.getElementById('sol-body');
   if(p.eventType==='DELETE'){
     const id=p.old&&p.old.id;
@@ -150,6 +167,7 @@ function solRow(r){
     name.value=v;name.title=v;
     saveSolicitud(r.id,{nombre:v});
   });
+  const tag=document.createElement('span');tag.className='sol-new';tag.hidden=true;
   const checks={};
   SOL_CHECKS.forEach(([field,label])=>{
     const c=Object.assign(document.createElement('input'),{type:'checkbox',checked:!!r[field]});
@@ -182,7 +200,7 @@ function solRow(r){
   del.setAttribute('aria-label','Eliminar solicitud');
   del.addEventListener('click',()=>deleteSolicitud(r.id));
   const enc=document.createElement('div');enc.className='sol-enc';
-  tr.append(solCell('','',name),solCell('Informe semanal','',checks.informe_semanal),solCell('Encargado','sol-wide',enc),solCell('Horas','',horas),
+  tr.append(solCell('','',name,tag),solCell('Informe semanal','',checks.informe_semanal),solCell('Encargado','sol-wide',enc),solCell('Horas','',horas),
     solCell('Pend. plan','',checks.pend_plan),solCell('Pend. actualizar','',checks.pend_actualizar),solCell('Plan enviado','',checks.plan_enviado),
     solCell('Cierre enviado','',checks.cierre_enviado),solCell('Cierra','sol-wide',wrapCierra),solCell('Observaciones','sol-wide',obs),
     solCell('','sol-plain',badge,mod),solCell('','sol-plain',del));
@@ -198,6 +216,8 @@ function updateSolRow(tr,r){
   tr.classList.toggle('sol-done',!!r.cerrada);
   tr.classList.toggle('sol-late',solLate(r));
   tr.querySelector('.sol-name').classList.toggle('urgent',!!d&&d.color==='red');
+  const nov=solNovedad(r),tag=tr.querySelector('.sol-new');
+  tag.hidden=!nov;tag.textContent=nov==='nueva'?'Nueva':nov==='plan'?'Plan enviado':'';
   const badge=tr.querySelector('td:nth-last-child(2) span');
   badge.className='sol-badge'+(r.cerrada?' done':'');badge.textContent=r.cerrada?'Cerrada':'Abierta';
   solModified(tr.querySelector('.sol-mod'),r);
