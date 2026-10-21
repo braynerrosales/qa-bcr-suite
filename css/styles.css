@@ -29,8 +29,31 @@
     --font: 'Public Sans', system-ui, sans-serif;
     --mono: 'IBM Plex Mono', ui-monospace, monospace;
   }
+  /* Tema: sin data-theme sigue al sistema (Auto); data-theme="light"/"dark" lo fija
+     la persona con el botón de sol y luna (js/tema.js). */
+  :root[data-theme=dark] {
+    color-scheme: dark;
+    --paper: #0d1625;
+    --sheet: #142034;
+    --sheet-2: #18263d;
+    --ink: #e6ecf5;
+    --ink-2: #a3b1c6;
+    --ink-3: #8a9ab3;
+    --rule: #24344d;
+    --rule-2: #31445f;
+    --bcr: #5d9bea;
+    --bcr-strong: #7aaef0;
+    --bcr-ink: #07152b;
+    --mark: #f5a65b;
+    --mark-ink: #241000;
+    --ok: #4cc38a;
+    --bad: #f07386;
+    --sidebar-bg: #0a1830;
+    --sidebar-ink: #e6ecf5;
+    --sidebar-ink-2: #8a9cb8;
+  }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme=light]) {
       color-scheme: dark;
       --paper: #0d1625;
       --sheet: #142034;
@@ -84,6 +107,37 @@
   .sidebar-logout:hover { background: rgba(255,255,255,0.1); }
   .sidebar-logout:focus-visible { outline-color: var(--mark); }
   .sidebar-footer-text { font-size: 11px; color: var(--sidebar-ink-2); }
+  /* Botón de tema: el sol cruza, se vuelve luna y aparecen las estrellas. */
+  .theme-ctl { display: flex; align-items: center; gap: 8px; }
+  .sidebar-user .theme-ctl { margin-top: 12px; }
+  .theme-label { font-size: 11px; color: var(--sidebar-ink-2); margin-top: 6px; min-height: 16px; }
+  .theme-switch { --w: 64px; --h: 30px; --k: 24px; position: relative; width: var(--w); height: var(--h); flex-shrink: 0; padding: 0; overflow: hidden; border-radius: 999px; border: 1px solid rgba(255,255,255,0.25); background: linear-gradient(180deg, #5fb0ff, #a9dcff); }
+  .theme-switch::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, #0b1734, #1d3463); opacity: 0; transition: opacity .5s; }
+  .theme-switch[aria-checked=true]::after { opacity: 1; }
+  .theme-switch:focus-visible, .theme-auto:focus-visible { outline-color: var(--mark); }
+  .ts-knob { position: absolute; z-index: 2; top: 2px; left: 3px; width: var(--k); height: var(--k); border-radius: 50%; background: #ffd23f; box-shadow: 0 0 0 3px rgba(255,210,63,0.35), 0 0 12px 2px rgba(255,200,40,0.55); transition: transform .55s cubic-bezier(.65,.05,.25,1.25), background .45s, box-shadow .45s; }
+  .ts-knob::before, .ts-knob::after { content: ''; position: absolute; border-radius: 50%; background: #c9d2e3; opacity: 0; transition: opacity .3s .15s; }
+  .ts-knob::before { width: 28%; height: 28%; top: 20%; left: 45%; }
+  .ts-knob::after { width: 16%; height: 16%; top: 54%; left: 24%; box-shadow: calc(var(--k) / 3) calc(var(--k) / 8) 0 -1px #c9d2e3; }
+  .theme-switch[aria-checked=true] .ts-knob { transform: translateX(calc(var(--w) - var(--k) - 8px)) rotate(-40deg); background: #eef2fa; box-shadow: 0 0 10px 1px rgba(200,215,255,0.35); }
+  .theme-switch[aria-checked=true] .ts-knob::before, .theme-switch[aria-checked=true] .ts-knob::after { opacity: 1; }
+  .ts-cloud { position: absolute; z-index: 1; right: 7px; top: 45%; width: 18px; height: 7px; border-radius: 6px; background: #fff; box-shadow: 5px -4px 0 1px #fff; transition: transform .5s, opacity .35s; }
+  .theme-switch[aria-checked=true] .ts-cloud { transform: translateY(16px); opacity: 0; }
+  .ts-star { position: absolute; z-index: 1; width: 3px; height: 3px; border-radius: 50%; background: #fff; opacity: 0; transform: translateY(-8px); transition: opacity .3s, transform .45s; }
+  .ts-star:nth-of-type(2) { left: 12px; top: 27%; }
+  .ts-star:nth-of-type(3) { left: 22px; top: 60%; width: 2px; height: 2px; }
+  .ts-star:nth-of-type(4) { left: 31px; top: 30%; width: 2px; height: 2px; }
+  .theme-switch[aria-checked=true] .ts-star { opacity: 1; transform: none; transition-delay: .2s; }
+  .theme-switch[aria-checked=true] .ts-star:nth-of-type(3) { transition-delay: .3s; }
+  .theme-switch[aria-checked=true] .ts-star:nth-of-type(4) { transition-delay: .38s; animation: ts-twinkle 2.4s 1s infinite; }
+  @keyframes ts-twinkle { 50% { opacity: .3; } }
+  .theme-auto { min-height: 30px; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.25); background: transparent; color: var(--sidebar-ink-2); font-size: 12px; font-weight: 600; }
+  .theme-auto[aria-pressed=true] { color: var(--sidebar-ink); border-color: var(--mark); background: rgba(243,148,51,0.16); }
+  @media (prefers-reduced-motion: reduce) {
+    .theme-switch, .theme-switch *, .theme-switch::after { transition: none !important; animation: none !important; }
+  }
+  /* El cambio de tema se abre en círculo desde el botón (View Transitions; js/tema.js). */
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
   .sidebar-credit { margin-bottom: 4px; line-height: 1.6; }
   .invader { width: 14px; height: 10px; vertical-align: -1px; color: var(--sidebar-ink); }
   .invader-claude { color: #d97757; }
@@ -526,7 +580,10 @@
   /* ── Móvil ───────────────────────────────── */
   .mobile-topbar { display: none; position: sticky; top: 0; z-index: 100; background: var(--sidebar-bg); color: var(--sidebar-ink); padding: 8px 16px 0; gap: 6px 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
   .mobile-logo { font-size: 15px; font-weight: 800; white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; }
-  .mobile-account { display: flex; gap: 6px; }
+  .mobile-account { display: flex; gap: 6px; align-items: center; }
+  /* En celular el interruptor es más chico para que entre junto a los botones de cuenta. */
+  .mobile-account .theme-switch { --w: 50px; --h: 28px; --k: 22px; }
+  .mobile-account .theme-auto { padding: 4px 8px; }
   /* Una sola fila que se desplaza de lado si no entra (no se parte en dos líneas). */
   .mobile-nav-btns { order: 3; flex: 1 0 100%; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 12px; }
   .mobile-nav-btns::-webkit-scrollbar { display: none; }

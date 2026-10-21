@@ -5,6 +5,8 @@
 // Si la función necesita el elemento, su valor o sus data-*, está en ACCIONES.
 const ACCIONES={
   closeDialog:el=>document.getElementById(el.dataset.dialog).close(),
+  toggleTheme:el=>toggleTheme(el),
+  themeAuto:el=>themeAuto(el),
   pwEye:el=>pwEye(el),
   selectProject:el=>selectProject(el),
   toggleDone:el=>toggleDone(el),
