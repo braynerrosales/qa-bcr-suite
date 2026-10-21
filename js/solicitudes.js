@@ -29,8 +29,25 @@ function solSubscribe(){
       if(live){if(solLiveOnce)loadSolicitudes();solLiveOnce=true;}
     });
 }
+// Avisos: cuántas solicitudes creó o pasó a "Plan enviado" otra persona desde tu última visita.
+// Cada usuario tiene su propio visto (solicitudes_novedades / solicitudes_marcar_visto).
+let solBadgeTimer=null;
+function setSolBadge(n){
+  ['sol-badge','msol-badge'].forEach(id=>{
+    const b=document.getElementById(id);
+    b.hidden=!n;b.textContent=n||'';b.setAttribute('aria-label',n===1?'1 novedad':(n||0)+' novedades');
+  });
+}
+async function refreshSolBadge(){
+  if(!canManageConfig()){setSolBadge(0);return;}
+  const {data,error}=await supabaseClient.rpc('solicitudes_novedades');
+  setSolBadge(error?0:data);
+}
+// Una ráfaga de cambios en vivo se junta en una sola consulta.
+function solBadgeSoon(){clearTimeout(solBadgeTimer);solBadgeTimer=setTimeout(refreshSolBadge,300);}
 function solEditing(){return document.getElementById('sol-body').contains(document.activeElement);}
 function solOnChange(p){
+  solBadgeSoon();
   const body=document.getElementById('sol-body');
   if(p.eventType==='DELETE'){
     const id=p.old&&p.old.id;

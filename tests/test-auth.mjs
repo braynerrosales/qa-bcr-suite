@@ -51,6 +51,10 @@ const created = [];           // cuerpos enviados a admin-create-user
 let failConfig = false;      // get_app_config responde 500
 let failNextWrite = null;    // código de error para la próxima escritura
 let tables;
+// Avisos de solicitudes: último "visto" por usuario, llamadas al contador y fallo forzado de marcar_visto.
+let vistas = {};
+const rpcCalls = { novedades: 0, marcarVisto: 0 };
+let rejectNextVisto = false;
 const isoDay = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('en-CA'); };
 const solicitudesIniciales = () => [
   { id: 1, nombre: 'Solicitud P3_081 Gobierno <b>Digital</b>', informe_semanal: true, encargados: ['Beto Uno'], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: true, cierre_enviado: false, cierra: isoDay(5), observaciones: '', cerrada: false },
@@ -59,6 +63,7 @@ const solicitudesIniciales = () => [
   { id: 4, nombre: 'Solicitud P2_191 TPSISTAR cerrada', informe_semanal: false, encargados: [], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: false, cierre_enviado: true, cierra: '2026-01-23', observaciones: '', cerrada: true },
 ];
 function resetData(empty = false) {
+  vistas = {};
   tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [], solicitudes: [], horas: [], horas_ajustes: [], feedback: [], daily_runs: [] } : {
     solicitudes: solicitudesIniciales(),
     horas: [],
@@ -135,7 +140,7 @@ function tableRequest(req, url, me, json) {
       else {
         const dup = name === 'daily_members' && rows.find((r) => r.daily_group_id === item.daily_group_id && r.name === item.name);
         if (dup) return json(409, { code: '23505', message: 'duplicate key value violates unique constraint' });
-        rows.push({ id: nextId(rows), active: true, ...item, ...(name === 'solicitudes' ? { updated_by: me.id, updated_at: new Date().toISOString() } : {}) });
+        rows.push({ id: nextId(rows), active: true, ...item, ...(name === 'solicitudes' ? solStampNew(item, me) : {}) });
       }
     }
     return r201(json);
@@ -143,7 +148,7 @@ function tableRequest(req, url, me, json) {
   const target = lead ? rows.filter(match) : [];   // el RLS filtra: 0 filas, sin error
   // Igual que el trigger solicitudes_touch: registra quién y cuándo.
   const stamp = name === 'solicitudes' ? { updated_by: me.id, updated_at: new Date().toISOString() } : {};
-  if (method === 'PATCH') target.forEach((r) => Object.assign(r, body, stamp));
+  if (method === 'PATCH') target.forEach((r) => { const plan = name === 'solicitudes' && body.plan_enviado && !r.plan_enviado; Object.assign(r, body, stamp); if (plan) Object.assign(r, { plan_enviado_at: new Date().toISOString(), plan_enviado_by: me.id }); });
   if (method === 'DELETE') {
     tables[name] = rows.filter((r) => !target.includes(r));
     // ON DELETE CASCADE del esquema
@@ -154,6 +159,18 @@ function tableRequest(req, url, me, json) {
   return json(200, target.map((r) => ({ id: r.id })));
 }
 const r201 = (json) => json(201, null);
+// Igual que el trigger solicitudes_touch (20261025000001_solicitudes_avisos.sql): autor y plan enviado.
+function solStampNew(item, me) {
+  const now = new Date().toISOString();
+  return { updated_by: me.id, updated_at: now, created_at: now, created_by: me.id, ...(item.plan_enviado ? { plan_enviado_at: now, plan_enviado_by: me.id } : {}) };
+}
+// Igual que solicitudes_novedades(): lo que otros crearon o pasaron a plan enviado desde tu último visto.
+function solNovedades(me) {
+  vistas[me.id] ??= new Date().toISOString();
+  const v = vistas[me.id];
+  return tables.solicitudes.filter((s) => (s.created_by && s.created_by !== me.id && s.created_at > v)
+    || (s.plan_enviado_by && s.plan_enviado_by !== me.id && s.plan_enviado_at > v)).length;
+}
 
 // Igual que public.horas (supabase/migrations/20261018000001_horas.sql): RLS, checks y trigger.
 const ownOrLead = (me, r) => !!me && me.active && (r.user_id === me.id || isLead(me));
@@ -387,6 +404,16 @@ async function setup(context) {
       const id = 'a0000000-0000-4000-8000-0000000000' + String(10 + created.length);
       users[b.email] = { id, password: b.password, full_name: b.full_name, role: b.role, active: true, must_change_password: true };
       return json(200, { id, email: b.email, full_name: b.full_name, role: b.role });
+    }
+    if (url.pathname === '/rest/v1/rpc/solicitudes_novedades' || url.pathname === '/rest/v1/rpc/solicitudes_marcar_visto') {
+      const me = byId(subOf(req))?.[1];
+      if (!isLead(me)) { rpcCalls.denied = (rpcCalls.denied || 0) + 1; return json(403, { code: '42501', message: 'Sin permiso' }); }
+      if (url.pathname.endsWith('novedades')) { rpcCalls.novedades++; return json(200, solNovedades(me)); }
+      rpcCalls.marcarVisto++;
+      if (rejectNextVisto) { rejectNextVisto = false; return json(500, { code: 'XX000', message: 'falla simulada' }); }
+      const antes = vistas[me.id] ?? new Date().toISOString();
+      vistas[me.id] = new Date().toISOString();
+      return json(200, antes);
     }
     if (url.pathname === '/rest/v1/rpc/admin_user_access') {
       const me = byId(subOf(req))?.[1];
@@ -1362,6 +1389,66 @@ resetData();
   await page.screenshot({ path: DIR + 'tests/shot-solicitudes-movil.png' });
   ok('ADMIN en móvil: ve la misma lista, la tabla se desplaza dentro de su recuadro');
   await context.close();
+}
+
+// 19b. Avisos de solicitudes: cada QA Lead y Admin ve cuántas novedades hay desde su última visita
+{
+  const adm = await newPage();
+  const lead = await newPage();
+  const admId = users['admin@bcr.test'].id;
+  vistas = {}; // las secciones anteriores dejaron novedades: se arranca de cero
+  await adm.page.goto('http://app.test/index.html');
+  await login(adm.page, 'admin@bcr.test');
+  await adm.page.waitForSelector('.layout', { state: 'visible' });
+  await adm.page.click('#nav-daily');
+  await until(adm.page, () => document.getElementById('sol-badge') !== null);
+  assert.equal(await adm.page.isVisible('#sol-badge'), false, 'sin novedades no hay contador');
+  // El ADMIN vio Solicitudes justo antes de que el lead cree una.
+  vistas[admId] = new Date().toISOString();
+
+  await lead.page.goto('http://app.test/index.html');
+  await login(lead.page, 'lead@bcr.test');
+  await lead.page.waitForSelector('.layout', { state: 'visible' });
+  await lead.page.click('#home-solicitudes');
+  await lead.page.waitForSelector('#sol-body tr');
+  await lead.page.click('#sol-new-open');
+  await lead.page.waitForSelector('#sol-new-dialog[open]');
+  await lead.page.fill('#sol-new-name', 'Solicitud P3_300 Aviso');
+  await lead.page.click('#sol-new-btn');
+  await lead.page.waitForSelector('#sol-new-dialog', { state: 'hidden' });
+  const fila = tables.solicitudes.find((s) => s.nombre === 'Solicitud P3_300 Aviso');
+  assert.equal(fila.created_by, users['lead@bcr.test'].id);
+  rtPush('INSERT', { ...fila });
+  await adm.page.waitForSelector('#sol-badge:not([hidden])');
+  assert.equal(await adm.page.textContent('#sol-badge'), '1');
+  assert.equal(await adm.page.getAttribute('#sol-badge', 'aria-label'), '1 novedad');
+  assert.equal(await adm.page.textContent('#msol-badge'), '1');
+  assert.equal(await adm.page.getAttribute('#msol-badge', 'hidden'), null);
+  assert.equal(await lead.page.isVisible('#sol-badge'), false, 'el autor no ve su propio aviso');
+
+  // Una ráfaga de cambios en vivo se junta en una sola consulta por pestaña.
+  await new Promise((r) => setTimeout(r, 500));
+  const antes = rpcCalls.novedades;
+  for (let i = 0; i < 5; i++) rtPush('UPDATE', { ...fila, observaciones: 'r' + i }, { id: fila.id });
+  await new Promise((r) => setTimeout(r, 800));
+  assert.ok(rpcCalls.novedades - antes <= 2, 'consultas por la ráfaga: ' + (rpcCalls.novedades - antes));
+  assert.equal(await adm.page.textContent('#sol-badge'), '1');
+  ok('Solicitudes: los demás QA Lead y Admin ven el contador de novedades en vivo; el autor no');
+
+  // Cierra sesión y entra un QA en la misma pestaña: ni contador ni canal del anterior.
+  const negadas = rpcCalls.denied || 0;
+  await adm.page.evaluate(() => logout());
+  await adm.page.waitForSelector('#auth-email', { state: 'visible' });
+  await login(adm.page, 'qa@bcr.test');
+  await adm.page.waitForSelector('.layout', { state: 'visible' });
+  rtPush('UPDATE', { ...fila, observaciones: 'otra' }, { id: fila.id });
+  await new Promise((r) => setTimeout(r, 500));
+  assert.equal(await adm.page.isVisible('#sol-badge'), false);
+  assert.equal(await adm.page.evaluate(() => solChannel), null);
+  assert.equal(rpcCalls.denied || 0, negadas, 'con QA no se pide el contador');
+  ok('Solicitudes: QA no tiene contador ni canal, aunque antes hubiera entrado un ADMIN en la misma pestaña');
+  await adm.context.close();
+  await lead.context.close();
 }
 
 // 20. Horas: cada QA carga las suyas; leads corrigen las de todos; consolidado para todos
