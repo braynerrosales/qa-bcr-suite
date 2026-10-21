@@ -187,8 +187,11 @@
   .sol-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
   .sol-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
   .sol-toolbar .crud-input { flex: 1 1 200px; min-width: 0; }
-  .sol-new { display: flex; gap: 10px; margin-bottom: 12px; }
-  .sol-new .crud-input { flex: 1; min-width: 0; }
+  .sol-new-dialog { width: min(480px, calc(100vw - 32px)); overscroll-behavior: contain; }
+  .sol-new-dialog textarea { width: 100%; min-height: 64px; resize: vertical; font: inherit; font-size: 14px; line-height: 1.5; }
+  .sol-new-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .sol-new-row .adj-field { flex: 1 1 150px; }
+  .sol-new-check { font-size: 14px; color: var(--ink); min-height: 32px; }
   .sol-table-wrap { position: relative; overflow-x: auto; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); }
   .sol-table { min-width: 1080px; }
   .sol-table-outer { position: relative; }
@@ -554,7 +557,7 @@
     [id^=list-people] .crud-item { flex-wrap: nowrap; gap: 8px; }
     [id^=list-people] .crud-item-name { min-width: 0; overflow-wrap: anywhere; }
     /* 16px evita que iOS haga zoom al tocar un campo. */
-    input:not([type=checkbox]):not([type=radio]), select, textarea, .crud-input, .user-role-select, .user-create select, .range-input, .sol-table textarea, .sol-table input[type=number], .sol-table input[type=date], .sol-enc select { font-size: 16px; }
+    input:not([type=checkbox]):not([type=radio]), select, textarea, .crud-input, .user-role-select, .user-create select, .range-input, .sol-table textarea, .sol-table input[type=number], .sol-table input[type=date], .sol-enc select, .sol-new-dialog textarea { font-size: 16px; }
     .crud-btn-del, .crud-btn-add, .btn-secondary, .user-role-select, .calc-holidays-toggle { min-height: 40px; }
     .crud-checkbox { width: 22px; height: 22px; }
     .admin-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 18px; }

@@ -136,6 +136,45 @@
   </form>
 </dialog>
 
+<dialog class="pw-dialog sol-new-dialog" id="sol-new-dialog" aria-labelledby="sol-new-title">
+  <form data-submit="addSolicitud" novalidate>
+    <div class="admin-card-title" id="sol-new-title">Nueva solicitud</div>
+    <label class="adj-field">Nombre
+      <input class="crud-input" id="sol-new-name" type="text" maxlength="300" required autocomplete="off" placeholder="Ej: 2270726 - Solicitud P3_081…">
+    </label>
+    <label class="adj-field">Estado
+      <select class="crud-input" id="sol-new-estado">
+        <option value="pend_plan" selected>Pendiente de plan</option>
+        <option value="plan_enviado">Plan enviado</option>
+        <option value="pend_actualizar">Pendiente de actualizar</option>
+        <option value="">Sin estado</option>
+      </select>
+    </label>
+    <div class="sol-new-row">
+      <label class="adj-field">Horas aprox.
+        <input class="crud-input" id="sol-new-horas" type="number" autocomplete="off" min="0" max="9999" step="0.5" inputmode="decimal" placeholder="0">
+      </label>
+      <label class="adj-field">Fecha de cierre
+        <input class="crud-input" id="sol-new-cierra" type="date" autocomplete="off">
+      </label>
+    </div>
+    <label class="crud-label-small sol-new-check"><input type="checkbox" class="crud-checkbox" id="sol-new-informe" data-change="renderNuevaEncargados"> Va en el informe semanal</label>
+    <div class="adj-field" id="sol-new-enc-field" hidden>
+      <span id="sol-new-enc-label">Encargados del informe</span>
+      <div class="sol-enc" id="sol-new-enc" role="group" aria-labelledby="sol-new-enc-label"></div>
+    </div>
+    <label class="adj-field">Observaciones
+      <textarea id="sol-new-obs" rows="2" maxlength="2000" autocomplete="off" placeholder="Ej: Entra el lunes…"></textarea>
+    </label>
+    <p class="adj-hint">Solo el nombre es obligatorio. Lo demás se puede completar después en la tabla.</p>
+    <div class="status-msg" id="sol-new-status" role="status"></div>
+    <div class="pw-dialog-actions">
+      <button type="button" class="btn-secondary" data-click="closeDialog" data-dialog="sol-new-dialog">Cancelar</button>
+      <button type="submit" class="crud-btn-add" id="sol-new-btn">Agregar</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="data-banner" id="data-banner" role="status">
   <span class="data-banner-text" id="data-banner-text"></span>
   <button class="data-banner-btn" id="data-banner-btn" hidden data-click="retryLoadConfig">Reintentar</button>
@@ -528,11 +567,8 @@
         </div>
       </div>
       <div class="sol-stats" id="sol-stats"></div>
-      <form class="sol-new" data-submit="addSolicitud">
-        <input class="crud-input" id="sol-new-name" placeholder="Nueva solicitud: 2270726 - Solicitud P3_081…" maxlength="300" required aria-label="Nombre de la nueva solicitud">
-        <button type="submit" class="crud-btn-add" id="sol-new-btn">Agregar</button>
-      </form>
       <div class="sol-toolbar">
+        <button type="button" class="crud-btn-add" id="sol-new-open" data-click="openNuevaSolicitud">+ Nueva solicitud</button>
         <input class="crud-input" id="sol-search" type="search" placeholder="Buscar solicitud…" aria-label="Buscar solicitud" data-input="renderSolicitudes">
         <select class="user-role-select" id="sol-filter" aria-label="Filtrar por estado" data-change="renderSolicitudes">
           <option value="open" selected>Abiertas</option>

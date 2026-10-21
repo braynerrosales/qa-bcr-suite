@@ -219,15 +219,71 @@ async function saveSolicitud(id,patch,after){
   const {data,error}=await supabaseClient.from('solicitudes').update(patch).eq('id',id).select('id');
   if(error||!data||!data.length){uiError(writeErrorMessage(error||{code:'42501'}));await loadSolicitudes();}
 }
+/* ── Nueva solicitud: popup con lo que se sabe al crearla (solo el nombre es obligatorio) ── */
+// El estado se elige en un combo; en la base siguen siendo las casillas de la tabla.
+const SOL_NEW_ESTADOS=['pend_plan','plan_enviado','pend_actualizar'];
+let solNewEnc=[];
+function openNuevaSolicitud(){
+  const d=document.getElementById('sol-new-dialog');
+  d.querySelector('form').reset();
+  solNewEnc=[];renderNuevaEncargados();
+  setSolNewStatus('');
+  document.getElementById('sol-new-btn').disabled=false;
+  d.showModal();
+  document.getElementById('sol-new-name').focus();
+}
+// El aviso de error se va apenas se corrige el campo.
+document.addEventListener('input',e=>{if(e.target.closest?.('#sol-new-dialog')&&document.getElementById('sol-new-status').classList.contains('error'))setSolNewStatus('');});
+// field: el campo con el error (queda marcado con aria-invalid hasta que se corrige).
+function setSolNewStatus(kind,text,field){
+  const st=document.getElementById('sol-new-status');st.className=kind?'status-msg '+kind:'status-msg';st.textContent=text||'';
+  document.querySelectorAll('#sol-new-dialog [aria-invalid]').forEach(el=>el.removeAttribute('aria-invalid'));
+  if(field){field.setAttribute('aria-invalid','true');field.focus();}
+}
+// Mismos chips que la columna Encargado de la tabla, pero sobre la lista del popup.
+function renderNuevaEncargados(){
+  const on=document.getElementById('sol-new-informe').checked,box=document.getElementById('sol-new-enc');
+  document.getElementById('sol-new-enc-field').hidden=!on;
+  box.replaceChildren();
+  if(!on)return;
+  solNewEnc.forEach(n=>{
+    const chip=document.createElement('span');chip.className='sol-chip';chip.append(n);
+    const x=Object.assign(document.createElement('button'),{type:'button',textContent:'×'});
+    x.setAttribute('aria-label','Quitar a '+n);
+    x.addEventListener('click',()=>{solNewEnc=solNewEnc.filter(e=>e!==n);renderNuevaEncargados();document.querySelector('#sol-new-enc select')?.focus();});
+    chip.appendChild(x);box.appendChild(chip);
+  });
+  const free=solPeople().filter(n=>!solNewEnc.includes(n));
+  if(!free.length||solNewEnc.length>=10)return;
+  const sel=document.createElement('select');sel.setAttribute('aria-label','Agregar encargado del informe');
+  sel.appendChild(new Option('+ Encargado',''));
+  free.forEach(n=>sel.appendChild(new Option(n,n)));
+  sel.addEventListener('change',()=>{if(!sel.value)return;solNewEnc.push(sel.value);renderNuevaEncargados();document.querySelector('#sol-new-enc select')?.focus();});
+  box.appendChild(sel);
+}
+// "P3_081", "P2_191", "OPC_47": el código que identifica la solicitud dentro del nombre
+// (sin ceros a la izquierda, para que P3_081 y P3_81 cuenten como la misma).
+function solCodigo(nombre){const m=(nombre||'').match(/(P\d+|OPC)_?\s?(\d+)/i);return m?m[1].toUpperCase()+'_'+Number(m[2]):null;}
 async function addSolicitud(event){
   event.preventDefault();
-  const input=document.getElementById('sol-new-name'),btn=document.getElementById('sol-new-btn'),nombre=input.value.trim();
-  if(!nombre)return;
-  btn.disabled=true;
-  const {error}=await supabaseClient.from('solicitudes').insert({nombre});
+  const nameEl=document.getElementById('sol-new-name'),btn=document.getElementById('sol-new-btn');
+  const nombre=nameEl.value.replace(/\s+/g,' ').trim();
+  if(!nombre){setSolNewStatus('error','Escribí el nombre de la solicitud.',nameEl);return;}
+  const horasEl=document.getElementById('sol-new-horas');
+  const horas=horasEl.value===''?null:Number(horasEl.value);
+  if(horasEl.validity.badInput||(horas!==null&&!(horas>=0&&horas<=9999))){setSolNewStatus('error','Las horas tienen que ser un número entre 0 y 9999.',horasEl);return;}
+  const cod=solCodigo(nombre),same=cod?SOL.filter(r=>solCodigo(r.nombre)===cod):[],dup=same.find(r=>!r.cerrada)||same[0];
+  if(dup&&!await uiConfirm(dup.nombre+(dup.cerrada?' (cerrada)':''),{title:'Ya hay una solicitud con ese código',ok:'Agregar igual'})){nameEl.focus();return;}
+  const estado=document.getElementById('sol-new-estado').value,informe=document.getElementById('sol-new-informe').checked;
+  const row={nombre,horas,cierra:document.getElementById('sol-new-cierra').value||null,
+    observaciones:document.getElementById('sol-new-obs').value.trim(),
+    informe_semanal:informe,encargados:informe?[...solNewEnc]:[]};
+  SOL_NEW_ESTADOS.forEach(k=>{row[k]=k===estado;});
+  btn.disabled=true;setSolNewStatus('info','Guardando…');
+  const {error}=await supabaseClient.from('solicitudes').insert(row);
   btn.disabled=false;
-  if(error){uiError(writeErrorMessage(error));return;}
-  input.value='';
+  if(error){setSolNewStatus('error',writeErrorMessage(error));return;}
+  document.getElementById('sol-new-dialog').close();
   document.getElementById('sol-search').value='';
   if(document.getElementById('sol-filter').value==='done')document.getElementById('sol-filter').value='open';
   await loadSolicitudes();

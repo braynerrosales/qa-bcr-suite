@@ -1260,12 +1260,58 @@ resetData();
   ok('Solicitudes en vivo: cambios, altas y bajas de otros aparecen solos sin pisar lo que estás escribiendo');
 
 
-  await page.fill('#sol-new-name', 'Solicitud P3_090 Nueva <i>x</i>');
+  // Popup de nueva solicitud: solo el nombre es obligatorio; el estado es un combo.
+  await page.click('#sol-new-open');
+  await page.waitForSelector('#sol-new-dialog[open]');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'sol-new-name');
+  assert.equal(await page.inputValue('#sol-new-estado'), 'pend_plan');
+  assert.deepEqual(await page.locator('#sol-new-estado option').allTextContents(), ['Pendiente de plan', 'Plan enviado', 'Pendiente de actualizar', 'Sin estado']);
+  assert.equal(await page.isVisible('#sol-new-enc-field'), false, 'los encargados solo aparecen con informe semanal');
+  let solWrites = writes.length;
+  await page.click('#sol-new-btn');
+  await page.waitForSelector('#sol-new-status.error:has-text("Escribí el nombre")');
+  assert.equal(await page.getAttribute('#sol-new-name', 'aria-invalid'), 'true');
+  assert.equal(writes.length, solWrites, 'sin nombre no guarda');
+  await page.fill('#sol-new-name', '  Solicitud   P3_090 Nueva <i>x</i> ');
+  await page.selectOption('#sol-new-estado', 'plan_enviado');
+  await page.fill('#sol-new-horas', '6.5');
+  await page.fill('#sol-new-cierra', '2026-11-20');
+  await page.check('#sol-new-informe');
+  await page.waitForSelector('#sol-new-enc-field:not([hidden])');
+  await page.selectOption('#sol-new-enc select', 'Beto Uno');
+  await page.selectOption('#sol-new-enc select', 'Caro Dos');
+  await page.click('#sol-new-enc .sol-chip:has-text("Caro Dos") button');
+  assert.deepEqual(await page.locator('#sol-new-enc .sol-chip').allTextContents(), ['Beto Uno×']);
+  await page.fill('#sol-new-obs', 'Entra el lunes');
+  await page.screenshot({ path: DIR + 'tests/shot-sol-nueva.png' });
   await page.click('#sol-new-btn');
   await page.waitForSelector('#sol-status.ok');
-  assert.ok(tables.solicitudes.some((s) => s.nombre === 'Solicitud P3_090 Nueva <i>x</i>'));
+  assert.equal(await page.isVisible('#sol-new-dialog'), false);
+  const nueva = tables.solicitudes.find((s) => s.nombre === 'Solicitud P3_090 Nueva <i>x</i>');
+  assert.deepEqual([nueva.pend_plan, nueva.plan_enviado, nueva.pend_actualizar, nueva.horas, nueva.cierra, nueva.informe_semanal, nueva.encargados, nueva.observaciones],
+    [false, true, false, 6.5, '2026-11-20', true, ['Beto Uno'], 'Entra el lunes']);
   assert.equal(await page.locator('#sol-body .sol-name').evaluateAll((els) => els.some((e) => e.value === 'Solicitud P3_090 Nueva <i>x</i>')), true);
-  ok('Solicitudes: agregar una nueva');
+  ok('Solicitudes: el popup agrega una nueva con estado (combo), horas, fecha, informe con encargados y notas');
+
+  // Mismo código que una existente (P3_081 = P3_81): pregunta antes de agregar.
+  await page.click('#sol-new-open');
+  await page.waitForSelector('#sol-new-dialog[open]');
+  assert.equal(await page.inputValue('#sol-new-name'), '', 'cada vez arranca vacío');
+  assert.equal(await page.isChecked('#sol-new-informe'), false);
+  await page.fill('#sol-new-name', 'Otra Solicitud P3_81');
+  answers.push(false);
+  solWrites = writes.length;
+  await page.click('#sol-new-btn');
+  await until(page, () => document.activeElement?.id === 'sol-new-name');
+  assert.equal(dialogs[dialogs.length - 1], 'Ya hay una solicitud con ese código · Solicitud P3_081 Renombrada (cerrada)');
+  assert.equal(writes.length, solWrites, 'si cancela no guarda');
+  await page.selectOption('#sol-new-estado', '');
+  answers.push(true);
+  await page.click('#sol-new-btn');
+  await page.waitForSelector('#sol-new-dialog', { state: 'hidden' });
+  const otra = tables.solicitudes.find((s) => s.nombre === 'Otra Solicitud P3_81');
+  assert.deepEqual([otra.pend_plan, otra.plan_enviado, otra.pend_actualizar, otra.horas, otra.cierra, otra.informe_semanal, otra.encargados], [false, false, false, null, null, false, []]);
+  ok('Solicitudes: avisa si ya hay una con el mismo código; "Sin estado" no marca ninguna casilla');
 
   tables.solicitudes.find((s) => s.id === 3).nombre = 'QA_OPC_47 Cambiada por otro lead';
   await page.click('#sol-reload');
