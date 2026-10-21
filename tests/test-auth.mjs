@@ -55,6 +55,7 @@ let tables;
 let vistas = {};
 const rpcCalls = { novedades: 0, marcarVisto: 0 };
 let rejectNextVisto = false;
+let delayNovedades = 0; // ms: respuesta atrasada del contador
 const isoDay = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('en-CA'); };
 const solicitudesIniciales = () => [
   { id: 1, nombre: 'Solicitud P3_081 Gobierno <b>Digital</b>', informe_semanal: true, encargados: ['Beto Uno'], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: true, cierre_enviado: false, cierra: isoDay(5), observaciones: '', cerrada: false },
@@ -408,7 +409,7 @@ async function setup(context) {
     if (url.pathname === '/rest/v1/rpc/solicitudes_novedades' || url.pathname === '/rest/v1/rpc/solicitudes_marcar_visto') {
       const me = byId(subOf(req))?.[1];
       if (!isLead(me)) { rpcCalls.denied = (rpcCalls.denied || 0) + 1; return json(403, { code: '42501', message: 'Sin permiso' }); }
-      if (url.pathname.endsWith('novedades')) { rpcCalls.novedades++; return json(200, solNovedades(me)); }
+      if (url.pathname.endsWith('novedades')) { rpcCalls.novedades++; const n = solNovedades(me); if (delayNovedades) await new Promise((r) => setTimeout(r, delayNovedades)); return json(200, n); }
       rpcCalls.marcarVisto++;
       if (rejectNextVisto) { rejectNextVisto = false; return json(500, { code: 'XX000', message: 'falla simulada' }); }
       const antes = vistas[me.id] ?? new Date().toISOString();
@@ -1487,6 +1488,19 @@ resetData();
   assert.equal(await adm.page.locator('#sol-body .sol-new:not([hidden])').count(), 0);
   assert.equal(await adm.page.textContent('#sol-badge'), '1');
   ok('Solicitudes: si no se puede marcar visto, la lista carga igual y el contador queda como estaba');
+
+  // Una respuesta atrasada del contador no lo vuelve a encender después de abrir Solicitudes.
+  await adm.page.click('#nav-daily');
+  tables.solicitudes.push({ ...fila, id: 302, nombre: 'Solicitud P3_302 Atrasada', created_at: new Date().toISOString() });
+  delayNovedades = 1500;
+  rtPush('INSERT', tables.solicitudes.at(-1));
+  await new Promise((r) => setTimeout(r, 500));
+  await adm.page.click('#nav-solicitudes');
+  await adm.page.waitForSelector('#sol-body tr[data-id="302"]');
+  await new Promise((r) => setTimeout(r, 2000));
+  delayNovedades = 0;
+  assert.equal(await adm.page.isVisible('#sol-badge'), false, 'la respuesta vieja encendió el contador');
+  ok('Solicitudes: una respuesta atrasada del contador no lo enciende con la pantalla abierta');
 
   // Cierra sesión y entra un QA en la misma pestaña: ni contador ni canal del anterior.
   const negadas = rpcCalls.denied || 0;

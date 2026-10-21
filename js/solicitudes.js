@@ -31,7 +31,8 @@ function solSubscribe(){
 }
 // Avisos: cuántas solicitudes creó o pasó a "Plan enviado" otra persona desde tu última visita.
 // Cada usuario tiene su propio visto (solicitudes_novedades / solicitudes_marcar_visto).
-let solBadgeTimer=null;
+let solBadgeTimer=null,solBadgeGen=0;
+function solPageOpen(){return document.getElementById('page-solicitudes').classList.contains('active');}
 function setSolBadge(n){
   // El número va en el nombre del botón: el lector de pantalla no lee un aria-label en un span.
   [['nav-solicitudes','sol-badge'],['mnav-solicitudes','msol-badge']].forEach(([btn,id])=>{
@@ -43,7 +44,10 @@ function setSolBadge(n){
 }
 async function refreshSolBadge(){
   if(!canManageConfig()){setSolBadge(0);return;}
+  const gen=++solBadgeGen;
   const {data,error}=await supabaseClient.rpc('solicitudes_novedades');
+  // Una respuesta vieja (ya se marcó visto o llegó otra después) no pisa el contador.
+  if(gen!==solBadgeGen||solPageOpen())return;
   setSolBadge(error?0:data);
 }
 // Una ráfaga de cambios en vivo se junta en una sola consulta.
@@ -55,6 +59,7 @@ async function solMarkSeen({keepPrev=false}={}){
   const {data,error}=await supabaseClient.rpc('solicitudes_marcar_visto');
   if(error){if(!keepPrev)SOL_SEEN_PREV=null;return;}
   if(!keepPrev)SOL_SEEN_PREV=data;
+  solBadgeGen++;clearTimeout(solBadgeTimer);
   setSolBadge(0);
 }
 function solNovedad(r){
@@ -66,7 +71,7 @@ function solNovedad(r){
 }
 function solEditing(){return document.getElementById('sol-body').contains(document.activeElement);}
 function solOnChange(p){
-  if(document.getElementById('page-solicitudes').classList.contains('active')){if(p.new&&solNovedad(p.new))solMarkSeen({keepPrev:true});}
+  if(solPageOpen()){if(p.new&&solNovedad(p.new))solMarkSeen({keepPrev:true});}
   else solBadgeSoon();
   const body=document.getElementById('sol-body');
   if(p.eventType==='DELETE'){
