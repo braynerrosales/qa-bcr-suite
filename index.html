@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
+<script src="js/tema.js"></script>
 </head>
 <body class="auth-locked">
 
@@ -50,6 +51,10 @@
     <button class="mobile-nav-btn" data-click="showPage" data-args='["calc"]'>Días</button>
   </div>
   <div class="mobile-account">
+    <div class="theme-ctl" role="group" aria-label="Tema">
+      <button type="button" class="theme-switch" role="switch" aria-checked="false" aria-label="Modo noche" data-click="toggleTheme"><span class="ts-cloud"></span><span class="ts-star"></span><span class="ts-star"></span><span class="ts-star"></span><span class="ts-knob"></span></button>
+      <button type="button" class="theme-auto" aria-pressed="true" title="Seguir el tema del sistema" data-click="themeAuto">Auto</button>
+    </div>
     <button class="mobile-logout-btn" id="mobile-feedback" data-click="openFeedback" title="Enviar feedback">Feedback</button>
     <button class="mobile-logout-btn" id="mobile-password" data-click="openPasswordDialog" title="Cambiar contraseña">Clave</button>
     <button class="mobile-logout-btn" id="mobile-logout" data-click="logout" title="Cerrar sesión">Salir</button>
@@ -209,6 +214,11 @@
           <button class="sidebar-logout" data-click="openPasswordDialog">Cambiar contraseña</button>
           <button class="sidebar-logout" data-click="logout">Cerrar sesión</button>
         </div>
+        <div class="theme-ctl" role="group" aria-label="Tema">
+          <button type="button" class="theme-switch" role="switch" aria-checked="false" aria-label="Modo noche" data-click="toggleTheme"><span class="ts-cloud"></span><span class="ts-star"></span><span class="ts-star"></span><span class="ts-star"></span><span class="ts-knob"></span></button>
+          <button type="button" class="theme-auto" aria-pressed="true" title="Seguir el tema del sistema" data-click="themeAuto">Auto</button>
+        </div>
+        <div class="theme-label" id="theme-label" aria-live="polite"></div>
       </div>
       <div class="sidebar-footer-text sidebar-credit">Made by <span class="nowrap"><svg class="invader" viewBox="0 0 11 8" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M2 0h1v1h-1zM8 0h1v1h-1zM3 1h1v1h-1zM7 1h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM0 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM0 6h1v1h-1zM2 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1z"/></svg> Ing. Brayner Rosales Solís</span> <span class="nowrap">x <svg class="invader invader-claude" viewBox="0 0 11 8" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" d="M2 0h1v1h-1zM8 0h1v1h-1zM3 1h1v1h-1zM7 1h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM0 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM0 6h1v1h-1zM2 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1z"/></svg> Claude</span></div>
       <div class="sidebar-footer-text">Versión 3</div>

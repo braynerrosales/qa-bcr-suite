@@ -1780,6 +1780,70 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   ok('diálogo propio: foco en Cancelar al borrar, Escape cancela, Enter guarda el texto, uno detrás de otro');
 }
 
+{
+  // Tema: Auto sigue al sistema; el sol/luna lo fija y se recuerda; Auto vuelve a seguir al sistema.
+  const { context, page } = await newPage();
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('http://app.test/index.html');
+  await login(page, 'admin@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  const paper = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--paper').trim());
+  const sw = page.locator('.sidebar .theme-switch'), auto = page.locator('.sidebar .theme-auto');
+  assert.equal(await paper(), '#f1f4f8');
+  assert.equal(await auto.getAttribute('aria-pressed'), 'true');
+  assert.equal(await sw.getAttribute('aria-checked'), 'false');
+  assert.equal(await page.textContent('#theme-label'), 'Automático · día (sistema)');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await until(page, () => getComputedStyle(document.documentElement).getPropertyValue('--paper').trim() === '#0d1625');
+  await until(page, () => document.querySelector('.sidebar .theme-switch').getAttribute('aria-checked') === 'true');
+  assert.equal(await page.textContent('#theme-label'), 'Automático · noche (sistema)');
+  ok('Tema: en Auto sigue al claro/oscuro del sistema');
+
+  await sw.click();
+  await until(page, () => document.documentElement.dataset.theme === 'light');
+  assert.equal(await paper(), '#f1f4f8', 'fija día aunque el sistema esté oscuro');
+  assert.equal(await auto.getAttribute('aria-pressed'), 'false');
+  assert.equal(await page.textContent('#theme-label'), 'Fijado en día');
+  assert.equal(await page.evaluate(() => localStorage.getItem('qabcr-tema')), 'light');
+  assert.equal(await page.getAttribute('meta[name=theme-color]', 'content'), '#0a3d7e');
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: DIR + 'tests/shot-tema-dia.png' });
+  await sw.click();
+  await until(page, () => document.documentElement.dataset.theme === 'dark');
+  assert.equal(await page.getAttribute('meta[name=theme-color]', 'content'), '#0a1830');
+  await page.emulateMedia({ colorScheme: 'light' });
+  assert.equal(await paper(), '#0d1625', 'fijado en noche no sigue al sistema');
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: DIR + 'tests/shot-tema-noche.png' });
+  await page.reload();
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark', 'se recuerda al recargar');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  assert.equal(await sw.getAttribute('aria-checked'), 'true');
+  ok('Tema: el sol/luna fija día o noche, apaga Auto y se recuerda al recargar');
+
+  await auto.click();
+  await until(page, () => !document.documentElement.dataset.theme);
+  assert.equal(await paper(), '#f1f4f8');
+  assert.equal(await page.evaluate(() => localStorage.getItem('qabcr-tema')), null);
+  assert.equal(await auto.getAttribute('aria-pressed'), 'true');
+  // Auto encendido y se apaga: queda fijado en lo que se ve, sin cambiar el color.
+  await auto.click();
+  assert.equal(await page.evaluate(() => [document.documentElement.dataset.theme, localStorage.getItem('qabcr-tema')]).then(String), 'light,light');
+  await auto.click();
+  ok('Tema: Auto vuelve a seguir al sistema; apagarlo deja el tema que se ve');
+
+  await page.setViewportSize({ width: 390, height: 760 });
+  assert.equal(await page.isVisible('.mobile-account .theme-switch'), true);
+  assert.equal(await page.isVisible('.mobile-account .theme-auto'), true);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'sin scroll horizontal');
+  await page.locator('.mobile-account .theme-switch').click();
+  await until(page, () => document.documentElement.dataset.theme === 'dark');
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: DIR + 'tests/shot-tema-movil.png' });
+  ok('Tema en celular: el interruptor está junto a los botones de cuenta');
+  await context.close();
+}
+
 await browser.close();
 assert.deepEqual(errors, [], 'errores de JS en la página: ' + errors.join(' | '));
 ok('sin errores de JavaScript ni bloqueos de CSP/integridad en la página');
