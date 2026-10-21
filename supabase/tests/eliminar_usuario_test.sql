@@ -8,6 +8,13 @@ insert into auth.users (id, email, raw_user_meta_data) values
     ('00000000-0000-0000-0000-0000000000f1', 'del-horas@test.local',   '{"full_name":"Del Con Horas"}'),
     ('00000000-0000-0000-0000-0000000000f2', 'del-ajuste@test.local',  '{"full_name":"Del Con Ajuste"}'),
     ('00000000-0000-0000-0000-0000000000f3', 'del-limpio@test.local',  '{"full_name":"Del Sin Horas"}');
+-- Los perfiles nacen inactivos y con la contraseña temporal (20261024000001_seguridad.sql): se dejan listos.
+update public.profiles set active = true, must_change_password = false
+where id in (
+    '00000000-0000-0000-0000-0000000000f1',
+    '00000000-0000-0000-0000-0000000000f2',
+    '00000000-0000-0000-0000-0000000000f3'
+);
 
 insert into public.horas (user_id, fecha, tipo, soli, tarea, horas, facturable)
 values ('00000000-0000-0000-0000-0000000000f1', date '2026-10-12', 'TRABAJO', 'P3_1', 'Prueba', 8, 8);
