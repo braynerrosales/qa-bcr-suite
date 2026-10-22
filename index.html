@@ -46,6 +46,7 @@
   <div class="mobile-nav-btns">
     <button class="mobile-nav-btn active" data-click="showPage" data-args='["home"]'>Inicio</button>
     <button class="mobile-nav-btn" data-click="showPage" data-args='["qa"]'>Tareas</button>
+    <button class="mobile-nav-btn" data-click="showPage" data-args='["proyectos"]' id="mnav-proyectos" hidden>Proyectos</button>
     <button class="mobile-nav-btn" data-click="showPage" data-args='["daily"]'>Daily</button>
     <button class="mobile-nav-btn" data-click="showPage" data-args='["horas"]' id="mnav-horas">Horas</button>
     <button class="mobile-nav-btn" data-click="showPage" data-args='["solicitudes"]' id="mnav-solicitudes">Solicitudes <span class="fb-badge nav-count" id="msol-badge" aria-hidden="true" hidden></span></button>
@@ -206,6 +207,7 @@
     <nav class="sidebar-nav" aria-label="Secciones">
       <button class="nav-item item-home active" data-click="showPage" data-args='["home"]' id="nav-home">Inicio</button>
       <button class="nav-item item-qa" data-click="showPage" data-args='["qa"]' id="nav-qa">Generar tareas</button>
+      <button class="nav-item item-proyectos" data-click="showPage" data-args='["proyectos"]' id="nav-proyectos" hidden>Proyectos</button>
       <button class="nav-item item-daily" data-click="showPage" data-args='["daily"]' id="nav-daily">Daily</button>
       <button class="nav-item item-horas" data-click="showPage" data-args='["horas"]' id="nav-horas">Horas</button>
       <button class="nav-item item-solicitudes" data-click="showPage" data-args='["solicitudes"]' id="nav-solicitudes">Solicitudes <span class="fb-badge nav-count" id="sol-badge" aria-hidden="true" hidden></span></button>
@@ -415,6 +417,44 @@
     </div>
 
     <!-- ADMIN -->
+    <div class="page" id="page-proyectos">
+    <div class="admin-page">
+      <div class="page-header">
+        <div class="page-header-left">
+          <button class="page-back" data-click="showPage" data-args='["home"]' aria-label="Volver al inicio">←</button>
+          <div>
+            <h2 class="page-title">Proyectos</h2>
+            <p class="page-subtitle">Proyectos, variantes y las tareas que arma Generar tareas. Cada uno puede borrar lo que agregó.</p>
+          </div>
+        </div>
+      </div>
+      <div class="crud-row">
+        <input class="crud-input" id="proy-new" aria-label="Nombre del nuevo proyecto" placeholder="Nombre del proyecto (ej. NUEVO_PROYECTO)…" data-enter="addProyecto">
+        <button class="crud-btn-add" data-click="addProyecto">Agregar proyecto</button>
+      </div>
+      <div class="task-project-grid" id="proy-list"></div>
+      <section class="proy-panel" id="proy-panel" aria-labelledby="proy-titulo" hidden>
+        <div class="proy-head">
+          <h3 class="proy-titulo" id="proy-titulo"></h3>
+        </div>
+        <div class="task-select-row">
+          <select class="variant-select" id="proy-variante" aria-label="Variante" data-change="changeVariante"></select>
+          <div class="crud-row proy-var-row">
+            <input class="crud-input" id="proy-new-var" aria-label="Nombre de la variante nueva" placeholder="Variante nueva (opcional)…" data-enter="addVariante">
+            <button class="crud-btn-add" data-click="addVariante">Agregar variante</button>
+          </div>
+        </div>
+        <p class="admin-card-desc">Escribí <code>{n}</code> donde va el número del PBI o HU.</p>
+        <ol class="proy-tareas" id="proy-tareas"></ol>
+        <p class="proy-vacio" id="proy-vacio">Todavía no hay tareas en esta variante.</p>
+        <div class="crud-row">
+          <input class="crud-input" id="proy-new-task" aria-label="Tarea nueva" placeholder="QA - {n} - Descripción de la tarea." data-enter="addTarea">
+          <button class="crud-btn-add" data-click="addTarea">Agregar tarea</button>
+        </div>
+      </section>
+    </div>
+    </div>
+
     <div class="page" id="page-admin">
     <div class="admin-page">
       <div class="page-header">
@@ -422,7 +462,7 @@
           <button class="page-back" data-click="showPage" data-args='["home"]' aria-label="Volver al inicio">←</button>
           <div>
             <h2 class="page-title">Administración</h2>
-            <p class="page-subtitle">Personas y reglas del Daily, plantillas de tareas, respaldo y usuarios.</p>
+            <p class="page-subtitle">Personas y reglas del Daily, respaldo y usuarios.</p>
           </div>
         </div>
       </div>
@@ -430,7 +470,6 @@
       <div class="admin-tabs">
         <button class="admin-tab-btn active" id="atab-people" data-click="selectAdminTab" data-args='["people"]'>Personas</button>
         <button class="admin-tab-btn" id="atab-rules" data-click="selectAdminTab" data-args='["rules"]'>Reglas del Daily</button>
-        <button class="admin-tab-btn" id="atab-tasks" data-click="selectAdminTab" data-args='["tasks"]'>Proyectos y tareas</button>
         <button class="admin-tab-btn" id="atab-backup" data-click="selectAdminTab" data-args='["backup"]'>Respaldo</button>
         <button class="admin-tab-btn" id="atab-users" data-click="selectAdminTab" data-args='["users"]' hidden>Usuarios</button>
         <button class="admin-tab-btn" id="atab-feedback" data-click="selectAdminTab" data-args='["feedback"]' hidden>Feedback <span class="fb-badge" id="fb-badge" hidden></span></button>
@@ -480,34 +519,6 @@
               <input type="number" min="1" class="range-input" id="range-daily2" aria-label="Rango del bloque inicial del Daily 2" data-change="setRange" data-daily="daily2">
             </div>
             <div class="crud-list" id="list-rules-daily2"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAREAS -->
-      <div class="admin-section" id="asec-tasks">
-        <div class="admin-card-title">Proyectos</div>
-        <div class="admin-card-desc">Agregá un proyecto nuevo o eliminá uno existente. Cada proyecto puede tener variantes (opcional).</div>
-        <div class="crud-row">
-          <input class="crud-input" id="new-project" aria-label="Nombre del nuevo proyecto" placeholder="Nombre del proyecto (ej. NUEVO_PROYECTO)…">
-          <button class="crud-btn-add" data-click="addProject">Agregar proyecto</button>
-        </div>
-        <div class="task-project-grid" id="task-project-list"></div>
-
-        <div id="task-editor-wrap" style="display:none">
-          <div class="task-select-row">
-            <select class="variant-select" id="task-variant-select" aria-label="Variante" data-change="renderTaskEditor"></select>
-            <div class="crud-row" style="flex:1;min-width:240px;margin-bottom:0">
-              <input class="crud-input" id="new-variant" aria-label="Nombre de la variante nueva" placeholder="Nombre de variante nueva (opcional)…">
-              <button class="crud-btn-add" data-click="addVariant">Agregar variante</button>
-            </div>
-            <button class="crud-btn-del" data-click="removeVariant" title="Eliminar variante seleccionada">Eliminar variante</button>
-          </div>
-          <div class="admin-card-desc">Una tarea por línea. Escribí <code>{n}</code> donde va el número del PBI o HU.</div>
-          <textarea class="task-textarea" id="task-textarea" aria-label="Tareas de la plantilla, una por línea"></textarea>
-          <div class="backup-btns">
-            <button class="crud-btn-add" data-click="saveTaskEditor">Guardar plantilla</button>
-            <button class="crud-btn-del" data-click="removeProject">Eliminar proyecto</button>
           </div>
         </div>
       </div>
@@ -717,6 +728,7 @@
 <script src="js/qa.js"></script>
 <script src="js/daily.js"></script>
 <script src="js/admin.js"></script>
+<script src="js/proyectos.js"></script>
 <script src="js/solicitudes.js"></script>
 <script src="js/avisos.js"></script>
 <script src="js/horas.js"></script>
