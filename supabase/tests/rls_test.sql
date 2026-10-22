@@ -72,12 +72,12 @@ begin
     end if;
     raise notice 'OK: QA obtiene get_app_config()';
 
-    begin
-        insert into public.projects (code, name) values ('TEST_QA', 'TEST_QA');
-        raise exception 'FALLO: QA pudo crear proyecto';
-    exception when insufficient_privilege then
-        raise notice 'OK: QA no puede crear proyecto';
-    end;
+    -- Desde 20261028000001_proyectos_qa.sql, QA agrega proyectos (con su autor).
+    insert into public.projects (code, name) values ('TEST_QA', 'TEST_QA');
+    if (select created_by from public.projects where code = 'TEST_QA') <> auth.uid() then
+        raise exception 'FALLO: el proyecto de QA no quedó con su autor';
+    end if;
+    raise notice 'OK: QA crea proyecto';
 
     update public.daily_members set name = name || ' x';
     get diagnostics n = row_count;
@@ -86,9 +86,9 @@ begin
 
     begin
         perform public.save_template((select project_id from test_ids), null, array['QA - {n} - x']);
-        raise exception 'FALLO: QA pudo guardar plantilla';
+        raise exception 'FALLO: QA pudo usar save_template';
     exception when insufficient_privilege then
-        raise notice 'OK: QA no puede guardar plantillas';
+        raise notice 'OK: QA no puede usar save_template (reemplazada por add_template_task)';
     end;
 
     update public.profiles set role = 'ADMIN' where id = auth.uid();
@@ -137,13 +137,12 @@ begin
     insert into public.projects (code, name, color) values ('TEST_LEAD', 'TEST_LEAD', '#123456');
     raise notice 'OK: QA_LEAD crea proyecto';
 
-    tid := public.save_template((select id from public.projects where code = 'TEST_LEAD'), null,
-                                array['QA - {n} - uno', '  ', 'QA - {n} - dos']);
-    tid := public.save_template((select id from public.projects where code = 'TEST_LEAD'), null,
-                                array['QA - {n} - tres']);
+    perform public.add_template_task((select id from public.projects where code = 'TEST_LEAD'), null, 'QA - {n} - uno');
+    tid := public.add_template_task((select id from public.projects where code = 'TEST_LEAD'), null, 'QA - {n} - dos');
+    tid := (select template_id from public.template_tasks where id = tid);
     select count(*) into n from public.template_tasks where template_id = tid;
-    if n <> 1 then raise exception 'FALLO: save_template dejó % tareas (esperado 1)', n; end if;
-    raise notice 'OK: save_template reemplaza la lista completa';
+    if n <> 2 then raise exception 'FALLO: add_template_task dejó % tareas (esperado 2)', n; end if;
+    raise notice 'OK: add_template_task agrega tareas a la plantilla';
 
     select count(*) into n from public.qa_generations;
     if n = 0 then raise exception 'FALLO: QA_LEAD no ve el historial de otros'; end if;
