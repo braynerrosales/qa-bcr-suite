@@ -2331,6 +2331,9 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   assert.equal(await editable(), 0, 'la fila que llega en vivo también es de solo lectura');
   assert.equal(writes.length, nWrites, 'QA Boss no escribe');
   ok('QA Boss: Solicitudes en solo lectura, sin Nueva solicitud ni informes, también lo que llega en vivo');
+  await page.evaluate(() => applyPermissions());
+  assert.equal(await page.isVisible('#page-solicitudes'), true, 'al reaplicar permisos QA Boss sigue en Solicitudes');
+  ok('QA Boss: al reaplicar permisos (renovar la sesión) sigue en Solicitudes');
   await page.screenshot({ path: DIR + 'tests/shot-boss.png' });
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.screenshot({ path: DIR + 'tests/shot-boss-oscuro.png' });

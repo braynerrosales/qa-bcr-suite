@@ -167,5 +167,6 @@ function applyPermissions(){
   if(isAdmin())refreshFeedbackBadge();
   ['avisos-btn','mavisos-btn'].forEach(id=>document.getElementById(id).hidden=!canViewSolicitudes());
   if(canViewSolicitudes()){refreshSolBadge();solSubscribe();}
-  if((!lead&&(document.getElementById('page-admin').classList.contains('active')||document.getElementById('page-solicitudes').classList.contains('active')))||(!canUseHoras()&&document.getElementById('page-horas').classList.contains('active')))showPage('home');
+  const en=id=>document.getElementById('page-'+id).classList.contains('active');
+  if((!lead&&en('admin'))||(!canViewSolicitudes()&&en('solicitudes'))||(!canUseHoras()&&en('horas')))showPage('home');
 }
