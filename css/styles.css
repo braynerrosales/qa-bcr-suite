@@ -714,3 +714,12 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
+
+/* Daily: menú del motivo de la ausencia (uno solo, flotante). */
+.dly-motivo-menu { position: fixed; z-index: 300; display: flex; flex-direction: column; min-width: 180px; padding: 6px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); box-shadow: 0 12px 32px rgba(0,0,0,0.22); }
+.dly-motivo-menu[hidden] { display: none; }
+.dly-motivo-menu button { text-align: left; min-height: 40px; padding: 8px 12px; border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--ink); font: inherit; font-size: 14px; }
+.dly-motivo-menu button:hover { background: var(--sheet-2); }
+.dly-motivo-menu button:focus-visible { outline: 2px solid var(--mark); outline-offset: -2px; background: var(--sheet-2); }
+.dly-motivo-menu button[aria-current="true"] { font-weight: 700; }
+.dly-motivo-menu button[data-motivo=""] { margin-top: 4px; border-top: 1px solid var(--rule); border-radius: 0 0 var(--r-ctl) var(--r-ctl); color: var(--ok); }
