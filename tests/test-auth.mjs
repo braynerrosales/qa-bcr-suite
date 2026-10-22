@@ -940,6 +940,10 @@ const lastWrite = () => writes[writes.length - 1];
   await until(page, () => !document.getElementById('ui-dialog').open);
   assert.equal(writes.length, nEdit, 'un texto vacío no se guarda');
   ok('Proyectos: QA edita solo sus tareas; lo viejo y lo de otros no muestra botones');
+  await page.screenshot({ path: DIR + 'tests/shot-proyectos.png' });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.screenshot({ path: DIR + 'tests/shot-proyectos-oscuro.png' });
+  await page.emulateMedia({ colorScheme: 'light' });
 
   answers.push(true);
   await fila('Editada').locator('button:has-text("Borrar")').click();
@@ -1003,6 +1007,29 @@ const lastWrite = () => writes[writes.length - 1];
   const orden = await page.evaluate(() => DB.projects.COMERCIAL.templates.normal);
   assert.deepEqual(orden, ids().map((id) => tables.template_tasks.find((x) => x.id === id).task), 'Generar tareas usa el orden nuevo');
   ok('Proyectos: el QA Lead reordena, las tareas conservan su autor y Generar tareas usa el orden nuevo');
+  await context.close();
+}
+
+// 13d. Proyectos en el celular (375 px): sin desborde horizontal
+{
+  const { context, page } = await newPage({ width: 375, height: 760 });
+  await page.goto('http://app.test/index.html');
+  await login(page, 'qa@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#mnav-proyectos');
+  await page.click('#proy-list .proj-btn[data-code="COMERCIAL"]');
+  await page.waitForSelector('#proy-tareas .proy-tarea');
+  await page.fill('#proy-new-task', 'QA - {n} - Una tarea con un texto bastante largo para ver cómo se acomoda en el celular.');
+  await page.press('#proy-new-task', 'Enter');
+  await page.locator('#proy-tareas .proy-tarea', { hasText: 'bastante largo' }).waitFor();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert.ok(overflow <= 0, 'scroll horizontal en Proyectos móvil: ' + overflow);
+  const ancho = await page.locator('#proy-tareas .proy-tarea-txt', { hasText: 'bastante largo' }).evaluate((e) => e.getBoundingClientRect().width);
+  assert.ok(ancho >= 250, 'el texto de la tarea queda muy angosto: ' + ancho);
+  const chicos = await page.$$eval('#page-proyectos button', (bs) => bs.filter((b) => b.offsetParent && b.getBoundingClientRect().height < 32).map((b) => b.textContent));
+  assert.deepEqual(chicos, [], 'botones muy chicos para el dedo');
+  await page.screenshot({ path: DIR + 'tests/shot-proyectos-movil.png', fullPage: true });
+  ok('Proyectos en el celular: sin desborde y con botones cómodos');
   await context.close();
 }
 
