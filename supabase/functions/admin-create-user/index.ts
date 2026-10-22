@@ -8,7 +8,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.117.2';
 
 const ALLOWED_ORIGINS = ['https://braynerrosales.github.io'];
-const ROLES = ['ADMIN', 'QA_LEAD', 'QA', 'BETA'];
+const ROLES = ['ADMIN', 'QA_LEAD', 'QA', 'BETA', 'BOSS'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Un ADMIN no le cambia la contraseña ni elimina a otro ADMIN: así nadie entra con la cuenta de otro.
