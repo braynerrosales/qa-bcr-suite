@@ -460,6 +460,11 @@
   .proy-tarea-txt { flex: 1; min-width: 0; font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
   .proy-tarea-autor { flex: none; font-size: 12px; color: var(--ink-3); }
   .proy-vacio { color: var(--ink-2); font-size: 13px; margin: 4px 0 12px; }
+  .proy-tarea-acc { flex: none; display: flex; align-items: center; gap: 6px; }
+  .proy-tarea-acc .btn-secondary { font-size: 13px; padding: 5px 10px; }
+  .proy-mover { min-width: 32px; min-height: 32px; border: 1px solid var(--rule-2); border-radius: var(--r-ctl); background: var(--sheet); color: var(--ink-2); font-size: 14px; }
+  .proy-mover:hover:not(:disabled) { border-color: var(--bcr); color: var(--ink); }
+  .proy-mover:disabled { opacity: .35; }
   .admin-card-desc code { font-family: var(--mono); font-size: 13px; background: var(--sheet-2); border: 1px solid var(--rule); border-radius: 4px; padding: 0 4px; }
   .backup-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
   .backup-note { font-size: 14px; color: var(--ink-2); margin-top: 12px; }

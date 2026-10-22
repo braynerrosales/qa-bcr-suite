@@ -436,6 +436,7 @@
       <section class="proy-panel" id="proy-panel" aria-labelledby="proy-titulo" hidden>
         <div class="proy-head">
           <h3 class="proy-titulo" id="proy-titulo"></h3>
+          <button class="crud-btn-del" id="proy-del" data-click="removeProyecto" hidden>Eliminar proyecto</button>
         </div>
         <div class="task-select-row">
           <select class="variant-select" id="proy-variante" aria-label="Variante" data-change="changeVariante"></select>
@@ -443,6 +444,7 @@
             <input class="crud-input" id="proy-new-var" aria-label="Nombre de la variante nueva" placeholder="Variante nueva (opcional)…" data-enter="addVariante">
             <button class="crud-btn-add" data-click="addVariante">Agregar variante</button>
           </div>
+          <button class="crud-btn-del" id="proy-var-del" data-click="removeVariante" hidden>Eliminar variante</button>
         </div>
         <p class="admin-card-desc">Escribí <code>{n}</code> donde va el número del PBI o HU.</p>
         <ol class="proy-tareas" id="proy-tareas"></ol>

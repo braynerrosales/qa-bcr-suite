@@ -913,6 +913,96 @@ const lastWrite = () => writes[writes.length - 1];
   await waitDialog(/pedile a un QA Lead o Admin/i);
   assert.equal(writes.length, n, 'QA no reactiva un proyecto inactivo');
   ok('Proyectos: un proyecto inactivo no lo reactiva un QA');
+
+  // Editar y borrar: QA solo lo suyo; lo viejo (sin autor) y lo de otros no.
+  const leadId = users['lead@bcr.test'].id;
+  tables.template_tasks.push({ id: 500, template_id: 2, position: 9, task: 'QA - {n} - De Laura.', created_by: leadId });
+  await page.click('#proy-list .proj-btn[data-code="COMERCIAL"]');
+  await page.evaluate(() => loadProyectos());
+  const fila = (txt) => page.locator('#proy-tareas .proy-tarea', { hasText: txt });
+  await fila('De Laura').waitFor();
+  assert.equal(await fila('QA - {n} - Normal.').locator('button').count(), 0, 'sin autor: QA no la toca');
+  assert.equal(await fila('De Laura').locator('button').count(), 0, 'de otro: QA no la toca');
+  assert.equal(await fila('De Laura').locator('.proy-tarea-autor').textContent(), 'agregada por Laura Lead');
+  assert.equal(await fila('Mía').locator('button:has-text("Editar")').count(), 1);
+  assert.equal(await fila('Mía').locator('button:has-text("Borrar")').count(), 1);
+  assert.equal(await page.locator('#proy-tareas .proy-mover').count(), 0, 'QA no reordena');
+  assert.equal(await page.isVisible('#proy-del'), false, 'COMERCIAL no es suyo');
+  assert.equal(await page.isVisible('#proy-var-del'), false, 'la variante normal no es suya');
+
+  answers.push('QA - {n} - Editada.');
+  await fila('Mía').locator('button:has-text("Editar")').click();
+  await fila('Editada').waitFor();
+  assert.equal(tables.template_tasks.find((x) => x.id === mia.id).task, 'QA - {n} - Editada.');
+  const nEdit = writes.length;
+  answers.push('   ');
+  await fila('Editada').locator('button:has-text("Editar")').click();
+  await until(page, () => !document.getElementById('ui-dialog').open);
+  assert.equal(writes.length, nEdit, 'un texto vacío no se guarda');
+  ok('Proyectos: QA edita solo sus tareas; lo viejo y lo de otros no muestra botones');
+
+  answers.push(true);
+  await fila('Editada').locator('button:has-text("Borrar")').click();
+  await until(page, () => ![...document.querySelectorAll('#proy-tareas .proy-tarea-txt')].some((e) => e.textContent.includes('Editada')));
+  assert.ok(!tables.template_tasks.some((x) => x.id === mia.id));
+  ok('Proyectos: QA borra su tarea');
+
+  // Pestaña vieja: la tarea ya no existe.
+  await page.fill('#proy-new-task', 'QA - {n} - Fantasma.');
+  await page.press('#proy-new-task', 'Enter');
+  await fila('Fantasma').waitFor();
+  tables.template_tasks = tables.template_tasks.filter((x) => x.task !== 'QA - {n} - Fantasma.');
+  answers.push(true);
+  await fila('Fantasma').locator('button:has-text("Borrar")').click();
+  await waitDialog(/Ya no existe o no tenés permiso/);
+  await until(page, () => ![...document.querySelectorAll('#proy-tareas .proy-tarea-txt')].some((e) => e.textContent.includes('Fantasma')));
+  ok('Proyectos: si lo que borra ya no existe, avisa y recarga la lista');
+
+  // El dueño borra su proyecto aunque tenga tareas de otros; el aviso dice cuánto se va.
+  await page.click('#proy-list .proj-btn[data-code="NUEVO"]');
+  await until(page, () => document.getElementById('proy-variante').value === 'urgente');
+  assert.equal(await page.isVisible('#proy-del'), true);
+  assert.equal(await page.isVisible('#proy-var-del'), true);
+  await page.fill('#proy-new-task', 'QA - {n} - Urgente mía.');
+  await page.press('#proy-new-task', 'Enter');
+  await fila('Urgente mía').waitFor();
+  const tplNuevo = tables.template_tasks.find((x) => x.task === 'QA - {n} - Urgente mía.').template_id;
+  tables.template_tasks.push({ id: 501, template_id: tplNuevo, position: 2, task: 'QA - {n} - Laura en NUEVO.', created_by: leadId });
+  await page.evaluate(() => loadProyectos());
+  await fila('Laura en NUEVO').waitFor();
+  answers.push(true);
+  await page.click('#proy-del');
+  await until(page, () => !document.querySelector('#proy-list [data-code="NUEVO"]'));
+  assert.match(dialogs.at(-1), /Se borran también 1 variante y 2 tareas/);
+  assert.ok(!tables.projects.some((x) => x.code === 'NUEVO'));
+  assert.ok(!tables.template_tasks.some((x) => x.id === 501));
+  assert.equal(await page.isVisible('#proy-panel'), false);
+  ok('Proyectos: el dueño borra su proyecto con lo de otros, y el aviso dice cuánto se va');
+  await context.close();
+}
+
+// 13c. Proyectos como QA Lead: borra cualquier cosa y reordena (cada tarea conserva su autor)
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'lead@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#nav-proyectos');
+  await page.click('#proy-list .proj-btn[data-code="COMERCIAL"]');
+  await page.waitForSelector('#proy-tareas .proy-tarea');
+  const ids = () => tables.template_tasks.filter((x) => x.template_id === 2).sort((a, b) => a.position - b.position).map((x) => x.id);
+  const antes = ids();
+  assert.equal(await page.locator('#proy-tareas .proy-tarea').first().locator('button:has-text("Borrar")').count(), 1, 'el lead borra lo viejo');
+  assert.equal(await page.isVisible('#proy-del'), true);
+  const autor = tables.template_tasks.find((x) => x.id === antes[0]).created_by;
+  await page.locator('#proy-tareas .proy-tarea').first().locator('button[aria-label^="Bajar"]').click();
+  await until(page, (id) => document.querySelectorAll('#proy-tareas .proy-tarea')[1]?.dataset.id === String(id), antes[0]);
+  assert.deepEqual(ids(), [antes[1], antes[0], ...antes.slice(2)]);
+  assert.equal(tables.template_tasks.find((x) => x.id === antes[0]).created_by, autor, 'conserva el autor');
+  assert.equal(await page.locator('#proy-tareas .proy-tarea').first().locator('button[aria-label^="Subir"]').isDisabled(), true);
+  const orden = await page.evaluate(() => DB.projects.COMERCIAL.templates.normal);
+  assert.deepEqual(orden, ids().map((id) => tables.template_tasks.find((x) => x.id === id).task), 'Generar tareas usa el orden nuevo');
+  ok('Proyectos: el QA Lead reordena, las tareas conservan su autor y Generar tareas usa el orden nuevo');
   await context.close();
 }
 
