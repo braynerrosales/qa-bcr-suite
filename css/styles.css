@@ -723,3 +723,9 @@
 .dly-motivo-menu button:focus-visible { outline: 2px solid var(--mark); outline-offset: -2px; background: var(--sheet-2); }
 .dly-motivo-menu button[aria-current="true"] { font-weight: 700; }
 .dly-motivo-menu button[data-motivo=""] { margin-top: 4px; border-top: 1px solid var(--rule); border-radius: 0 0 var(--r-ctl) var(--r-ctl); color: var(--ok); }
+
+/* Daily: intercambiar a los leads (QA Lead y Admin). */
+.dly-swap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px; }
+.dly-swap[hidden] { display: none; }
+.dly-swap-hint { font-size: 13px; color: var(--ink-2); }
+.dly-swap .status-msg { flex-basis: 100%; }

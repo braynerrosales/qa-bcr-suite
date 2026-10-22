@@ -161,6 +161,7 @@ function applyPermissions(){
     :'Solo lectura: ves las solicitudes y sus avisos; los cambios los hacen QA Lead y Admin.';
   ['nav-horas','mnav-horas','home-horas'].forEach(id=>document.getElementById(id).hidden=!canUseHoras());
   ['nav-proyectos','mnav-proyectos'].forEach(id=>document.getElementById(id).hidden=!canEditCatalog());
+  document.getElementById('dly-swap').hidden=!lead;
   document.getElementById('atab-users').hidden=!isAdmin();
   document.getElementById('atab-feedback').hidden=!isAdmin();
   if(!isAdmin()&&['asec-users','asec-feedback'].some(id=>document.getElementById(id).classList.contains('active')))selectAdminTab('people');

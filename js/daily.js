@@ -167,6 +167,26 @@ document.addEventListener('click',e=>{
 });
 window.addEventListener('resize',()=>closeMotivoMenu());
 
+// Los dos leads van una semana en cada Daily, siempre al final (regla "fijo al final"):
+// QA Lead o Admin los cambia de Daily con un botón (daily_intercambiar_leads).
+function lastFixedOf(dk){return (DB.rules[dk]?.lastFixed||[]).filter(n=>(DB.people[dk]||[]).includes(n));}
+async function swapLeads(){
+  const st=document.getElementById('dly-swap-status'),f1=lastFixedOf('daily1'),f2=lastFixedOf('daily2');
+  st.className='status-msg';st.textContent='';
+  if(f1.length!==1||f2.length!==1){
+    uiAlert('Para intercambiar, cada Daily tiene que tener exactamente una persona fija al final. Revisalo en Administración → Reglas del Daily.','No se puede intercambiar');
+    return;
+  }
+  if(!await uiConfirm('Cada uno queda fijo al final en su Daily nuevo.',{title:`¿Pasar a ${f1[0]} al Daily 2 y a ${f2[0]} al Daily 1?`,ok:'Intercambiar'}))return;
+  const btn=document.getElementById('dly-swap-btn');btn.disabled=true;
+  const {error}=await supabaseClient.rpc('daily_intercambiar_leads');
+  btn.disabled=false;
+  try{await loadConfig();}catch(e){console.error(e);}
+  if(error){uiAlert(error.code==='42501'?'No tenés permiso para intercambiar a los leads.':(error.message||'No se pudo intercambiar'+errorDetail(error)+'.'),'No se pudo intercambiar');return;}
+  selectDaily(activeDaily);
+  st.className='status-msg ok';st.textContent=`Listo: ${f2[0]} pasó al Daily 1 y ${f1[0]} al Daily 2.`;
+}
+
 /* ============ DAILY: HISTORIAL ============ */
 // Un registro por daily por día (daily_guardar reemplaza si ya se guardó ese día).
 // Pestaña y período se recuerdan en este navegador (si se puede).

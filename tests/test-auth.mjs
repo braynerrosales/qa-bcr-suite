@@ -462,6 +462,20 @@ async function setup(context) {
       return json(200, Object.values(users).map((u) => ({ id: u.id, first_sign_in_at: u.first_sign_in_at ?? null, last_sign_in_at: u.last_sign_in_at ?? null, password_changed_at: u.password_changed_at ?? null, must_change_password: !!u.must_change_password })));
     }
     if (url.pathname === '/rest/v1/horas') return horasRequest(req, url, byId(subOf(req))?.[1], json);
+    // Igual que daily_intercambiar_leads() (20261030000001_daily_motivos.sql).
+    if (url.pathname === '/rest/v1/rpc/daily_intercambiar_leads') {
+      const me = byId(subOf(req))?.[1];
+      writes.push({ method: 'RPC', name: 'daily_intercambiar_leads' });
+      if (!isLead(me)) return json(403, { code: '42501', message: 'Sin permiso' });
+      const gs = tables.daily_groups.filter((g) => g.active).sort((x, y) => x.id - y.id);
+      if (gs.length !== 2) return json(400, { code: '22023', message: 'Para intercambiar tiene que haber exactamente dos Daily activos.' });
+      const fijos = gs.map((g) => tables.daily_members.filter((m) => m.daily_group_id === g.id && m.active && tables.daily_rule_members.some((r) => r.daily_member_id === m.id && r.rule_type === 'LAST_FIXED')));
+      if (fijos.some((f) => f.length !== 1)) return json(400, { code: '22023', message: 'Cada Daily tiene que tener exactamente una persona fija al final.' });
+      const [a, b] = [fijos[0][0], fijos[1][0]];
+      if (tables.daily_members.some((m) => (m.daily_group_id === gs[1].id && m.name === a.name && m.id !== a.id) || (m.daily_group_id === gs[0].id && m.name === b.name && m.id !== b.id))) return json(400, { code: '22023', message: 'El otro Daily ya tiene a alguien con ese nombre.' });
+      a.daily_group_id = gs[1].id; b.daily_group_id = gs[0].id;
+      return json(200, [{ nombre: b.name, a_grupo: gs[0].code }, { nombre: a.name, a_grupo: gs[1].code }]);
+    }
     if (url.pathname === '/rest/v1/rpc/daily_guardar' || url.pathname === '/rest/v1/rpc/daily_historial') {
       const me = byId(subOf(req))?.[1];
       if (!me?.active) return json(403, { code: '42501', message: 'Usuario sin acceso' });
@@ -1492,6 +1506,58 @@ resetData();
   await mob.context.close();
 }
 
+// 18c. Daily: QA Lead y Admin intercambian a los leads (la persona fija al final de cada Daily)
+{
+  tables.daily_rule_members.push({ id: 50, daily_member_id: 3, rule_type: 'LAST_FIXED' });
+  const grupo = (id) => tables.daily_members.find((m) => m.id === id).daily_group_id;
+  const qa = await newPage();
+  await qa.page.goto('http://app.test/index.html');
+  await login(qa.page, 'qa@bcr.test');
+  await qa.page.waitForSelector('.layout', { state: 'visible' });
+  await qa.page.click('#nav-daily');
+  await qa.page.click('#dly-tab-hoy');
+  assert.equal(await qa.page.isVisible('#dly-swap-btn'), false, 'un QA no ve el botón');
+  await qa.context.close();
+
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'lead@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#nav-daily');
+  await page.click('#dly-tab-hoy');
+  assert.equal(await page.isVisible('#dly-swap-btn'), true);
+  const nSwap = writes.length;
+  answers.push(false);
+  await page.click('#dly-swap-btn');
+  await waitDialog(/¿Pasar a Beto Uno al Daily 2 y a Caro Dos al Daily 1\?/);
+  assert.equal(writes.length, nSwap, 'si cancela no cambia nada');
+  assert.deepEqual([grupo(2), grupo(3)], [1, 2]);
+  answers.push(true);
+  await page.click('#dly-swap-btn');
+  await page.waitForSelector('#dly-swap-status.ok');
+  assert.deepEqual([grupo(2), grupo(3)], [2, 1], 'cambiaron de Daily');
+  assert.equal(tables.daily_rule_members.filter((r) => [2, 3].includes(r.daily_member_id) && r.rule_type === 'LAST_FIXED').length, 2, 'siguen fijos al final');
+  assert.match(await page.textContent('#dly-swap-status'), /Caro Dos pasó al Daily 1 y Beto Uno al Daily 2/);
+  await page.click('#rollBtn');
+  await page.waitForSelector('#listBody .participant-item');
+  assert.equal(await page.locator('#listBody .participant-item').last().getAttribute('data-name'), 'Caro Dos', 'el lead nuevo cierra el Daily 1');
+  ok('Daily: QA Lead intercambia a los leads con confirmación; siguen al final en su Daily nuevo');
+  await page.screenshot({ path: DIR + 'tests/shot-daily-leads.png' });
+
+  tables.daily_rule_members.push({ id: 51, daily_member_id: 1, rule_type: 'LAST_FIXED' });
+  await page.evaluate(() => loadConfig());
+  const nDos = writes.length;
+  await page.click('#dly-swap-btn');
+  await waitDialog(/exactamente una persona fija al final/);
+  assert.equal(writes.length, nDos, 'no llama a la base si no se puede');
+  ok('Daily: con dos fijos al final en un Daily avisa y no cambia nada');
+  await context.close();
+  // Deja todo como estaba para las pruebas siguientes.
+  tables.daily_rule_members = tables.daily_rule_members.filter((r) => ![50, 51].includes(r.id));
+  tables.daily_members.find((m) => m.id === 2).daily_group_id = 1;
+  tables.daily_members.find((m) => m.id === 3).daily_group_id = 2;
+}
+
 // 19. Solicitudes: solo QA Lead y Admin; lista compartida que se guarda en Supabase
 {
   const { context, page } = await newPage();
@@ -2462,6 +2528,7 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   await page.waitForSelector('#listBody .participant-item');
   await page.locator('#listBody .participant-item').first().click();
   assert.equal(await page.isVisible('#dly-save'), false, 'QA Boss no guarda el Daily');
+  assert.equal(await page.isVisible('#dly-swap-btn'), false, 'QA Boss no intercambia a los leads');
   assert.deepEqual(horasReqs, [], 'QA Boss no pide horas');
   ok('QA Boss: sortea y mira el Daily, sin Guardar; no pide horas');
   await context.close();
