@@ -131,7 +131,7 @@ function check(res,needRows){
 
 /* ============ NAVIGATION ============ */
 function showPage(id) {
-  if(((id==='admin'||id==='solicitudes')&&!canManageConfig())||(id==='horas'&&!canUseHoras())||(id==='proyectos'&&!canEditCatalog()))id='home';
+  if((id==='admin'&&!canManageConfig())||(id==='solicitudes'&&!canViewSolicitudes())||(id==='horas'&&!canUseHoras())||(id==='proyectos'&&!canEditCatalog()))id='home';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.mobile-nav-btn').forEach((b,i) => { b.classList.remove('active'); if(['home','qa','proyectos','daily','horas','solicitudes','admin','calc'][i]===id){b.classList.add('active');if(b.offsetParent)b.scrollIntoView({block:'nearest',inline:'nearest'});} });

@@ -44,7 +44,7 @@ function roll(){
   clearAbsent();
   const dice=document.getElementById('diceIcon');dice.classList.remove('spinning');void dice.offsetWidth;dice.classList.add('spinning');
   const dailyKey=`daily${activeDaily}`,order=generateOrder(dailyKey),color=activeDaily===1?'d1':'d2',n=order.length;
-  document.getElementById('dly-save').hidden=!n;
+  document.getElementById('dly-save').hidden=!n||!canSaveDaily();
   const sst=document.getElementById('dly-save-status');sst.className='status-msg';sst.textContent='';
   document.getElementById('runBadge').textContent=`Sorteo ${runCount}`;
   document.getElementById('rollLabel').textContent=`Volver a sortear el Daily ${activeDaily}`;

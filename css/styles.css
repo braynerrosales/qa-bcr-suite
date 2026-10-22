@@ -283,6 +283,7 @@
   @keyframes solBlink { 50% { opacity: .25; } }
   .sol-enc { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 130px; }
   .sol-chip { display: inline-flex; align-items: center; gap: 2px; background: var(--sheet-2); border: 1px solid var(--rule-2); border-radius: 999px; padding: 1px 4px 1px 9px; font-size: 12px; white-space: nowrap; }
+  .sol-chip-ro { padding-right: 9px; }
   .sol-chip button { background: none; border: 0; color: var(--ink-3); font-size: 14px; line-height: 1; padding: 0 4px; }
   .sol-chip button:hover { color: var(--bad); }
   .sol-enc select { font-size: 12px; padding: 3px 4px; border: 1px dashed var(--rule-2); border-radius: var(--r-ctl); background: var(--sheet); color: var(--ink-2); max-width: 130px; }

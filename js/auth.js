@@ -1,14 +1,17 @@
 // QA BCR Suite — Sesión, permisos por rol, contraseña.
 /* ============ AUTH (Supabase) ============ */
-const ROLE_LABELS={ADMIN:'Admin',QA_LEAD:'QA Lead',QA:'QA',BETA:'Beta'};
+const ROLE_LABELS={ADMIN:'Admin',QA_LEAD:'QA Lead',QA:'QA',BETA:'Beta',BOSS:'QA Boss'};
 let supabaseClient=null, currentUser=null;
 
 function canManageConfig(){return !!currentUser&&(currentUser.role==='ADMIN'||currentUser.role==='QA_LEAD');}
 function isAdmin(){return !!currentUser&&currentUser.role==='ADMIN';}
 // BETA: solo Generar tareas, Daily y Días hábiles (la base también le bloquea Horas).
-function canUseHoras(){return !!currentUser&&currentUser.role!=='BETA';}
-// Proyectos, variantes y tareas: QA, QA Lead y Admin (BETA no).
-function canEditCatalog(){return !!currentUser&&currentUser.role!=='BETA';}
+function canUseHoras(){return !!currentUser&&!['BETA','BOSS'].includes(currentUser.role);}
+// QA Boss: lo de BETA más Solicitudes y la campana, solo para leer; mira el Daily sin guardarlo.
+function canViewSolicitudes(){return canManageConfig()||currentUser?.role==='BOSS';}
+function canSaveDaily(){return !!currentUser&&currentUser.role!=='BOSS';}
+// Proyectos, variantes y tareas: QA, QA Lead y Admin (BETA y QA Boss no).
+function canEditCatalog(){return !!currentUser&&['ADMIN','QA_LEAD','QA'].includes(currentUser.role);}
 
 function showAuth(state,message){
   document.body.classList.add('auth-locked');
@@ -150,14 +153,19 @@ function applyPermissions(){
   const lead=canManageConfig();
   document.getElementById('nav-admin').hidden=!lead;
   document.getElementById('mnav-admin').hidden=!lead;
-  ['nav-solicitudes','mnav-solicitudes','home-solicitudes'].forEach(id=>document.getElementById(id).hidden=!lead);
+  ['nav-solicitudes','mnav-solicitudes','home-solicitudes'].forEach(id=>document.getElementById(id).hidden=!canViewSolicitudes());
+  // QA Boss ve Solicitudes solo para leer: sin Nueva solicitud ni informes.
+  ['sol-new-open','sol-inf-open'].forEach(id=>document.getElementById(id).hidden=!lead);
+  document.getElementById('sol-subtitle').textContent=lead
+    ?'Lista compartida entre QA Lead y Admin. Los cambios se guardan solos al salir de cada campo. Al cerrar una solicitud se quitan sus encargados del informe semanal.'
+    :'Solo lectura: ves las solicitudes y sus avisos; los cambios los hacen QA Lead y Admin.';
   ['nav-horas','mnav-horas','home-horas'].forEach(id=>document.getElementById(id).hidden=!canUseHoras());
   ['nav-proyectos','mnav-proyectos'].forEach(id=>document.getElementById(id).hidden=!canEditCatalog());
   document.getElementById('atab-users').hidden=!isAdmin();
   document.getElementById('atab-feedback').hidden=!isAdmin();
   if(!isAdmin()&&['asec-users','asec-feedback'].some(id=>document.getElementById(id).classList.contains('active')))selectAdminTab('people');
   if(isAdmin())refreshFeedbackBadge();
-  ['avisos-btn','mavisos-btn'].forEach(id=>document.getElementById(id).hidden=!lead);
-  if(lead){refreshSolBadge();solSubscribe();}
+  ['avisos-btn','mavisos-btn'].forEach(id=>document.getElementById(id).hidden=!canViewSolicitudes());
+  if(canViewSolicitudes()){refreshSolBadge();solSubscribe();}
   if((!lead&&(document.getElementById('page-admin').classList.contains('active')||document.getElementById('page-solicitudes').classList.contains('active')))||(!canUseHoras()&&document.getElementById('page-horas').classList.contains('active')))showPage('home');
 }
