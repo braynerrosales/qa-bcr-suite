@@ -7,6 +7,8 @@ function canManageConfig(){return !!currentUser&&(currentUser.role==='ADMIN'||cu
 function isAdmin(){return !!currentUser&&currentUser.role==='ADMIN';}
 // BETA: solo Generar tareas, Daily y Días hábiles (la base también le bloquea Horas).
 function canUseHoras(){return !!currentUser&&currentUser.role!=='BETA';}
+// Proyectos, variantes y tareas: QA, QA Lead y Admin (BETA no).
+function canEditCatalog(){return !!currentUser&&currentUser.role!=='BETA';}
 
 function showAuth(state,message){
   document.body.classList.add('auth-locked');
@@ -150,6 +152,7 @@ function applyPermissions(){
   document.getElementById('mnav-admin').hidden=!lead;
   ['nav-solicitudes','mnav-solicitudes','home-solicitudes'].forEach(id=>document.getElementById(id).hidden=!lead);
   ['nav-horas','mnav-horas','home-horas'].forEach(id=>document.getElementById(id).hidden=!canUseHoras());
+  ['nav-proyectos','mnav-proyectos'].forEach(id=>document.getElementById(id).hidden=!canEditCatalog());
   document.getElementById('atab-users').hidden=!isAdmin();
   document.getElementById('atab-feedback').hidden=!isAdmin();
   if(!isAdmin()&&['asec-users','asec-feedback'].some(id=>document.getElementById(id).classList.contains('active')))selectAdminTab('people');

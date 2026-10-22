@@ -108,8 +108,9 @@ function writeErrorMessage(e){
 // Ejecuta un cambio en Supabase y vuelve a cargar todo desde la base,
 // así la pantalla siempre muestra lo guardado (también si el cambio falla).
 let saving=false;
-async function persist(action){
-  if(!canManageConfig()){uiAlert('No tenés permiso para modificar la configuración.');return false;}
+// allowed: quién puede guardar (por defecto, QA Lead y Admin).
+async function persist(action,allowed=canManageConfig()){
+  if(!allowed){uiAlert('No tenés permiso para modificar la configuración.');return false;}
   if(saving)return false;
   saving=true;
   document.body.classList.add('saving');
@@ -130,13 +131,14 @@ function check(res,needRows){
 
 /* ============ NAVIGATION ============ */
 function showPage(id) {
-  if(((id==='admin'||id==='solicitudes')&&!canManageConfig())||(id==='horas'&&!canUseHoras()))id='home';
+  if(((id==='admin'||id==='solicitudes')&&!canManageConfig())||(id==='horas'&&!canUseHoras())||(id==='proyectos'&&!canEditCatalog()))id='home';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll('.mobile-nav-btn').forEach((b,i) => { b.classList.remove('active'); if(['home','qa','daily','horas','solicitudes','admin','calc'][i]===id){b.classList.add('active');if(b.offsetParent)b.scrollIntoView({block:'nearest',inline:'nearest'});} });
+  document.querySelectorAll('.mobile-nav-btn').forEach((b,i) => { b.classList.remove('active'); if(['home','qa','proyectos','daily','horas','solicitudes','admin','calc'][i]===id){b.classList.add('active');if(b.offsetParent)b.scrollIntoView({block:'nearest',inline:'nearest'});} });
   document.getElementById('page-'+id).classList.add('active');
   document.getElementById('nav-'+id).classList.add('active');
   if(id==='admin')renderAdmin();
+  if(id==='proyectos')loadProyectos();
   if(id==='solicitudes')SOL_LOADING=solMarkSeen().then(()=>loadSolicitudes());
   if(id==='horas')openHoras();
   if(id==='daily')dlyShowTab(dlyTab);

@@ -67,7 +67,7 @@ const solicitudesIniciales = () => [
 ];
 function resetData(empty = false) {
   vistas = {};
-  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [], solicitudes: [], horas: [], horas_ajustes: [], feedback: [], daily_runs: [] } : {
+  tables = empty ? { daily_groups: [], daily_members: [], daily_rules: [], daily_rule_members: [], projects: [], project_variants: [], templates: [], template_tasks: [], solicitudes: [], horas: [], horas_ajustes: [], feedback: [], daily_runs: [] } : {
     solicitudes: solicitudesIniciales(),
     horas: [],
     horas_ajustes: [],
@@ -88,8 +88,13 @@ function resetData(empty = false) {
     ],
     project_variants: [{ id: 1, project_id: 2, name: 'normal', active: true }, { id: 2, project_id: 2, name: "x'><b>", active: true }],
     templates: [
-      { id: 1, project_id: 1, variant_id: null, active: true, tasks: ['QA - {n} - Smoke.'] },
-      { id: 2, project_id: 2, variant_id: 1, active: true, tasks: ['QA - {n} - Normal.'] },
+      { id: 1, project_id: 1, variant_id: null, active: true },
+      { id: 2, project_id: 2, variant_id: 1, active: true },
+    ],
+    // Lo que ya existía no tiene autor (created_by null): solo lo tocan QA Lead y Admin.
+    template_tasks: [
+      { id: 1, template_id: 1, position: 1, task: 'QA - {n} - Smoke.', created_by: null },
+      { id: 2, template_id: 2, position: 1, task: 'QA - {n} - Normal.', created_by: null },
     ],
   };
 }
@@ -110,13 +115,19 @@ function appConfig() {
     const templates = {};
     for (const tp of t.templates.filter((x) => x.project_id === p.id && x.active)) {
       const v = t.project_variants.find((v) => v.id === tp.variant_id);
-      templates[v ? v.name : ''] = tp.tasks;
+      templates[v ? v.name : ''] = tareasDe(tp.id).map((x) => x.task);
     }
     projects[p.code] = { color: p.color, variants: vs.map((v) => v.name), templates };
   }
   return { people, rules, projects };
 }
 const isLead = (me) => !!me && me.active && (me.role === 'ADMIN' || me.role === 'QA_LEAD');
+const tareasDe = (templateId) => tables.template_tasks.filter((x) => x.template_id === templateId).sort((a, b) => a.position - b.position);
+// Igual que 20261028000001_proyectos_qa.sql: QA, QA Lead y Admin agregan (BETA no);
+// cada uno borra lo suyo y los leads cualquier cosa. Las tareas se agregan solo por add_template_task.
+const CATALOGO = ['projects', 'project_variants', 'template_tasks'];
+const canCatalog = (me) => !!me && me.active && ['ADMIN', 'QA_LEAD', 'QA'].includes(me.role);
+const puedeBorrar = (me, r) => isLead(me) || (canCatalog(me) && !!r.created_by && r.created_by === me.id);
 const writes = [];
 // Tablas de configuración: GET, POST (insert / upsert), PATCH y DELETE con filtros eq.
 function tableRequest(req, url, me, json) {
@@ -135,7 +146,8 @@ function tableRequest(req, url, me, json) {
   if (failNextWrite) { const code = failNextWrite; failNextWrite = null; return json(409, { code, message: 'duplicate key value violates unique constraint' }); }
   const lead = isLead(me);
   if (method === 'POST') {
-    if (!lead) return json(403, { code: '42501', message: 'new row violates row-level security policy' });
+    const puede = name === 'template_tasks' ? false : CATALOGO.includes(name) ? canCatalog(me) : lead;
+    if (!puede) return json(403, { code: '42501', message: 'new row violates row-level security policy' });
     const conflict = url.searchParams.get('on_conflict');
     for (const item of [].concat(body)) {
       const existing = conflict && rows.find((r) => r[conflict] === item[conflict]);
@@ -143,12 +155,15 @@ function tableRequest(req, url, me, json) {
       else {
         const dup = name === 'daily_members' && rows.find((r) => r.daily_group_id === item.daily_group_id && r.name === item.name);
         if (dup) return json(409, { code: '23505', message: 'duplicate key value violates unique constraint' });
-        rows.push({ id: nextId(rows), active: true, ...item, ...(name === 'solicitudes' ? solStampNew(item, me) : {}) });
+        rows.push({ id: nextId(rows), active: true, ...item, ...(name === 'solicitudes' ? solStampNew(item, me) : {}), ...(CATALOGO.includes(name) ? { created_by: me.id } : {}) });
       }
     }
     return r201(json);
   }
-  const target = lead ? rows.filter(match) : [];   // el RLS filtra: 0 filas, sin error
+  // El RLS filtra: 0 filas, sin error. Tareas: editar el texto o borrar, el autor o un lead.
+  // Proyectos y variantes: borrar, el autor o un lead; cambiarlos, solo un lead.
+  const permitido = (r) => name === 'template_tasks' || (CATALOGO.includes(name) && method === 'DELETE') ? puedeBorrar(me, r) : lead;
+  const target = rows.filter(match).filter(permitido);
   // Igual que el trigger solicitudes_touch: registra quién y cuándo.
   const stamp = name === 'solicitudes' ? { updated_by: me.id, updated_at: new Date().toISOString() } : {};
   if (method === 'PATCH') target.forEach((r) => { const plan = name === 'solicitudes' && body.plan_enviado && !r.plan_enviado; Object.assign(r, body, stamp); if (plan) Object.assign(r, { plan_enviado_at: new Date().toISOString(), plan_enviado_by: me.id }); });
@@ -158,6 +173,7 @@ function tableRequest(req, url, me, json) {
     if (name === 'daily_members') tables.daily_rule_members = tables.daily_rule_members.filter((rm) => !target.some((m) => m.id === rm.daily_member_id));
     if (name === 'projects') { tables.project_variants = tables.project_variants.filter((v) => !target.some((p) => p.id === v.project_id)); tables.templates = tables.templates.filter((tp) => !target.some((p) => p.id === tp.project_id)); }
     if (name === 'project_variants') tables.templates = tables.templates.filter((tp) => !target.some((v) => v.id === tp.variant_id));
+    tables.template_tasks = tables.template_tasks.filter((x) => tables.templates.some((tp) => tp.id === x.template_id));
   }
   return json(200, target.map((r) => ({ id: r.id })));
 }
@@ -462,14 +478,28 @@ async function setup(context) {
       if (failConfig) return json(500, { code: 'XX000', message: 'falla simulada' });
       return json(200, appConfig());
     }
-    if (url.pathname === '/rest/v1/rpc/save_template') {
+    // Igual que add_template_task y reorder_template_tasks (20261028000001_proyectos_qa.sql).
+    if (url.pathname === '/rest/v1/rpc/add_template_task') {
       const me = byId(subOf(req))?.[1], b = req.postDataJSON();
-      writes.push({ method: 'RPC', name: 'save_template', body: b });
-      if (!isLead(me)) return json(403, { code: '42501', message: 'Solo ADMIN o QA_LEAD pueden modificar plantillas' });
+      writes.push({ method: 'RPC', name: 'add_template_task', body: b });
+      if (!canCatalog(me)) return json(403, { code: '42501', message: 'Sin permiso' });
+      if (!String(b.p_task || '').trim()) return json(400, { code: '22023', message: 'La tarea está vacía' });
+      if (!tables.projects.some((x) => x.id === b.p_project_id && x.active)) return json(400, { code: '22023', message: 'El proyecto o la variante no existen o están desactivados' });
       let tp = tables.templates.find((x) => x.project_id === b.p_project_id && x.variant_id === b.p_variant_id);
       if (!tp) tables.templates.push(tp = { id: nextId(tables.templates), project_id: b.p_project_id, variant_id: b.p_variant_id, active: true });
-      tp.active = true; tp.tasks = b.p_tasks.map((x) => x.trim()).filter(Boolean);
-      return json(200, tp.id);
+      tp.active = true;
+      const t = { id: nextId(tables.template_tasks), template_id: tp.id, position: Math.max(0, ...tareasDe(tp.id).map((x) => x.position)) + 1, task: b.p_task.trim(), created_by: me.id };
+      tables.template_tasks.push(t);
+      return json(200, t.id);
+    }
+    if (url.pathname === '/rest/v1/rpc/reorder_template_tasks') {
+      const me = byId(subOf(req))?.[1], b = req.postDataJSON();
+      writes.push({ method: 'RPC', name: 'reorder_template_tasks', body: b });
+      if (!isLead(me)) return json(403, { code: '42501', message: 'Sin permiso' });
+      const actuales = tareasDe(b.p_template_id).map((x) => x.id).sort((a, c) => a - c);
+      if (JSON.stringify([...b.p_task_ids].sort((a, c) => a - c)) !== JSON.stringify(actuales)) return json(400, { code: '22023', message: 'La lista no coincide' });
+      b.p_task_ids.forEach((id, i) => { tables.template_tasks.find((x) => x.id === id).position = i + 1; });
+      return json(200, null);
     }
     if (url.pathname.startsWith('/rest/v1/') && tables[url.pathname.replace('/rest/v1/', '')]) {
       return tableRequest(req, url, byId(subOf(req))?.[1], json);
@@ -800,47 +830,6 @@ const lastWrite = () => writes[writes.length - 1];
   assert.equal(tables.daily_rules.find((r) => r.daily_group_id === 1).first_range, 3);
   ok('rango: se guarda en daily_rules');
 
-  await page.click('#atab-tasks');
-  await page.click('#task-project-list .proj-btn[data-code="COMERCIAL"]');
-  assert.equal(await page.inputValue('#task-textarea'), 'QA - {n} - Normal.');
-  await page.fill('#task-textarea', 'QA - {n} - Uno.\n\n  QA - {n} - Dos.  ');
-  await page.click('#asec-tasks button:has-text("Guardar plantilla")');
-  await page.waitForSelector('#asec-tasks button:has-text("Guardada")');
-  assert.deepEqual(lastWrite().body, { p_project_id: 2, p_variant_id: 1, p_tasks: ['QA - {n} - Uno.', 'QA - {n} - Dos.'] });
-  assert.equal(await page.inputValue('#task-textarea'), 'QA - {n} - Uno.\nQA - {n} - Dos.');
-  ok('plantilla: se guarda con save_template() (proyecto + variante)');
-
-  await page.fill('#new-variant', 'urgente');
-  await page.click('#asec-tasks button:has-text("Agregar variante")');
-  await until(page, () => document.getElementById('task-variant-select').value === 'urgente');
-  assert.ok(tables.project_variants.some((v) => v.name === 'urgente' && v.project_id === 2));
-  assert.equal(await page.inputValue('#task-textarea'), '');
-  ok('variante: se crea y queda seleccionada');
-
-  answers.push(true);
-  await page.click('#asec-tasks button:has-text("Eliminar variante")');
-  await until(page, () => ![...document.querySelectorAll('#task-variant-select option')].some((o) => o.value === 'urgente'));
-  assert.ok(!tables.project_variants.some((v) => v.name === 'urgente'));
-  ok('variante: se elimina');
-
-  await page.fill('#new-project', 'nuevo');
-  await page.click('#asec-tasks button:has-text("Agregar proyecto")');
-  await page.waitForSelector('#task-project-list .proj-btn.active[data-code="NUEVO"]');
-  await page.waitForSelector('#project-grid .proj-btn[data-type="NUEVO"]', { state: 'attached' });
-  ok('proyecto: se crea en mayúsculas, queda seleccionado y aparece en el QA Generator');
-
-  await page.fill('#task-textarea', 'QA - {n} - Única.');
-  await page.click('#asec-tasks button:has-text("Guardar plantilla")');
-  await page.waitForSelector('#asec-tasks button:has-text("Guardada")');
-  assert.equal(lastWrite().body.p_variant_id, null);
-  ok('plantilla sin variante: p_variant_id null');
-
-  answers.push(true);
-  await page.click('#asec-tasks button:has-text("Eliminar proyecto")');
-  await until(page, () => !document.querySelector('#task-project-list [data-code="NUEVO"]'));
-  assert.ok(!tables.projects.some((p) => p.code === 'NUEVO'));
-  assert.equal(await page.isVisible('#task-editor-wrap'), false);
-  ok('proyecto: se elimina');
 
   await page.click('#atab-people');
   answers.push('Caro Dos');
@@ -867,6 +856,181 @@ const lastWrite = () => writes[writes.length - 1];
   ok('otro usuario en otro navegador ve los cambios');
   await otro.close();
   await page.screenshot({ path: DIR + 'tests/shot-admin.png', fullPage: true });
+  await context.close();
+}
+
+// 13b. Proyectos: QA agrega proyectos, variantes y tareas (cada uno con su autor)
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'qa@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  const qaId = users['qa@bcr.test'].id;
+  assert.equal(await page.isVisible('#nav-admin'), false);
+  await page.click('#nav-proyectos');
+  await page.click('#proy-list .proj-btn[data-code="COMERCIAL"]');
+  await page.waitForSelector('#proy-tareas .proy-tarea');
+  assert.equal(await page.inputValue('#proy-variante'), 'normal');
+  assert.deepEqual(await page.locator('#proy-tareas .proy-tarea-txt').allTextContents(), ['QA - {n} - Normal.']);
+  await page.fill('#proy-new-task', 'QA - {n} - <b>Mía</b>.');
+  await page.press('#proy-new-task', 'Enter');
+  await until(page, () => document.querySelectorAll('#proy-tareas .proy-tarea').length === 2);
+  assert.equal(await page.locator('#proy-tareas .proy-tarea-txt').nth(1).textContent(), 'QA - {n} - <b>Mía</b>.');
+  assert.equal(await page.locator('#proy-tareas b').count(), 0, 'el texto se ve literal');
+  assert.equal(await page.locator('#proy-tareas .proy-tarea-autor').nth(1).textContent(), 'agregada por vos');
+  assert.equal(await page.locator('#proy-tareas .proy-tarea-autor').nth(0).textContent(), '', 'lo viejo no tiene autor');
+  assert.equal(await page.inputValue('#proy-new-task'), '');
+  const mia = tables.template_tasks.find((x) => x.task === 'QA - {n} - <b>Mía</b>.');
+  assert.equal(mia.created_by, qaId);
+  assert.equal(mia.template_id, 2);
+  ok('Proyectos: QA ve las tareas en orden y agrega una al final, con su autor');
+
+  await page.click('#proy-list .proj-btn[data-code="DATA"]');
+  assert.equal(await page.inputValue('#proy-variante'), '');
+  await page.fill('#proy-new-task', 'QA - {n} - Data.');
+  await page.click('#page-proyectos button:has-text("Agregar tarea")');
+  await until(page, () => document.querySelectorAll('#proy-tareas .proy-tarea').length === 2);
+  assert.equal(tables.template_tasks.find((x) => x.task === 'QA - {n} - Data.').template_id, 1);
+  ok('Proyectos: sin variante, la tarea va a la plantilla sin variante');
+
+  await page.fill('#proy-new', 'nuevo');
+  await page.click('#page-proyectos button:has-text("Agregar proyecto")');
+  await page.waitForSelector('#proy-list .proj-btn.active[data-code="NUEVO"]');
+  assert.equal(tables.projects.find((x) => x.code === 'NUEVO').created_by, qaId);
+  await page.waitForSelector('#project-grid .proj-btn[data-type="NUEVO"]', { state: 'attached' });
+  ok('Proyectos: QA agrega un proyecto, queda elegido y aparece en Generar tareas');
+
+  await page.fill('#proy-new-var', 'urgente');
+  await page.click('#page-proyectos button:has-text("Agregar variante")');
+  await until(page, () => document.getElementById('proy-variante').value === 'urgente');
+  assert.equal(tables.project_variants.find((v) => v.name === 'urgente').created_by, qaId);
+  ok('Proyectos: QA agrega una variante y queda elegida');
+
+  tables.projects.push({ id: 90, code: 'VIEJO', name: 'VIEJO', color: '#123456', active: false, created_by: null });
+  await page.evaluate(() => loadConfig());
+  const n = writes.length;
+  await page.fill('#proy-new', 'viejo');
+  await page.click('#page-proyectos button:has-text("Agregar proyecto")');
+  await waitDialog(/pedile a un QA Lead o Admin/i);
+  assert.equal(writes.length, n, 'QA no reactiva un proyecto inactivo');
+  ok('Proyectos: un proyecto inactivo no lo reactiva un QA');
+
+  // Editar y borrar: QA solo lo suyo; lo viejo (sin autor) y lo de otros no.
+  const leadId = users['lead@bcr.test'].id;
+  tables.template_tasks.push({ id: 500, template_id: 2, position: 9, task: 'QA - {n} - De Laura.', created_by: leadId });
+  await page.click('#proy-list .proj-btn[data-code="COMERCIAL"]');
+  await page.evaluate(() => loadProyectos());
+  const fila = (txt) => page.locator('#proy-tareas .proy-tarea', { hasText: txt });
+  await fila('De Laura').waitFor();
+  assert.equal(await fila('QA - {n} - Normal.').locator('button').count(), 0, 'sin autor: QA no la toca');
+  assert.equal(await fila('De Laura').locator('button').count(), 0, 'de otro: QA no la toca');
+  assert.equal(await fila('De Laura').locator('.proy-tarea-autor').textContent(), 'agregada por Laura Lead');
+  assert.equal(await fila('Mía').locator('button:has-text("Editar")').count(), 1);
+  assert.equal(await fila('Mía').locator('button:has-text("Borrar")').count(), 1);
+  assert.equal(await page.locator('#proy-tareas .proy-mover').count(), 0, 'QA no reordena');
+  assert.equal(await page.isVisible('#proy-del'), false, 'COMERCIAL no es suyo');
+  assert.equal(await page.isVisible('#proy-var-del'), false, 'la variante normal no es suya');
+
+  answers.push('QA - {n} - Editada.');
+  await fila('Mía').locator('button:has-text("Editar")').click();
+  await fila('Editada').waitFor();
+  assert.equal(tables.template_tasks.find((x) => x.id === mia.id).task, 'QA - {n} - Editada.');
+  const nEdit = writes.length;
+  answers.push('   ');
+  await fila('Editada').locator('button:has-text("Editar")').click();
+  await until(page, () => !document.getElementById('ui-dialog').open);
+  assert.equal(writes.length, nEdit, 'un texto vacío no se guarda');
+  ok('Proyectos: QA edita solo sus tareas; lo viejo y lo de otros no muestra botones');
+  await page.screenshot({ path: DIR + 'tests/shot-proyectos.png' });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.screenshot({ path: DIR + 'tests/shot-proyectos-oscuro.png' });
+  await page.emulateMedia({ colorScheme: 'light' });
+
+  answers.push(true);
+  await fila('Editada').locator('button:has-text("Borrar")').click();
+  await until(page, () => ![...document.querySelectorAll('#proy-tareas .proy-tarea-txt')].some((e) => e.textContent.includes('Editada')));
+  assert.ok(!tables.template_tasks.some((x) => x.id === mia.id));
+  ok('Proyectos: QA borra su tarea');
+
+  // Pestaña vieja: la tarea ya no existe.
+  await page.fill('#proy-new-task', 'QA - {n} - Fantasma.');
+  await page.press('#proy-new-task', 'Enter');
+  await fila('Fantasma').waitFor();
+  tables.template_tasks = tables.template_tasks.filter((x) => x.task !== 'QA - {n} - Fantasma.');
+  answers.push(true);
+  await fila('Fantasma').locator('button:has-text("Borrar")').click();
+  await waitDialog(/Ya no existe o no tenés permiso/);
+  await until(page, () => ![...document.querySelectorAll('#proy-tareas .proy-tarea-txt')].some((e) => e.textContent.includes('Fantasma')));
+  ok('Proyectos: si lo que borra ya no existe, avisa y recarga la lista');
+
+  // El dueño borra su proyecto aunque tenga tareas de otros; el aviso dice cuánto se va.
+  await page.click('#proy-list .proj-btn[data-code="NUEVO"]');
+  await until(page, () => document.getElementById('proy-variante').value === 'urgente');
+  assert.equal(await page.isVisible('#proy-del'), true);
+  assert.equal(await page.isVisible('#proy-var-del'), true);
+  await page.fill('#proy-new-task', 'QA - {n} - Urgente mía.');
+  await page.press('#proy-new-task', 'Enter');
+  await fila('Urgente mía').waitFor();
+  const tplNuevo = tables.template_tasks.find((x) => x.task === 'QA - {n} - Urgente mía.').template_id;
+  tables.template_tasks.push({ id: 501, template_id: tplNuevo, position: 2, task: 'QA - {n} - Laura en NUEVO.', created_by: leadId });
+  await page.evaluate(() => loadProyectos());
+  await fila('Laura en NUEVO').waitFor();
+  answers.push(true);
+  await page.click('#proy-del');
+  await until(page, () => !document.querySelector('#proy-list [data-code="NUEVO"]'));
+  assert.match(dialogs.at(-1), /Se borran también 1 variante y 2 tareas/);
+  assert.ok(!tables.projects.some((x) => x.code === 'NUEVO'));
+  assert.ok(!tables.template_tasks.some((x) => x.id === 501));
+  assert.equal(await page.isVisible('#proy-panel'), false);
+  ok('Proyectos: el dueño borra su proyecto con lo de otros, y el aviso dice cuánto se va');
+  await context.close();
+}
+
+// 13c. Proyectos como QA Lead: borra cualquier cosa y reordena (cada tarea conserva su autor)
+{
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'lead@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#nav-proyectos');
+  await page.click('#proy-list .proj-btn[data-code="COMERCIAL"]');
+  await page.waitForSelector('#proy-tareas .proy-tarea');
+  const ids = () => tables.template_tasks.filter((x) => x.template_id === 2).sort((a, b) => a.position - b.position).map((x) => x.id);
+  const antes = ids();
+  assert.equal(await page.locator('#proy-tareas .proy-tarea').first().locator('button:has-text("Borrar")').count(), 1, 'el lead borra lo viejo');
+  assert.equal(await page.isVisible('#proy-del'), true);
+  const autor = tables.template_tasks.find((x) => x.id === antes[0]).created_by;
+  await page.locator('#proy-tareas .proy-tarea').first().locator('button[aria-label^="Bajar"]').click();
+  await until(page, (id) => document.querySelectorAll('#proy-tareas .proy-tarea')[1]?.dataset.id === String(id), antes[0]);
+  assert.deepEqual(ids(), [antes[1], antes[0], ...antes.slice(2)]);
+  assert.equal(tables.template_tasks.find((x) => x.id === antes[0]).created_by, autor, 'conserva el autor');
+  assert.equal(await page.locator('#proy-tareas .proy-tarea').first().locator('button[aria-label^="Subir"]').isDisabled(), true);
+  const orden = await page.evaluate(() => DB.projects.COMERCIAL.templates.normal);
+  assert.deepEqual(orden, ids().map((id) => tables.template_tasks.find((x) => x.id === id).task), 'Generar tareas usa el orden nuevo');
+  ok('Proyectos: el QA Lead reordena, las tareas conservan su autor y Generar tareas usa el orden nuevo');
+  await context.close();
+}
+
+// 13d. Proyectos en el celular (375 px): sin desborde horizontal
+{
+  const { context, page } = await newPage({ width: 375, height: 760 });
+  await page.goto('http://app.test/index.html');
+  await login(page, 'qa@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#mnav-proyectos');
+  await page.click('#proy-list .proj-btn[data-code="COMERCIAL"]');
+  await page.waitForSelector('#proy-tareas .proy-tarea');
+  await page.fill('#proy-new-task', 'QA - {n} - Una tarea con un texto bastante largo para ver cómo se acomoda en el celular.');
+  await page.press('#proy-new-task', 'Enter');
+  await page.locator('#proy-tareas .proy-tarea', { hasText: 'bastante largo' }).waitFor();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert.ok(overflow <= 0, 'scroll horizontal en Proyectos móvil: ' + overflow);
+  const ancho = await page.locator('#proy-tareas .proy-tarea-txt', { hasText: 'bastante largo' }).evaluate((e) => e.getBoundingClientRect().width);
+  assert.ok(ancho >= 250, 'el texto de la tarea queda muy angosto: ' + ancho);
+  const chicos = await page.$$eval('#page-proyectos button', (bs) => bs.filter((b) => b.offsetParent && b.getBoundingClientRect().height < 32).map((b) => b.textContent));
+  assert.deepEqual(chicos, [], 'botones muy chicos para el dedo');
+  await page.screenshot({ path: DIR + 'tests/shot-proyectos-movil.png', fullPage: true });
+  ok('Proyectos en el celular: sin desborde y con botones cómodos');
   await context.close();
 }
 
@@ -2140,7 +2304,7 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   await login(page, 'beta@bcr.test');
   await page.waitForSelector('.layout', { state: 'visible' });
   assert.equal(await page.textContent('#sidebar-user-role'), 'Beta');
-  for (const id of ['nav-horas', 'nav-solicitudes', 'nav-admin', 'home-horas', 'home-solicitudes']) assert.equal(await page.isVisible('#' + id), false, id + ' visible para BETA');
+  for (const id of ['nav-horas', 'nav-solicitudes', 'nav-admin', 'nav-proyectos', 'home-horas', 'home-solicitudes']) assert.equal(await page.isVisible('#' + id), false, id + ' visible para BETA');
   for (const id of ['nav-qa', 'nav-daily', 'nav-calc']) assert.equal(await page.isVisible('#' + id), true, id + ' oculto para BETA');
   await page.evaluate(() => showPage('horas'));
   assert.equal(await page.isVisible('#page-home'), true, 'BETA no entra a Horas aunque lo pida');
