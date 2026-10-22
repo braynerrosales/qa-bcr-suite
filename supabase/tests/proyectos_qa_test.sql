@@ -177,6 +177,49 @@ begin
     raise notice 'OK: el dueño borra su proyecto con las tareas de otros';
 end $$ language plpgsql;
 
+-- ── Nada sobre lo inactivo, ni por la API ──────────────────
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000f1","role":"authenticated"}', true);
+do $$
+declare inactivo bigint;
+begin
+    select id into inactivo from public.projects where code = 'PQ-INACTIVO';
+    begin
+        perform public.add_template_task(inactivo, null, 'En un inactivo');
+        raise exception 'FALLO: se agregó una tarea a un proyecto inactivo';
+    exception when sqlstate '22023' then raise notice 'OK: no se agregan tareas a un proyecto inactivo';
+    end;
+    begin
+        insert into public.project_variants (project_id, name) values (inactivo, 'pq-var-inactiva');
+        raise exception 'FALLO: se agregó una variante a un proyecto inactivo';
+    exception when insufficient_privilege then raise notice 'OK: no se agregan variantes a un proyecto inactivo';
+    end;
+end $$ language plpgsql;
+
+-- ── Si el autor deja de poder editar (pasa a BETA), ya no toca lo suyo ──
+do $$
+declare p bigint; t bigint;
+begin
+    insert into public.projects (code, name) values ('PQ-EXQA', 'PQ-EXQA') returning id into p;
+    t := public.add_template_task(p, null, 'Tarea del ex QA');
+    -- Lo cambia un admin (fuera de esta sesión).
+    perform set_config('request.jwt.claims', '', true);
+end $$ language plpgsql;
+reset role;
+update public.profiles set role = 'BETA' where id = '00000000-0000-0000-0000-0000000000f1';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000f1","role":"authenticated"}', true);
+do $$
+begin
+    update public.template_tasks set task = 'Pisada' where task = 'Tarea del ex QA';
+    delete from public.template_tasks where task = 'Tarea del ex QA';
+    delete from public.projects where code = 'PQ-EXQA';
+    if not exists (select 1 from public.template_tasks where task = 'Tarea del ex QA')
+       or not exists (select 1 from public.projects where code = 'PQ-EXQA') then
+        raise exception 'FALLO: un autor que pasó a BETA siguió editando o borrando lo suyo';
+    end if;
+    raise notice 'OK: un autor que pasó a BETA ya no edita ni borra lo suyo';
+end $$ language plpgsql;
+
 -- ── BETA no agrega ─────────────────────────────────────────
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000f4","role":"authenticated"}', true);
 do $$

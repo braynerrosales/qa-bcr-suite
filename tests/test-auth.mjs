@@ -127,7 +127,7 @@ const tareasDe = (templateId) => tables.template_tasks.filter((x) => x.template_
 // cada uno borra lo suyo y los leads cualquier cosa. Las tareas se agregan solo por add_template_task.
 const CATALOGO = ['projects', 'project_variants', 'template_tasks'];
 const canCatalog = (me) => !!me && me.active && ['ADMIN', 'QA_LEAD', 'QA'].includes(me.role);
-const puedeBorrar = (me, r) => isLead(me) || (!!me && me.active && !!r.created_by && r.created_by === me.id);
+const puedeBorrar = (me, r) => isLead(me) || (canCatalog(me) && !!r.created_by && r.created_by === me.id);
 const writes = [];
 // Tablas de configuración: GET, POST (insert / upsert), PATCH y DELETE con filtros eq.
 function tableRequest(req, url, me, json) {
@@ -484,6 +484,7 @@ async function setup(context) {
       writes.push({ method: 'RPC', name: 'add_template_task', body: b });
       if (!canCatalog(me)) return json(403, { code: '42501', message: 'Sin permiso' });
       if (!String(b.p_task || '').trim()) return json(400, { code: '22023', message: 'La tarea está vacía' });
+      if (!tables.projects.some((x) => x.id === b.p_project_id && x.active)) return json(400, { code: '22023', message: 'El proyecto o la variante no existen o están desactivados' });
       let tp = tables.templates.find((x) => x.project_id === b.p_project_id && x.variant_id === b.p_variant_id);
       if (!tp) tables.templates.push(tp = { id: nextId(tables.templates), project_id: b.p_project_id, variant_id: b.p_variant_id, active: true });
       tp.active = true;

@@ -38,15 +38,18 @@ drop policy projects_insert on public.projects;
 drop policy projects_delete on public.projects;
 create policy projects_insert on public.projects for insert to authenticated
     with check ((select private.can_edit_catalog()));
+-- El autor solo mientras pueda editar el catálogo (un QA que pasa a BETA o se desactiva, no).
 create policy projects_delete on public.projects for delete to authenticated
-    using ((select private.is_lead()) or created_by = (select auth.uid()));
+    using ((select private.is_lead()) or ((select private.can_edit_catalog()) and created_by = (select auth.uid())));
 
 drop policy project_variants_insert on public.project_variants;
 drop policy project_variants_delete on public.project_variants;
+-- Solo en proyectos activos (uno inactivo lo reactiva un lead).
 create policy project_variants_insert on public.project_variants for insert to authenticated
-    with check ((select private.can_edit_catalog()));
+    with check ((select private.can_edit_catalog())
+        and exists (select 1 from public.projects p where p.id = project_id and p.active));
 create policy project_variants_delete on public.project_variants for delete to authenticated
-    using ((select private.is_lead()) or created_by = (select auth.uid()));
+    using ((select private.is_lead()) or ((select private.can_edit_catalog()) and created_by = (select auth.uid())));
 
 -- Tareas: se agregan solo con add_template_task; se edita solo el texto.
 drop policy template_tasks_insert on public.template_tasks;
@@ -55,10 +58,10 @@ drop policy template_tasks_delete on public.template_tasks;
 revoke insert, update on public.template_tasks from authenticated;
 grant update (task) on public.template_tasks to authenticated;
 create policy template_tasks_update on public.template_tasks for update to authenticated
-    using ((select private.is_lead()) or created_by = (select auth.uid()))
+    using ((select private.is_lead()) or ((select private.can_edit_catalog()) and created_by = (select auth.uid())))
     with check (trim(task) <> '');
 create policy template_tasks_delete on public.template_tasks for delete to authenticated
-    using ((select private.is_lead()) or created_by = (select auth.uid()));
+    using ((select private.is_lead()) or ((select private.can_edit_catalog()) and created_by = (select auth.uid())));
 
 -- ── Agregar una tarea al final ─────────────────────────────
 create or replace function public.add_template_task(p_project_id bigint, p_variant_id bigint, p_task text)
@@ -76,6 +79,12 @@ begin
     end if;
     if trim(coalesce(p_task, '')) = '' then
         raise exception 'La tarea está vacía' using errcode = '22023';
+    end if;
+    -- Solo en proyectos y variantes activos (y la variante tiene que ser de ese proyecto).
+    if not exists (select 1 from public.projects where id = p_project_id and active)
+       or (p_variant_id is not null and not exists (
+           select 1 from public.project_variants where id = p_variant_id and project_id = p_project_id and active)) then
+        raise exception 'El proyecto o la variante no existen o están desactivados' using errcode = '22023';
     end if;
 
     insert into public.templates (project_id, variant_id)
