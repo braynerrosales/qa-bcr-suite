@@ -108,7 +108,7 @@ function setAbsent(el,motivo){
     div.className='done-item';div.dataset.absent=name;div.title='Deshacer ausencia';
     const av=document.createElement('div');av.className='done-avatar';av.textContent=getInitials(name);
     const nm=document.createElement('span');nm.className='done-name';
-    nm.textContent=short+(motivo==='sin_justificar'?'':` (${MOTIVO_LABEL[motivo].toLowerCase()})`);
+    nm.textContent=short+(motivo==='sin_justificar'?'':` (${MOTIVO_LABEL[motivo]})`);
     const x=document.createElement('span');x.className='done-check';x.textContent='✕';
     div.append(av,nm,x);
     div.onclick=()=>setAbsent(el,null);
@@ -283,7 +283,7 @@ async function loadDailyHistory(){
     const strong=document.createElement('strong');strong.textContent=fmtDay(iso);
     const info=document.createElement('span');info.textContent=`${ms.length-abs.length} de ${ms.length} asistieron · empezó ${ms[0]?.member_name||'—'}`+(d.by?` · guardó ${d.by}`:'');
     head.append(strong,info);item.append(head);
-    if(abs.length){const p=document.createElement('div');p.className='dly-day-absent';p.textContent='No asistieron: '+abs.map(x=>x.member_name+(x.motivo?` (${MOTIVO_LABEL[x.motivo].toLowerCase()})`:'')).join(', ');item.append(p);}
+    if(abs.length){const p=document.createElement('div');p.className='dly-day-absent';p.textContent='No asistieron: '+abs.map(x=>x.member_name+(x.motivo?` (${MOTIVO_LABEL[x.motivo]})`:'')).join(', ');item.append(p);}
     const ord=document.createElement('div');ord.className='dly-day-order';ord.textContent='Orden: '+ms.map(x=>x.member_name).join(' → ');item.append(ord);
     list.append(item);
   });
