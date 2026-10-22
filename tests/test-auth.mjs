@@ -250,9 +250,9 @@ function dailyGuardar(me, b) {
   const min = new Date(today); min.setDate(min.getDate() - 7); const max = new Date(today); max.setDate(max.getDate() + 1);
   if (b.p_fecha < iso(min) || b.p_fecha > iso(max)) return [400, { code: '22023', message: 'Fecha inválida' }];
   if (!tables.daily_groups.some((g) => g.id === b.p_grupo && g.active)) return [400, { code: '22023', message: 'Daily inválido' }];
-  if (!Array.isArray(b.p_miembros) || !b.p_miembros.length || b.p_miembros.some((m) => !m.name?.trim() || m.position < 1 || (m.completed && m.absent))) return [400, { code: '22023', message: 'Lista de personas inválida' }];
+  if (!Array.isArray(b.p_miembros) || !b.p_miembros.length || b.p_miembros.some((m) => !m.name?.trim() || m.position < 1 || (m.completed && m.absent) || (m.motivo != null && (!['justificada', 'vacaciones'].includes(m.motivo) || !m.absent)))) return [400, { code: '22023', message: 'Lista de personas inválida' }];
   const old = tables.daily_runs.find((r) => r.daily_group_id === b.p_grupo && r.run_date === b.p_fecha);
-  const run = { id: old?.id ?? tables.daily_runs.length + 1, daily_group_id: b.p_grupo, run_date: b.p_fecha, created_by: me.id, members: b.p_miembros.map((m) => ({ ...m, name: m.name.trim(), completed: !!m.completed, absent: !!m.absent })) };
+  const run = { id: old?.id ?? tables.daily_runs.length + 1, daily_group_id: b.p_grupo, run_date: b.p_fecha, created_by: me.id, members: b.p_miembros.map((m) => ({ ...m, name: m.name.trim(), completed: !!m.completed, absent: !!m.absent, motivo: m.motivo ?? null })) };
   tables.daily_runs = tables.daily_runs.filter((r) => r !== old).concat(run);
   return [200, [{ run_id: run.id, reemplazado: !!old }]];
 }
@@ -260,7 +260,7 @@ function dailyHistorial(b) {
   const nameOf = (id) => Object.values(users).find((u) => u.id === id)?.full_name ?? '';
   return tables.daily_runs.filter((r) => r.daily_group_id === b.p_grupo && r.run_date >= b.desde && r.run_date <= b.hasta)
     .sort((x, y) => y.run_date.localeCompare(x.run_date))
-    .flatMap((r) => r.members.map((m) => ({ run_id: r.id, run_date: r.run_date, guardado_por: nameOf(r.created_by), member_name: m.name, position: m.position, completed: m.completed, absent: m.absent })));
+    .flatMap((r) => r.members.map((m) => ({ run_id: r.id, run_date: r.run_date, guardado_por: nameOf(r.created_by), member_name: m.name, position: m.position, completed: m.completed, absent: m.absent, motivo: m.motivo ?? null })));
 }
 // Igual que public.feedback (20261019000001): cualquiera activo envía, solo ADMIN lee.
 function feedbackRequest(req, url, me, r, json) {
@@ -462,6 +462,20 @@ async function setup(context) {
       return json(200, Object.values(users).map((u) => ({ id: u.id, first_sign_in_at: u.first_sign_in_at ?? null, last_sign_in_at: u.last_sign_in_at ?? null, password_changed_at: u.password_changed_at ?? null, must_change_password: !!u.must_change_password })));
     }
     if (url.pathname === '/rest/v1/horas') return horasRequest(req, url, byId(subOf(req))?.[1], json);
+    // Igual que daily_intercambiar_leads() (20261030000001_daily_motivos.sql).
+    if (url.pathname === '/rest/v1/rpc/daily_intercambiar_leads') {
+      const me = byId(subOf(req))?.[1];
+      writes.push({ method: 'RPC', name: 'daily_intercambiar_leads' });
+      if (!isLead(me)) return json(403, { code: '42501', message: 'Sin permiso' });
+      const gs = tables.daily_groups.filter((g) => g.active).sort((x, y) => x.id - y.id);
+      if (gs.length !== 2) return json(400, { code: '22023', message: 'Para intercambiar tiene que haber exactamente dos Daily activos.' });
+      const fijos = gs.map((g) => tables.daily_members.filter((m) => m.daily_group_id === g.id && m.active && tables.daily_rule_members.some((r) => r.daily_member_id === m.id && r.rule_type === 'LAST_FIXED')));
+      if (fijos.some((f) => f.length !== 1)) return json(400, { code: '22023', message: 'Cada Daily tiene que tener exactamente una persona fija al final.' });
+      const [a, b] = [fijos[0][0], fijos[1][0]];
+      if (tables.daily_members.some((m) => (m.daily_group_id === gs[1].id && m.name === a.name && m.id !== a.id) || (m.daily_group_id === gs[0].id && m.name === b.name && m.id !== b.id))) return json(400, { code: '22023', message: 'El otro Daily ya tiene a alguien con ese nombre.' });
+      a.daily_group_id = gs[1].id; b.daily_group_id = gs[0].id;
+      return json(200, [{ nombre: b.name, a_grupo: gs[0].code }, { nombre: a.name, a_grupo: gs[1].code }]);
+    }
     if (url.pathname === '/rest/v1/rpc/daily_guardar' || url.pathname === '/rest/v1/rpc/daily_historial') {
       const me = byId(subOf(req))?.[1];
       if (!me?.active) return json(403, { code: '42501', message: 'Usuario sin acceso' });
@@ -1286,26 +1300,28 @@ resetData();
   await page.waitForSelector('#listBody .participant-item');
   const first = page.locator('#listBody .participant-item').first();
   const second = page.locator('#listBody .participant-item').nth(1);
+  // "No asistió" abre un menú con el motivo (o "Asistió" para deshacer).
+  const elegir = async (item, txt) => { await item.locator('.p-absent-btn').click(); await page.click(`#dly-motivo-menu [role=menuitem]:text-is("${txt}")`); };
   await second.click();
   assert.equal(await page.textContent('#doneCount'), '1');
-  await second.locator('.p-absent-btn').click();
+  await elegir(second, 'Sin justificar');
   assert.equal(await page.textContent('#doneCount'), '0');
   assert.equal(await page.textContent('#absentCount'), '1');
-  assert.equal(await second.locator('.p-absent-btn').textContent(), 'Asistió');
+  assert.equal(await second.locator('.p-absent-btn').textContent(), 'Sin justificar ▾');
   await second.click();
   assert.equal(await page.textContent('#doneCount'), '0');
   ok('No asistió: saca a la persona de completados y no se puede marcar como lista');
 
-  await first.locator('.p-absent-btn').click();
+  await elegir(first, 'Sin justificar');
   assert.equal(await page.textContent('#absentCount'), '2');
   assert.equal(await page.locator('#absentBody img').count(), 0);
   await page.locator('#absentBody .done-item').first().click();
   assert.equal(await page.textContent('#absentCount'), '1');
-  assert.equal(await second.locator('.p-absent-btn').textContent(), 'No asistió');
-  await first.locator('.p-absent-btn').click();
+  assert.equal(await second.locator('.p-absent-btn').textContent(), 'No asistió ▾');
+  await elegir(first, 'Asistió');
   assert.equal(await page.textContent('#absentCount'), '0');
   assert.match(await page.textContent('#absentBody'), /registrar ausencias/);
-  await first.locator('.p-absent-btn').click();
+  await elegir(first, 'Sin justificar');
   await page.click('#rollBtn');
   assert.equal(await page.textContent('#absentCount'), '0');
   ok('ausencias: se deshacen desde la fila o la lista, y se limpian al generar otro orden');
@@ -1320,7 +1336,7 @@ resetData();
   assert.equal(await page.isVisible('#rollBtn'), true);
   const order = await page.locator('#listBody .participant-item').evaluateAll((els) => els.map((e) => e.dataset.name));
   await page.locator('#listBody .participant-item').first().click();
-  await page.locator('#listBody .participant-item').nth(1).locator('.p-absent-btn').click();
+  await elegir(page.locator('#listBody .participant-item').nth(1), 'Sin justificar');
   await page.click('#dly-save-btn');
   await page.waitForSelector('#dly-save-status.ok');
   assert.match(await page.textContent('#dly-save-status'), new RegExp(`Guardado el Daily 1 de hoy: ${order.length - 1} asisti(ó|eron), 1 no asistió`));
@@ -1336,7 +1352,7 @@ resetData();
   assert.ok(dayText.includes(`${order.length - 1} de ${order.length} asistieron · empezó ${order[0]} · guardó Quique QA <b>`), dayText);
   assert.equal(await page.textContent('#dly-hist-body .dly-day-absent'), 'No asistieron: ' + order[1]);
   const absRow = page.locator('#dly-hist-body tbody tr', { hasText: order[1] });
-  assert.deepEqual(await absRow.locator('td').allTextContents(), [order[1], '0', '1', '0%', '0']);
+  assert.deepEqual(await absRow.locator('td').allTextContents(), [order[1], '0', '1', '0', '0', '0%', '0']);
   assert.equal(await page.locator('#dly-hist-body img').count(), 0, 'los nombres se escapan');
   await page.screenshot({ path: DIR + 'tests/shot-daily-historial.png', fullPage: true });
   let overflowH = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -1359,7 +1375,7 @@ resetData();
   await page.waitForSelector('#dly-save-btn:not([disabled])');
   assert.match(dialogs.at(-1), /ya lo guardó Quique QA <b>/);
   assert.equal(tables.daily_runs[0].members[1].absent, true, 'si cancela no se reemplaza');
-  await page.locator('#listBody .participant-item').nth(1).locator('.p-absent-btn').click();
+  await elegir(page.locator('#listBody .participant-item').nth(1), 'Asistió');
   answers.push(true);
   await page.click('#dly-save-btn');
   await page.waitForSelector('#dly-save-status.ok:has-text("asisti"):not(:has-text("no asisti"))');
@@ -1378,12 +1394,168 @@ resetData();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(overflow <= 0, 'scroll horizontal en Daily móvil: ' + overflow);
-  await page.locator('#listBody .participant-item').first().locator('.p-absent-btn').click();
+  await elegir(page.locator('#listBody .participant-item').first(), 'Sin justificar');
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(800);
   await page.screenshot({ path: DIR + 'tests/shot-daily-movil.png' });
   ok('Daily en móvil con el botón No asistió: sin scroll horizontal');
   await context.close();
+}
+
+// 18b. Daily: motivo de ausencia (menú) y % de asistencia sin justificadas ni vacaciones
+{
+  tables.daily_runs = [];
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'qa@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#nav-daily');
+  await page.click('#dly-tab-hoy');
+  await page.click('#rollBtn');
+  await page.waitForSelector('#listBody .participant-item');
+  const items = page.locator('#listBody .participant-item');
+  const a = items.first(), b = items.nth(1);
+  const btnA = a.locator('.p-absent-btn');
+  const menuVisible = () => page.isVisible('#dly-motivo-menu');
+  const foco = () => page.evaluate(() => document.activeElement.textContent);
+  assert.equal(await btnA.textContent(), 'No asistió ▾');
+  await btnA.click();
+  assert.equal(await menuVisible(), true);
+  assert.equal(await btnA.getAttribute('aria-expanded'), 'true');
+  assert.deepEqual(await page.locator('#dly-motivo-menu [role=menuitem]').allTextContents(), ['Sin justificar', 'Justificada', 'Vacaciones']);
+  assert.equal(await foco(), 'Sin justificar');
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await foco(), 'Justificada');
+  await page.keyboard.press('Escape');
+  assert.equal(await menuVisible(), false);
+  assert.equal(await page.evaluate(() => document.activeElement.classList.contains('p-absent-btn')), true, 'el foco vuelve al botón');
+  await btnA.click();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  assert.equal(await btnA.textContent(), 'Vacaciones ▾');
+  assert.equal(await a.getAttribute('class').then((c) => c.includes('absent')), true);
+  const shortA = await a.getAttribute('data-short');
+  assert.ok((await page.textContent('#absentBody')).includes(shortA + ' (vacaciones)'));
+  await b.locator('.p-absent-btn').click();
+  await page.click('#runBadge');
+  assert.equal(await menuVisible(), false, 'un clic afuera cierra el menú');
+  await btnA.click();
+  assert.deepEqual(await page.locator('#dly-motivo-menu [role=menuitem]').allTextContents(), ['Sin justificar', 'Justificada', 'Vacaciones', 'Asistió']);
+  await page.click('#dly-motivo-menu [role=menuitem]:text-is("Asistió")');
+  assert.equal(await btnA.textContent(), 'No asistió ▾');
+  assert.equal(await page.textContent('#absentCount'), '0');
+  await btnA.click();
+  await page.click('#rollBtn');
+  assert.equal(await menuVisible(), false, 'Sortear cierra el menú');
+  ok('Daily: "No asistió" abre un menú con el motivo; teclado, Esc, clic afuera y deshacer');
+
+  const elegir = async (item, txt) => { await item.locator('.p-absent-btn').click(); await page.click(`#dly-motivo-menu [role=menuitem]:text-is("${txt}")`); };
+  await items.first().locator('.p-absent-btn').click();
+  await page.screenshot({ path: DIR + 'tests/shot-daily-motivo.png' });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.screenshot({ path: DIR + 'tests/shot-daily-motivo-oscuro.png' });
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.keyboard.press('Escape');
+  await elegir(items.first(), 'Vacaciones');
+  await elegir(items.nth(1), 'Justificada');
+  await page.click('#dly-save-btn');
+  await page.waitForSelector('#dly-save-status.ok');
+  assert.match(await page.textContent('#dly-save-status'), /2 no asistieron \(1 de vacaciones, 1 justificada\)\./);
+  assert.deepEqual(tables.daily_runs[0].members.slice(0, 2).map((m) => [m.absent, m.motivo]), [[true, 'vacaciones'], [true, 'justificada']]);
+  ok('Daily: guarda el motivo y el mensaje lo resume');
+
+  // Historial: 20 dailies; Equis con 5 de vacaciones y 1 falta sin justificar (guardada sin motivo,
+  // como la versión vieja) = 14/15 = 93 %; Ye siempre de vacaciones = «—».
+  const hoy = new Date(), y = hoy.getFullYear(), mo = String(hoy.getMonth() + 1).padStart(2, '0');
+  tables.daily_runs = Array.from({ length: 20 }, (_, i) => {
+    const d = i + 1, vac = d <= 5, falta = d === 20;
+    return { id: 900 + d, daily_group_id: 1, run_date: `${y}-${mo}-${String(d).padStart(2, '0')}`, created_by: users['lead@bcr.test'].id, members: [
+      { name: 'Equis Uno', position: 1, completed: !vac && !falta, absent: vac || falta, ...(vac ? { motivo: 'vacaciones' } : {}) },
+      { name: 'Ye Dos', position: 2, completed: false, absent: true, motivo: 'vacaciones' },
+    ] };
+  });
+  await page.click('#dly-tab-hist');
+  await page.waitForSelector('#dly-hist-body tbody tr');
+  assert.deepEqual(await page.locator('#dly-hist-body thead th').allTextContents(), ['Persona', 'Asistió', 'Faltó', 'Justificada', 'Vacaciones', '% asistencia', 'Empezó']);
+  const fila = (n) => page.locator('#dly-hist-body tbody tr', { hasText: n });
+  assert.deepEqual(await fila('Equis Uno').locator('td').allTextContents(), ['Equis Uno', '14', '1', '0', '5', '93%', '20']);
+  assert.equal(await fila('Equis Uno').locator('.dly-low').count(), 0);
+  assert.deepEqual(await fila('Ye Dos').locator('td').allTextContents(), ['Ye Dos', '0', '0', '0', '20', '—', '0']);
+  assert.equal(await fila('Ye Dos').locator('.dly-low').count(), 0);
+  assert.equal(await page.locator('#dly-hist-body .dly-day-absent').first().textContent(), 'No asistieron: Equis Uno, Ye Dos (vacaciones)');
+  ok('Daily: el historial no cuenta vacaciones ni justificadas en el % (14/15 = 93 %; todo de vacaciones = —)');
+  await context.close();
+  tables.daily_runs = [];
+
+  const mob = await newPage({ width: 375, height: 760 });
+  await mob.page.goto('http://app.test/index.html');
+  await login(mob.page, 'qa@bcr.test');
+  await mob.page.waitForSelector('.mobile-topbar', { state: 'visible' });
+  await mob.page.evaluate(() => showPage('daily'));
+  await mob.page.click('#dly-tab-hoy');
+  await mob.page.click('#rollBtn');
+  await mob.page.waitForSelector('#listBody .participant-item');
+  await mob.page.locator('#listBody .participant-item').last().locator('.p-absent-btn').click();
+  const box = await mob.page.locator('#dly-motivo-menu').boundingBox();
+  assert.ok(box.x >= 0 && box.x + box.width <= 375, 'el menú se sale de la pantalla: ' + JSON.stringify(box));
+  const overflow = await mob.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert.ok(overflow <= 0, 'scroll horizontal con el menú abierto: ' + overflow);
+  await mob.page.screenshot({ path: DIR + 'tests/shot-daily-motivo-movil.png' });
+  ok('Daily en el celular: el menú de motivo entra en la pantalla');
+  await mob.context.close();
+}
+
+// 18c. Daily: QA Lead y Admin intercambian a los leads (la persona fija al final de cada Daily)
+{
+  tables.daily_rule_members.push({ id: 50, daily_member_id: 3, rule_type: 'LAST_FIXED' });
+  const grupo = (id) => tables.daily_members.find((m) => m.id === id).daily_group_id;
+  const qa = await newPage();
+  await qa.page.goto('http://app.test/index.html');
+  await login(qa.page, 'qa@bcr.test');
+  await qa.page.waitForSelector('.layout', { state: 'visible' });
+  await qa.page.click('#nav-daily');
+  await qa.page.click('#dly-tab-hoy');
+  assert.equal(await qa.page.isVisible('#dly-swap-btn'), false, 'un QA no ve el botón');
+  await qa.context.close();
+
+  const { context, page } = await newPage();
+  await page.goto('http://app.test/index.html');
+  await login(page, 'lead@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  await page.click('#nav-daily');
+  await page.click('#dly-tab-hoy');
+  assert.equal(await page.isVisible('#dly-swap-btn'), true);
+  const nSwap = writes.length;
+  answers.push(false);
+  await page.click('#dly-swap-btn');
+  await waitDialog(/¿Pasar a Beto Uno al Daily 2 y a Caro Dos al Daily 1\?/);
+  assert.equal(writes.length, nSwap, 'si cancela no cambia nada');
+  assert.deepEqual([grupo(2), grupo(3)], [1, 2]);
+  answers.push(true);
+  await page.click('#dly-swap-btn');
+  await page.waitForSelector('#dly-swap-status.ok');
+  assert.deepEqual([grupo(2), grupo(3)], [2, 1], 'cambiaron de Daily');
+  assert.equal(tables.daily_rule_members.filter((r) => [2, 3].includes(r.daily_member_id) && r.rule_type === 'LAST_FIXED').length, 2, 'siguen fijos al final');
+  assert.match(await page.textContent('#dly-swap-status'), /Caro Dos pasó al Daily 1 y Beto Uno al Daily 2/);
+  await page.click('#rollBtn');
+  await page.waitForSelector('#listBody .participant-item');
+  assert.equal(await page.locator('#listBody .participant-item').last().getAttribute('data-name'), 'Caro Dos', 'el lead nuevo cierra el Daily 1');
+  ok('Daily: QA Lead intercambia a los leads con confirmación; siguen al final en su Daily nuevo');
+  await page.screenshot({ path: DIR + 'tests/shot-daily-leads.png' });
+
+  tables.daily_rule_members.push({ id: 51, daily_member_id: 1, rule_type: 'LAST_FIXED' });
+  await page.evaluate(() => loadConfig());
+  const nDos = writes.length;
+  await page.click('#dly-swap-btn');
+  await waitDialog(/exactamente una persona fija al final/);
+  assert.equal(writes.length, nDos, 'no llama a la base si no se puede');
+  ok('Daily: con dos fijos al final en un Daily avisa y no cambia nada');
+  await context.close();
+  // Deja todo como estaba para las pruebas siguientes.
+  tables.daily_rule_members = tables.daily_rule_members.filter((r) => ![50, 51].includes(r.id));
+  tables.daily_members.find((m) => m.id === 2).daily_group_id = 1;
+  tables.daily_members.find((m) => m.id === 3).daily_group_id = 2;
 }
 
 // 19. Solicitudes: solo QA Lead y Admin; lista compartida que se guarda en Supabase
@@ -2356,6 +2528,7 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   await page.waitForSelector('#listBody .participant-item');
   await page.locator('#listBody .participant-item').first().click();
   assert.equal(await page.isVisible('#dly-save'), false, 'QA Boss no guarda el Daily');
+  assert.equal(await page.isVisible('#dly-swap-btn'), false, 'QA Boss no intercambia a los leads');
   assert.deepEqual(horasReqs, [], 'QA Boss no pide horas');
   ok('QA Boss: sortea y mira el Daily, sin Guardar; no pide horas');
   await context.close();
