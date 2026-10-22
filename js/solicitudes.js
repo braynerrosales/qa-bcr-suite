@@ -6,7 +6,7 @@ function setSolStatus(kind,text){const st=document.getElementById('sol-status');
 let SOL_NAMES=new Map(),solChannel=null,solLiveOnce=false;
 // idle: es una recarga automática; si mientras tanto alguien empezó a editar, no pisa lo que escribe.
 async function loadSolicitudes(idle=false){
-  if(!canManageConfig())return;
+  if(!canViewSolicitudes())return;
   const [{data,error},people]=await Promise.all([
     supabaseClient.from('solicitudes').select('*').order('id'),
     supabaseClient.from('profiles').select('id,full_name')
@@ -22,7 +22,7 @@ async function loadSolicitudes(idle=false){
 // mismo RLS que la tabla). Si la conexión se corta, al volver se recarga la lista
 // para no perder lo que cambió mientras tanto.
 function solSubscribe(){
-  if(solChannel||!canManageConfig())return;
+  if(solChannel||!canViewSolicitudes())return;
   solChannel=supabaseClient.channel('solicitudes')
     .on('postgres_changes',{event:'*',schema:'public',table:'solicitudes'},solOnChange)
     .subscribe(status=>{
@@ -35,7 +35,7 @@ function solSubscribe(){
 // al volver a la pestaña y cada 2 minutos. La tabla no se recarga mientras se edita.
 function solEditing(){return !!document.querySelector('#sol-body :focus, dialog[open]');}
 function solRefresh(){
-  if(document.hidden||!currentUser||!canManageConfig())return;
+  if(document.hidden||!currentUser||!canViewSolicitudes())return;
   if(avisosOpen())refreshAvisosOpen();
   else if(solPageOpen()){if(!solEditing())loadSolicitudes(true);}
   else solBadgeSoon();
@@ -62,7 +62,7 @@ function setSolBadge(n){
   });
 }
 async function refreshSolBadge(){
-  if(!canManageConfig()){setSolBadge(0);return;}
+  if(!canViewSolicitudes()){setSolBadge(0);return;}
   const gen=++solBadgeGen;
   const {data,error}=await supabaseClient.rpc('solicitudes_novedades');
   // Una respuesta vieja (ya se marcó visto o llegó otra después) no pisa el contador.
@@ -236,6 +236,15 @@ function solRow(r){
     solCell('','sol-plain',badge,mod),solCell('','sol-plain',del));
   renderSolEncargados(enc,r);
   updateSolRow(tr,r);
+  // QA Boss: la misma fila, solo para leer (la base igual le rechaza cualquier cambio).
+  if(!canManageConfig()){
+    name.readOnly=true;
+    [horas,cierra,obs,...Object.values(checks)].forEach(el=>el.disabled=true);
+    // Sin textos de ayuda para completar: lo vacío queda vacío.
+    horas.placeholder='';obs.placeholder='';
+    if(!r.cierra)cierra.hidden=true;
+    del.hidden=true;
+  }
   return tr;
 }
 // Actualiza lo que depende del estado sin rehacer la fila (no se pierde el foco).
@@ -261,15 +270,17 @@ function updateSolRow(tr,r){
 function renderSolEncargados(box,r){
   box.replaceChildren();
   box.dataset.n=String((r.encargados||[]).length)+(r.cerrada?'c':'');
+  const lead=canManageConfig();
   (r.encargados||[]).forEach(n=>{
     const chip=document.createElement('span');chip.className='sol-chip';chip.append(n);
+    if(!lead){chip.classList.add('sol-chip-ro');box.appendChild(chip);return;}
     const x=Object.assign(document.createElement('button'),{type:'button',textContent:'×'});
     x.setAttribute('aria-label','Quitar a '+n);
     x.addEventListener('click',()=>saveSolicitud(r.id,{encargados:r.encargados.filter(e=>e!==n)},()=>renderSolEncargados(box,r)));
     chip.appendChild(x);box.appendChild(chip);
   });
   const free=solPeople().filter(n=>!(r.encargados||[]).includes(n));
-  if(r.cerrada||!free.length||(r.encargados||[]).length>=10)return;
+  if(!lead||r.cerrada||!free.length||(r.encargados||[]).length>=10)return;
   const sel=document.createElement('select');sel.setAttribute('aria-label','Agregar encargado del informe');
   sel.appendChild(new Option('+ Encargado',''));
   free.forEach(n=>sel.appendChild(new Option(n,n)));

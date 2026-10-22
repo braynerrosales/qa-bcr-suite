@@ -24,7 +24,7 @@ function hrsName(id){return (hrsPeople||[]).find(p=>p.id===id)?.full_name||'';}
 async function hrsLoadPeople(){
   if(hrsPeople)return;
   const {data,error}=await supabaseClient.from('profiles').select('id,full_name,active,role').order('full_name');
-  if(!error)hrsPeople=(data||[]).filter(p=>p.role!=='BETA');
+  if(!error)hrsPeople=(data||[]).filter(p=>!['BETA','BOSS'].includes(p.role));
 }
 function openHoras(){
   if(!hrsWeek)hrsWeek=hrsMonday(new Date());
@@ -352,7 +352,7 @@ async function hrsTogglePicker(open){
   list.textContent='Cargando…';
   const {data,error}=await supabaseClient.from('profiles').select('id,full_name,active,en_informe,role').order('full_name');
   if(error){list.textContent='';setHrsStatus('error','No se pudo cargar la lista de personas'+errorDetail(error)+'.');return;}
-  list.replaceChildren(...(data||[]).filter(p=>p.role!=='BETA').map(p=>{
+  list.replaceChildren(...(data||[]).filter(p=>!['BETA','BOSS'].includes(p.role)).map(p=>{
     const label=document.createElement('label'),cb=document.createElement('input');
     cb.type='checkbox';cb.checked=p.en_informe!==false;
     cb.addEventListener('change',()=>hrsSetEnInforme(p.id,cb));

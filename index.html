@@ -556,7 +556,7 @@
         <form class="user-create" id="user-create-form" data-submit="createUser" autocomplete="off">
           <input class="crud-input" id="nu-name" placeholder="Nombre completo" required maxlength="120" aria-label="Nombre completo">
           <input class="crud-input" id="nu-email" type="email" placeholder="Correo" required maxlength="254" aria-label="Correo">
-          <select class="user-role-select" id="nu-role" aria-label="Rol"><option value="QA">QA</option><option value="QA_LEAD">QA Lead</option><option value="ADMIN">Admin</option><option value="BETA">Beta</option></select>
+          <select class="user-role-select" id="nu-role" aria-label="Rol"><option value="QA">QA</option><option value="QA_LEAD">QA Lead</option><option value="ADMIN">Admin</option><option value="BETA">Beta</option><option value="BOSS">QA Boss</option></select>
           <div class="user-create-pw">
             <input class="crud-input" id="nu-password" type="password" placeholder="Contraseña temporal (mín. 10)" required minlength="10" maxlength="72" autocomplete="new-password" aria-label="Contraseña temporal">
             <button type="button" class="btn-secondary" id="nu-show" data-click="togglePasswordVisible" aria-pressed="false" aria-controls="nu-password">Ver</button>
@@ -588,7 +588,7 @@
           <button class="page-back" data-click="showPage" data-args='["home"]' aria-label="Volver al inicio">←</button>
           <div>
             <h2 class="page-title">Control de solicitudes</h2>
-            <p class="page-subtitle">Lista compartida entre QA Lead y Admin. Los cambios se guardan solos al salir de cada campo. Al cerrar una solicitud se quitan sus encargados del informe semanal.</p>
+            <p class="page-subtitle" id="sol-subtitle">Lista compartida entre QA Lead y Admin. Los cambios se guardan solos al salir de cada campo. Al cerrar una solicitud se quitan sus encargados del informe semanal.</p>
           </div>
         </div>
         <div class="sol-header-actions">
@@ -605,7 +605,7 @@
           <option value="done">Cerradas</option>
           <option value="all">Todas</option>
         </select>
-        <button class="btn-secondary" data-click="openInformes">Informes semanales</button>
+        <button class="btn-secondary" id="sol-inf-open" data-click="openInformes">Informes semanales</button>
         <button class="btn-secondary" data-click="exportSolicitudes">Exportar JSON</button>
       </div>
       <div class="status-msg" id="sol-status" role="status"></div>

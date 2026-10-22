@@ -122,6 +122,8 @@ function appConfig() {
   return { people, rules, projects };
 }
 const isLead = (me) => !!me && me.active && (me.role === 'ADMIN' || me.role === 'QA_LEAD');
+// Igual que private.can_view_solicitudes() (20261029000001_rol_qa_boss.sql): QA Boss solo lee.
+const canView = (me) => isLead(me) || (!!me && me.active && me.role === 'BOSS');
 const tareasDe = (templateId) => tables.template_tasks.filter((x) => x.template_id === templateId).sort((a, b) => a.position - b.position);
 // Igual que 20261028000001_proyectos_qa.sql: QA, QA Lead y Admin agregan (BETA no);
 // cada uno borra lo suyo y los leads cualquier cosa. Las tareas se agregan solo por add_template_task.
@@ -140,7 +142,7 @@ function tableRequest(req, url, me, json) {
   const pick = (r) => cols === '*' ? { ...r } : Object.fromEntries(cols.split(',').map((c) => [c, r[c]]));
   const method = req.method();
   // RLS de solicitudes: solo ADMIN y QA_LEAD activos la ven.
-  if (method === 'GET') return json(200, name === 'solicitudes' && !isLead(me) ? [] : rows.filter(match).map(pick));
+  if (method === 'GET') return json(200, name === 'solicitudes' && !canView(me) ? [] : rows.filter(match).map(pick));
   const body = req.postDataJSON();
   writes.push({ method, name, filters: Object.fromEntries(filters), body });
   if (failNextWrite) { const code = failNextWrite; failNextWrite = null; return json(409, { code, message: 'duplicate key value violates unique constraint' }); }
@@ -438,7 +440,7 @@ async function setup(context) {
     }
     if (url.pathname === '/rest/v1/rpc/solicitudes_avisos') {
       const me = byId(subOf(req))?.[1];
-      if (!isLead(me)) return json(403, { code: '42501', message: 'Sin permiso' });
+      if (!canView(me)) return json(403, { code: '42501', message: 'Sin permiso' });
       if (failAvisos) return json(500, { code: 'XX000', message: 'falla simulada' });
       const rows = solAvisos(me), d = avisosDelays.shift();
       if (d) await new Promise((r) => setTimeout(r, d));
@@ -446,7 +448,7 @@ async function setup(context) {
     }
     if (url.pathname === '/rest/v1/rpc/solicitudes_novedades' || url.pathname === '/rest/v1/rpc/solicitudes_marcar_visto') {
       const me = byId(subOf(req))?.[1];
-      if (!isLead(me)) { rpcCalls.denied = (rpcCalls.denied || 0) + 1; return json(403, { code: '42501', message: 'Sin permiso' }); }
+      if (!canView(me)) { rpcCalls.denied = (rpcCalls.denied || 0) + 1; return json(403, { code: '42501', message: 'Sin permiso' }); }
       if (url.pathname.endsWith('novedades')) { rpcCalls.novedades++; const n = solNovedades(me); if (delayNovedades) await new Promise((r) => setTimeout(r, delayNovedades)); return json(200, n); }
       rpcCalls.marcarVisto++;
       if (rejectNextVisto) { rejectNextVisto = false; return json(500, { code: 'XX000', message: 'falla simulada' }); }
@@ -464,6 +466,7 @@ async function setup(context) {
       const me = byId(subOf(req))?.[1];
       if (!me?.active) return json(403, { code: '42501', message: 'Usuario sin acceso' });
       if (url.pathname.endsWith('historial')) return json(200, dailyHistorial(req.postDataJSON()));
+      if (me.role === 'BOSS') return json(403, { code: '42501', message: 'Usuario sin acceso' });
       const [st, body] = dailyGuardar(me, req.postDataJSON());
       return json(st, body);
     }
@@ -2292,6 +2295,90 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   assert.ok(overflow <= 0, 'scroll horizontal en consolidado móvil: ' + overflow);
   ok('Horas en móvil: líneas en tarjetas con etiquetas; el consolidado se desplaza dentro de su recuadro');
   await context.close();
+}
+
+// QA Boss: lo de BETA más Solicitudes y la campana, solo para leer; mira el Daily sin guardarlo
+{
+  users['boss@bcr.test'] = { id: 'a0000000-0000-4000-8000-000000000088', password: 'pw', full_name: 'Bruno Boss', role: 'BOSS', active: true };
+  const { context, page } = await newPage();
+  const horasReqs = [];
+  page.on('request', (r) => { if (/\/rest\/v1\/(horas|rpc\/horas_resumen)/.test(r.url())) horasReqs.push(r.url()); });
+  await page.goto('http://app.test/index.html');
+  await login(page, 'boss@bcr.test');
+  await page.waitForSelector('.layout', { state: 'visible' });
+  assert.equal(await page.textContent('#sidebar-user-role'), 'QA Boss');
+  for (const id of ['nav-horas', 'nav-admin', 'nav-proyectos', 'home-horas']) assert.equal(await page.isVisible('#' + id), false, id + ' visible para QA Boss');
+  for (const id of ['nav-qa', 'nav-daily', 'nav-calc', 'nav-solicitudes', 'home-solicitudes', 'avisos-btn']) assert.equal(await page.isVisible('#' + id), true, id + ' oculto para QA Boss');
+  ok('QA Boss: ve Generar tareas, Daily, Días hábiles, Solicitudes y la campana; no Horas, Proyectos ni Administración');
+
+  const nWrites = writes.length;
+  await page.click('#nav-solicitudes');
+  await page.waitForSelector('#sol-body tr');
+  assert.equal(await page.isVisible('#sol-new-open'), false, 'sin Nueva solicitud');
+  assert.equal(await page.isVisible('#page-solicitudes button:has-text("Informes semanales")'), false, 'sin informes');
+  const editable = () => page.$$eval('#sol-body input, #sol-body select, #sol-body textarea:not(.sol-name), #sol-body .sol-del, #sol-body .sol-chip button',
+    (els) => els.filter((e) => e.offsetParent && !e.disabled).length);
+  assert.equal(await editable(), 0, 'la tabla tiene controles editables');
+  assert.equal(await page.$$eval('#sol-body .sol-name', (els) => els.every((e) => e.readOnly)), true, 'el nombre se puede leer, no editar');
+  assert.ok(await page.locator('#sol-body .sol-chip').count() > 0, 'se ven los encargados');
+  assert.match(await page.textContent('#sol-subtitle'), /^Solo lectura/);
+  assert.equal(await page.$$eval('#sol-body textarea, #sol-body input', (els) => els.filter((e) => e.offsetParent && e.placeholder).length), 0, 'sin textos de ayuda para completar');
+  assert.equal(await page.$$eval('#sol-body input[type=date]', (els) => els.filter((e) => e.offsetParent && !e.value).length), 0, 'sin fechas vacías para completar');
+  const fila = { ...tables.solicitudes[0], id: 777, nombre: 'Solicitud P3_777 En vivo', cerrada: false, cierre_enviado: false, created_by: users['lead@bcr.test'].id, created_at: new Date().toISOString(), encargados: ['Beto Uno'] };
+  tables.solicitudes.push(fila);
+  rtPush('INSERT', { ...fila });
+  await page.waitForSelector('#sol-body tr[data-id="777"]');
+  assert.equal(await editable(), 0, 'la fila que llega en vivo también es de solo lectura');
+  assert.equal(writes.length, nWrites, 'QA Boss no escribe');
+  ok('QA Boss: Solicitudes en solo lectura, sin Nueva solicitud ni informes, también lo que llega en vivo');
+  await page.evaluate(() => applyPermissions());
+  assert.equal(await page.isVisible('#page-solicitudes'), true, 'al reaplicar permisos QA Boss sigue en Solicitudes');
+  ok('QA Boss: al reaplicar permisos (renovar la sesión) sigue en Solicitudes');
+  await page.screenshot({ path: DIR + 'tests/shot-boss.png' });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.screenshot({ path: DIR + 'tests/shot-boss-oscuro.png' });
+  await page.emulateMedia({ colorScheme: 'light' });
+
+  await page.click('#nav-home');
+  const otra = { ...fila, id: 778, nombre: 'Solicitud P3_778 Aviso', created_at: new Date().toISOString() };
+  tables.solicitudes.push(otra);
+  rtPush('INSERT', { ...otra });
+  await page.waitForSelector('#avisos-btn .nav-count:not([hidden])');
+  await page.click('#avisos-btn');
+  await page.waitForSelector('#avisos-panel[open] .aviso');
+  assert.ok((await page.locator('#avisos-list .aviso-nombre').allTextContents()).includes('Solicitud P3_778 Aviso'));
+  await page.keyboard.press('Escape');
+  ok('QA Boss: la campana avisa y lista las solicitudes');
+
+  await page.click('#nav-daily');
+  await page.waitForSelector('#rollBtn');
+  await page.click('#rollBtn');
+  await page.waitForSelector('#listBody .participant-item');
+  await page.locator('#listBody .participant-item').first().click();
+  assert.equal(await page.isVisible('#dly-save'), false, 'QA Boss no guarda el Daily');
+  assert.deepEqual(horasReqs, [], 'QA Boss no pide horas');
+  ok('QA Boss: sortea y mira el Daily, sin Guardar; no pide horas');
+  await context.close();
+
+  const mob = await newPage({ width: 375, height: 760 });
+  await mob.page.goto('http://app.test/index.html');
+  await login(mob.page, 'boss@bcr.test');
+  await mob.page.waitForSelector('.layout', { state: 'visible' });
+  await mob.page.click('#mnav-solicitudes');
+  await mob.page.waitForSelector('#sol-body tr');
+  const overflow = await mob.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert.ok(overflow <= 0, 'scroll horizontal en Solicitudes de QA Boss: ' + overflow);
+  await mob.page.screenshot({ path: DIR + 'tests/shot-boss-movil.png' });
+  await mob.context.close();
+
+  const adm = await newPage();
+  await adm.page.goto('http://app.test/index.html');
+  await login(adm.page, 'admin@bcr.test');
+  await adm.page.waitForSelector('.layout', { state: 'visible' });
+  assert.ok((await adm.page.locator('#nu-role option').allTextContents()).includes('QA Boss'));
+  ok('QA Boss: el Admin lo puede asignar');
+  await adm.context.close();
+  delete users['boss@bcr.test'];
 }
 
 // BETA: solo Generar tareas, Daily y Días hábiles
