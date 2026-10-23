@@ -61,6 +61,11 @@ begin
         raise exception 'FALLO: QA Boss guardó el Daily';
     exception when insufficient_privilege then raise notice 'OK: QA Boss no guarda el Daily';
     end;
+    begin
+        perform public.daily_historial((select id from public.daily_groups order by id limit 1), current_date - 30, current_date);
+        raise exception 'FALLO: QA Boss vio el historial del Daily';
+    exception when insufficient_privilege then raise notice 'OK: QA Boss no ve el historial del Daily';
+    end;
 
     begin
         insert into public.horas (user_id, fecha, tipo, horas) values (auth.uid(), current_date, 'TRABAJO', 1);

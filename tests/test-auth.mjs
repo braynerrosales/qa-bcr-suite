@@ -479,7 +479,7 @@ async function setup(context) {
     if (url.pathname === '/rest/v1/rpc/daily_guardar' || url.pathname === '/rest/v1/rpc/daily_historial') {
       const me = byId(subOf(req))?.[1];
       if (!me?.active) return json(403, { code: '42501', message: 'Usuario sin acceso' });
-      if (url.pathname.endsWith('historial')) return json(200, dailyHistorial(req.postDataJSON()));
+      if (url.pathname.endsWith('historial')) return me.role === 'BOSS' ? json(403, { code: '42501', message: 'Usuario sin acceso' }) : json(200, dailyHistorial(req.postDataJSON()));
       if (me.role === 'BOSS') return json(403, { code: '42501', message: 'Usuario sin acceso' });
       const [st, body] = dailyGuardar(me, req.postDataJSON());
       return json(st, body);
@@ -2473,6 +2473,10 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
 {
   users['boss@bcr.test'] = { id: 'a0000000-0000-4000-8000-000000000088', password: 'pw', full_name: 'Bruno Boss', role: 'BOSS', active: true };
   const { context, page } = await newPage();
+  // Aunque el navegador recuerde la pestaña Historial, QA Boss abre en el Daily de hoy.
+  await page.addInitScript(() => localStorage.setItem('qabcr-daily-vista', JSON.stringify({ tab: 'hist', mode: 'month' })));
+  const histReqs = [];
+  page.on('request', (r) => { if (r.url().includes('rpc/daily_historial')) histReqs.push(r.url()); });
   const horasReqs = [];
   page.on('request', (r) => { if (/\/rest\/v1\/(horas|rpc\/horas_resumen)/.test(r.url())) horasReqs.push(r.url()); });
   await page.goto('http://app.test/index.html');
@@ -2529,6 +2533,9 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   await page.locator('#listBody .participant-item').first().click();
   assert.equal(await page.isVisible('#dly-save'), false, 'QA Boss no guarda el Daily');
   assert.equal(await page.isVisible('#dly-swap-btn'), false, 'QA Boss no intercambia a los leads');
+  assert.equal(await page.isVisible('#dly-tab-hist'), false, 'QA Boss no ve la pestaña Historial');
+  assert.equal(await page.isVisible('#dly-hist'), false);
+  assert.deepEqual(histReqs, [], 'QA Boss no pide el historial');
   assert.deepEqual(horasReqs, [], 'QA Boss no pide horas');
   ok('QA Boss: sortea y mira el Daily, sin Guardar; no pide horas');
   await context.close();

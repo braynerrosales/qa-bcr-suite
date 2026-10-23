@@ -10,6 +10,7 @@ function canUseHoras(){return !!currentUser&&!['BETA','BOSS'].includes(currentUs
 // QA Boss: lo de BETA más Solicitudes y la campana, solo para leer; mira el Daily sin guardarlo.
 function canViewSolicitudes(){return canManageConfig()||currentUser?.role==='BOSS';}
 function canSaveDaily(){return !!currentUser&&currentUser.role!=='BOSS';}
+function canSeeDailyHistory(){return canSaveDaily();}
 // Proyectos, variantes y tareas: QA, QA Lead y Admin (BETA y QA Boss no).
 function canEditCatalog(){return !!currentUser&&['ADMIN','QA_LEAD','QA'].includes(currentUser.role);}
 
@@ -162,6 +163,7 @@ function applyPermissions(){
   ['nav-horas','mnav-horas','home-horas'].forEach(id=>document.getElementById(id).hidden=!canUseHoras());
   ['nav-proyectos','mnav-proyectos'].forEach(id=>document.getElementById(id).hidden=!canEditCatalog());
   document.getElementById('dly-swap').hidden=!lead;
+  document.getElementById('dly-tab-hist').hidden=!canSeeDailyHistory();
   document.getElementById('atab-users').hidden=!isAdmin();
   document.getElementById('atab-feedback').hidden=!isAdmin();
   if(!isAdmin()&&['asec-users','asec-feedback'].some(id=>document.getElementById(id).classList.contains('active')))selectAdminTab('people');

@@ -199,6 +199,7 @@ function dlyStart(){
 }
 function dlyShowTab(t){
   closeMotivoMenu();
+  if(t==='hist'&&!canSeeDailyHistory())t='hoy';
   dlyTab=t;dlyRemember();
   ['hoy','hist'].forEach(k=>{
     document.getElementById('dly-tab-'+k).setAttribute('aria-selected',String(k===t));
