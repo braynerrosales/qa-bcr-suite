@@ -28,7 +28,8 @@ function solSubscribe(){
     .subscribe(status=>{
       const live=status==='SUBSCRIBED';
       document.getElementById('sol-live').hidden=!live;
-      if(live){if(solLiveOnce){loadSolicitudes();solBadgeSoon();}solLiveOnce=true;}
+      // Al reconectar se trae lo que no llegó en vivo, sin pisar una edición en curso.
+      if(live){if(solLiveOnce){loadSolicitudes(true);solBadgeSoon();}solLiveOnce=true;}
     });
 }
 // Por si un cambio no llegó en vivo (conexión caída, pestaña dormida): se vuelve a pedir
@@ -265,11 +266,13 @@ function updateSolRow(tr,r){
   inf.checked=!!r.informe_semanal;inf.disabled=!!r.cerrada;
   inf.title=r.cerrada?'Cerrada: ya no va en el informe semanal':'';
   const enc=tr.querySelector('.sol-enc');
-  if(enc.dataset.n!==String((r.encargados||[]).length)+(r.cerrada?'c':''))renderSolEncargados(enc,r);
+  if(enc.dataset.n!==solEncKey(r))renderSolEncargados(enc,r);
 }
+// Qué encargados hay (no solo cuántos): si otro lead cambia uno por otro, la fila se vuelve a dibujar.
+function solEncKey(r){return JSON.stringify(r.encargados||[])+(r.cerrada?'c':'');}
 function renderSolEncargados(box,r){
   box.replaceChildren();
-  box.dataset.n=String((r.encargados||[]).length)+(r.cerrada?'c':'');
+  box.dataset.n=solEncKey(r);
   const lead=canManageConfig();
   (r.encargados||[]).forEach(n=>{
     const chip=document.createElement('span');chip.className='sol-chip';chip.append(n);

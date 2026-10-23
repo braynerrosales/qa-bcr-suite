@@ -15,6 +15,8 @@ function selectDaily(num){
   document.getElementById('rollBtn').className=`roll-btn d${num}`;
   document.getElementById('rollLabel').textContent=`Sortear el orden del Daily ${num}`;
   closeMotivoMenu();
+  // El orden se borra, así que también quién habló y quién no asistió del Daily anterior.
+  document.getElementById('doneBody').innerHTML=DONE_EMPTY;document.getElementById('doneCount').textContent='0';clearAbsent();
   runCount=0;document.getElementById('runBadge').textContent='—';
   document.getElementById('dly-save').hidden=true;
   if(dlyTab==='hist')loadDailyHistory();

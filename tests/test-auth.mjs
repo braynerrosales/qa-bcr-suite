@@ -58,6 +58,7 @@ let rejectNextVisto = false;
 let delayNovedades = 0; // ms: respuesta atrasada del contador
 let failAvisos = false; // solicitudes_avisos responde 500
 const avisosDelays = []; // ms de demora para las próximas respuestas de solicitudes_avisos
+const horasDelays = []; // ms de demora para las próximas escrituras de horas
 const isoDay = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('en-CA'); };
 const solicitudesIniciales = () => [
   { id: 1, nombre: 'Solicitud P3_081 Gobierno <b>Digital</b>', informe_semanal: true, encargados: ['Beto Uno'], horas: null, pend_plan: false, pend_actualizar: false, plan_enviado: true, cierre_enviado: false, cierra: isoDay(5), observaciones: '', cerrada: false },
@@ -461,7 +462,11 @@ async function setup(context) {
       if (me?.role !== 'ADMIN' || !me.active) return json(403, { code: '42501', message: 'Solo un ADMIN puede ver los ingresos' });
       return json(200, Object.values(users).map((u) => ({ id: u.id, first_sign_in_at: u.first_sign_in_at ?? null, last_sign_in_at: u.last_sign_in_at ?? null, password_changed_at: u.password_changed_at ?? null, must_change_password: !!u.must_change_password })));
     }
-    if (url.pathname === '/rest/v1/horas') return horasRequest(req, url, byId(subOf(req))?.[1], json);
+    if (url.pathname === '/rest/v1/horas') {
+      const d = req.method() !== 'GET' && horasDelays.shift();
+      if (d) await new Promise((res) => setTimeout(res, d));
+      return horasRequest(req, url, byId(subOf(req))?.[1], json);
+    }
     // Igual que daily_intercambiar_leads() (20261030000001_daily_motivos.sql).
     if (url.pathname === '/rest/v1/rpc/daily_intercambiar_leads') {
       const me = byId(subOf(req))?.[1];
@@ -1464,6 +1469,12 @@ resetData();
   assert.match(await page.textContent('#dly-save-status'), /2 no asistieron \(1 de vacaciones, 1 justificada\)\./);
   assert.deepEqual(tables.daily_runs[0].members.slice(0, 2).map((m) => [m.absent, m.motivo]), [[true, 'vacaciones'], [true, 'justificada']]);
   ok('Daily: guarda el motivo y el mensaje lo resume');
+  await page.click('#dtab2');
+  assert.equal(await page.textContent('#absentCount'), '0', 'quedan ausentes del otro Daily');
+  assert.equal(await page.textContent('#doneCount'), '0');
+  assert.match(await page.textContent('#absentBody'), /registrar ausencias/);
+  await page.click('#dtab1');
+  ok('Daily: al cambiar de Daily se limpian "Ya hablaron" y "No asistieron"');
 
   // Historial: 20 dailies; Equis con 5 de vacaciones y 1 falta sin justificar (guardada sin motivo,
   // como la versión vieja) = 14/15 = 93 %; Ye siempre de vacaciones = «—».
@@ -1620,6 +1631,16 @@ resetData();
   await new Promise((r) => setTimeout(r, 200));
   assert.deepEqual(tables.solicitudes[0].encargados, ['Caro Dos']);
   ok('Solicitudes: encargado se elige de las personas activas del Daily y se puede quitar');
+  await row.locator('textarea[aria-label="Observaciones"]').focus();
+  tables.solicitudes[0].encargados = ['Beto Uno'];
+  rtPush('UPDATE', { ...tables.solicitudes[0] }, { id: 1 });
+  await page.waitForSelector('#sol-body tr[data-id="1"] .sol-chip:has-text("Beto Uno")', { timeout: 5000 });
+  assert.equal(await row.locator('.sol-chip').count(), 1);
+  tables.solicitudes[0].encargados = ['Caro Dos'];
+  rtPush('UPDATE', { ...tables.solicitudes[0] }, { id: 1 });
+  await page.waitForSelector('#sol-body tr[data-id="1"] .sol-chip:has-text("Caro Dos")', { timeout: 5000 });
+  await page.locator('#sol-search').focus();
+  ok('Solicitudes: si otro lead cambia un encargado por otro, la fila en edición muestra el nuevo');
   await row.locator('input[aria-label="Cierre enviado"]').check();
   await page.waitForFunction(() => document.querySelector('#sol-body tr[data-id="1"] .sol-badge').textContent === 'Cerrada');
   await new Promise((r) => setTimeout(r, 200));
@@ -1884,6 +1905,21 @@ resetData();
   await adm.page.waitForSelector('#sol-badge:not([hidden])', { timeout: 15000 });
   assert.equal(await adm.page.textContent('#sol-badge'), '1');
   ok('Solicitudes: al reconectarse el tiempo real, el contador se pone al día');
+  await adm.page.click('#nav-solicitudes');
+  await adm.page.waitForSelector('#sol-body tr[data-id="303"]');
+  const obs303 = adm.page.locator('#sol-body tr[data-id="303"] textarea[aria-label="Observaciones"]');
+  await obs303.click();
+  await adm.page.keyboard.type('a medio escribir');
+  await until(adm.page, () => !document.getElementById('sol-live').hidden);
+  // Al reconectar, la app vuelve a pedir las solicitudes: se espera esa recarga.
+  const recarga = adm.page.waitForResponse((r) => r.url().includes('/rest/v1/solicitudes') && r.request().method() === 'GET', { timeout: 15000 });
+  for (const s of [...rtSockets]) await s.ws.close();
+  await recarga;
+  await new Promise((r) => setTimeout(r, 500));
+  assert.equal(await obs303.inputValue(), 'a medio escribir', 'la reconexión borró lo que se estaba escribiendo');
+  await adm.page.keyboard.press('Tab');
+  await new Promise((r) => setTimeout(r, 300));
+  ok('Solicitudes: al reconectarse el tiempo real no se borra lo que se está escribiendo');
 
   // Cierra sesión y entra un QA en la misma pestaña: ni contador ni canal del anterior.
   const negadas = rpcCalls.denied || 0;
@@ -2141,6 +2177,18 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   assert.equal(mine[0].facturable, 7);
   assert.equal(await mon.locator('.hrs-day-tot').textContent(), '8 / 8 h');
   ok('Horas (QA): agrega una línea; facturable arranca igual a las horas y se puede bajar (8 trabajadas, 7 facturables)');
+  horasDelays.push(800);
+  await l1.locator('[data-f=tarea]').fill('Primera');
+  await l1.locator('[data-f=tarea]').press('Tab');
+  await l1.locator('[data-f=tarea]').fill('Segunda');
+  await l1.locator('[data-f=tarea]').press('Tab');
+  await new Promise((r) => setTimeout(r, 1600));
+  assert.equal(tables.horas.find((h) => h.id === mine[0].id).tarea, 'Segunda', 'la respuesta lenta pisó lo último escrito');
+  assert.equal(await l1.locator('[data-f=tarea]').inputValue(), 'Segunda');
+  await l1.locator('[data-f=tarea]').fill('Ejecución 2317552 <b>');
+  await l1.locator('[data-f=tarea]').press('Tab');
+  await new Promise((r) => setTimeout(r, 300));
+  ok('Horas (QA): si se edita dos veces seguidas, gana lo último que se escribió');
 
   const tue = page.locator(`#hrs-days .hrs-day[data-date="${weekDay(1)}"]`);
   await tue.locator('button:has-text("Agregar línea")').click();
