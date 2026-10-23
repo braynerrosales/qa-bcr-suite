@@ -112,16 +112,15 @@ begin
     end;
 
     -- El Daily se registra con daily_guardar (20261024000001_seguridad.sql).
-    perform * from public.daily_guardar((select group_id from test_ids), current_date, '[{"name":"Persona","position":1}]');
-    update public.daily_run_members set completed = true
-        where daily_run_id = currval(pg_get_serial_sequence('public.daily_runs', 'id'));
-    raise notice 'OK: QA registra un Daily y marca completados';
+    -- Los completados van en lo que se guarda; lo guardado no se edita directo (20261101000001).
+    perform * from public.daily_guardar((select group_id from test_ids), current_date, '[{"name":"Persona","position":1,"completed":true}]');
+    raise notice 'OK: QA registra un Daily con completados';
 
     begin
         update public.daily_run_members set member_name = 'Otro';
         raise exception 'FALLO: QA cambió el nombre en el historial del Daily';
     exception when insufficient_privilege then
-        raise notice 'OK: el historial del Daily solo permite cambiar "completed"';
+        raise notice 'OK: el historial del Daily no se edita directo';
     end;
 
     select count(*) into n from public.ai_usage_log;
