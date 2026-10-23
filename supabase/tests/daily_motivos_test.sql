@@ -57,6 +57,14 @@ begin
     exception when sqlstate '22023' then raise notice 'OK: un motivo sin ausencia se rechaza';
     end;
 
+    -- Lo guardado solo cambia con daily_guardar (que limita las fechas), no editando la tabla.
+    begin
+        update public.daily_run_members set completed = false
+        where daily_run_id in (select id from public.daily_runs where daily_group_id = g);
+        raise exception 'FALLO: un QA editó directamente un Daily guardado';
+    exception when insufficient_privilege then raise notice 'OK: nadie edita directamente un Daily guardado';
+    end;
+
     begin
         perform public.daily_intercambiar_leads();
         raise exception 'FALLO: un QA intercambió los leads';
