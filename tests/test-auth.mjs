@@ -1911,9 +1911,9 @@ resetData();
   await obs303.click();
   await adm.page.keyboard.type('a medio escribir');
   await until(adm.page, () => !document.getElementById('sol-live').hidden);
-  // Al reconectar, la app vuelve a pedir las solicitudes: se espera esa recarga.
-  const recarga = adm.page.waitForResponse((r) => r.url().includes('/rest/v1/solicitudes') && r.request().method() === 'GET', { timeout: 45000 });
-  for (const s of [...rtSockets]) await s.ws.close();
+  // Corte y vuelta del tiempo real (lo mismo que recibe el canal), sin depender de la red.
+  const recarga = adm.page.waitForResponse((r) => r.url().includes('/rest/v1/solicitudes') && r.request().method() === 'GET', { timeout: 10000 });
+  await adm.page.evaluate(() => { solOnStatus('CLOSED'); solOnStatus('SUBSCRIBED'); });
   await recarga;
   await new Promise((r) => setTimeout(r, 500));
   assert.equal(await obs303.inputValue(), 'a medio escribir', 'la reconexión borró lo que se estaba escribiendo');

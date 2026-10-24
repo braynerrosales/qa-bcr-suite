@@ -25,12 +25,13 @@ function solSubscribe(){
   if(solChannel||!canViewSolicitudes())return;
   solChannel=supabaseClient.channel('solicitudes')
     .on('postgres_changes',{event:'*',schema:'public',table:'solicitudes'},solOnChange)
-    .subscribe(status=>{
-      const live=status==='SUBSCRIBED';
-      document.getElementById('sol-live').hidden=!live;
-      // Al reconectar se trae lo que no llegó en vivo, sin pisar una edición en curso.
-      if(live){if(solLiveOnce){loadSolicitudes(true);solBadgeSoon();}solLiveOnce=true;}
-    });
+    .subscribe(solOnStatus);
+}
+function solOnStatus(status){
+  const live=status==='SUBSCRIBED';
+  document.getElementById('sol-live').hidden=!live;
+  // Al reconectar se trae lo que no llegó en vivo, sin pisar una edición en curso.
+  if(live){if(solLiveOnce){loadSolicitudes(true);solBadgeSoon();}solLiveOnce=true;}
 }
 // Por si un cambio no llegó en vivo (conexión caída, pestaña dormida): se vuelve a pedir
 // al volver a la pestaña y cada 2 minutos. La tabla no se recarga mientras se edita.
