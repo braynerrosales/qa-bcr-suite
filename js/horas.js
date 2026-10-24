@@ -172,7 +172,10 @@ async function hrsWrite(row){
     await loadMyHours();
     return;
   }
-  Object.assign(r,res.data[0]);
+  // De la respuesta solo se toma lo que pone la base (id, fechas): lo editable puede haber
+  // cambiado mientras tanto y la próxima escritura de la cola manda lo último que se escribió.
+  const {fecha,tipo,soli,tarea,horas,facturable,...base}=res.data[0];
+  Object.assign(r,base);
   if(row.isConnected)hrsSyncLine(row);
 }
 async function hrsDeleteLine(row){
