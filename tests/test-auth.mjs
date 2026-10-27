@@ -571,6 +571,15 @@ async function login(page, email, password = 'pw') {
   await page.click('#auth-submit');
 }
 
+// Video de demostración: con DEMO_VIDEO=1 graba el recorrido de la app (tests/video-demo.mjs)
+// con este mismo Supabase simulado, y no corre las pruebas.
+if (process.env.DEMO_VIDEO) {
+  const { grabarDemo } = await import('./video-demo.mjs');
+  await grabarDemo({ browser, setup, login, getTables: () => tables, users, rtPush, DIR });
+  await browser.close();
+  process.exit(0);
+}
+
 // 1. Sin configurar
 {
   const { context, page } = await newPage();
@@ -2241,6 +2250,8 @@ const ids = Object.fromEntries(Object.entries(users).map(([e, u]) => [e.split('@
   assert.equal(await page.locator('#hrs-status.info').count(), 0);
   await page.click('button:has-text("Esta semana")');
   ok('Horas (QA): semanas anteriores a las dos últimas quedan cerradas (solo lectura, y la base lo rechaza)');
+  // La línea vieja ya cumplió: si queda, el mes la suma cuando cae en el mismo mes que hoy.
+  tables.horas = tables.horas.filter((h) => h.id !== 950);
 
   await page.click('#hrs-tab-report');
   await page.waitForSelector('#hrs-report-tables table');
