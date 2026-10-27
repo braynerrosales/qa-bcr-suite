@@ -1650,13 +1650,35 @@ resetData();
   await page.waitForSelector('#sol-body tr[data-id="1"] .sol-chip:has-text("Caro Dos")', { timeout: 5000 });
   await page.locator('#sol-search').focus();
   ok('Solicitudes: si otro lead cambia un encargado por otro, la fila en edición muestra el nuevo');
-  await row.locator('input[aria-label="Cierre enviado"]').check();
-  await page.waitForFunction(() => document.querySelector('#sol-body tr[data-id="1"] .sol-badge').textContent === 'Cerrada');
+  // Con el filtro en «Abiertas», al cerrarla se va de la lista y se puede deshacer.
+  await row.locator('input[aria-label="Cierre enviado"]').click();
+  await page.waitForSelector('#sol-body tr[data-id="1"]', { state: 'detached' });
+  await page.waitForSelector('#sol-status button:has-text("Deshacer")');
+  assert.match(await page.textContent('#sol-status'), /Solicitud cerrada/);
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Deshacer');
+  await page.screenshot({ path: DIR + 'tests/shot-sol-deshacer.png' });
+  const vp = page.viewportSize();
+  await page.setViewportSize({ width: 375, height: 760 });
+  await page.screenshot({ path: DIR + 'tests/shot-sol-deshacer-movil.png' });
+  await page.setViewportSize(vp);
   await new Promise((r) => setTimeout(r, 200));
   assert.equal(tables.solicitudes[0].cierre_enviado, true);
   assert.equal(tables.solicitudes[0].cerrada, true);
   assert.deepEqual(tables.solicitudes[0].encargados, []);
   assert.equal(tables.solicitudes[0].informe_semanal, false);
+  await page.click('#sol-status button:has-text("Deshacer")');
+  await page.waitForSelector('#sol-body tr[data-id="1"]');
+  await new Promise((r) => setTimeout(r, 200));
+  const s1 = tables.solicitudes[0];
+  assert.deepEqual([s1.cierre_enviado, s1.cerrada, s1.informe_semanal, s1.encargados], [false, false, true, ['Caro Dos']]);
+  assert.equal(await page.textContent('#sol-status'), '');
+  ok('Solicitudes: al cerrarla con el filtro en Abiertas se va de la lista, y Deshacer la reabre como estaba');
+  await row.locator('input[aria-label="Cierre enviado"]').click();
+  await page.waitForSelector('#sol-body tr[data-id="1"]', { state: 'detached' });
+  await page.selectOption('#sol-filter', 'all');
+  await page.waitForFunction(() => document.querySelector('#sol-body tr[data-id="1"] .sol-badge').textContent === 'Cerrada');
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(tables.solicitudes[0].cerrada, true);
   assert.equal(await row.locator('.sol-chip').count(), 0);
   assert.equal(await row.locator('.sol-enc select').count(), 0);
   assert.equal(await row.locator('input[aria-label="Informe semanal"]').isDisabled(), true);
@@ -1673,6 +1695,29 @@ resetData();
   ok('Solicitudes: casillas, horas, fecha, nombre y notas se guardan; cierre enviado la cierra y quita los encargados');
   assert.equal(await row.locator('.sol-mod').textContent(), 'vos · recién');
   ok('Solicitudes: muestra quién hizo el último cambio');
+
+  // Reabrirla con el filtro en «Cerradas» también la saca de la lista, con Deshacer.
+  await page.selectOption('#sol-filter', 'done');
+  await page.locator('#sol-body tr[data-id="4"] input[aria-label="Cierre enviado"]').click();
+  await page.waitForSelector('#sol-body tr[data-id="4"]', { state: 'detached' });
+  assert.match(await page.textContent('#sol-status'), /Solicitud reabierta/);
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(tables.solicitudes.find((s) => s.id === 4).cerrada, false);
+  await page.click('#sol-status button:has-text("Deshacer")');
+  await page.waitForSelector('#sol-body tr[data-id="4"]');
+  await new Promise((r) => setTimeout(r, 200));
+  assert.deepEqual([tables.solicitudes.find((s) => s.id === 4).cerrada, tables.solicitudes.find((s) => s.id === 4).cierre_enviado], [true, true]);
+  ok('Solicitudes: al reabrirla con el filtro en Cerradas se va de la lista, y Deshacer la vuelve a cerrar');
+
+  // Si otro lead la cierra, también se va de «Abiertas» (sin Deshacer: no fue tuyo) y vuelve si la reabre.
+  await page.selectOption('#sol-filter', 'open');
+  const base2 = { ...tables.solicitudes.find((s) => s.id === 2) };
+  rtPush('UPDATE', { ...base2, cierre_enviado: true, cerrada: true }, { id: 2 });
+  await page.waitForSelector('#sol-body tr[data-id="2"]', { state: 'detached', timeout: 5000 });
+  assert.equal(await page.locator('#sol-status button').count(), 0);
+  rtPush('UPDATE', base2, { id: 2 });
+  await page.waitForSelector('#sol-body tr[data-id="2"]', { timeout: 5000 });
+  ok('Solicitudes en vivo: si otro lead la cierra se va de Abiertas, sin Deshacer, y vuelve si la reabre');
 
   await page.waitForSelector('#sol-live', { state: 'visible' });
   const sol2 = { ...tables.solicitudes.find((s) => s.id === 2), observaciones: 'Cambio de otro lead', updated_by: users['admin@bcr.test'].id, updated_at: new Date(Date.now() - 2 * 3600e3).toISOString() };
