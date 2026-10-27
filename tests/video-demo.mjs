@@ -1,7 +1,8 @@
 // QA BCR Suite — video de demostración: recorre la app con datos inventados (Supabase simulado),
 // con un cartel en pantalla y una voz en español que explican cada parte.
 //
-// Uso (Windows, con ffmpeg instalado; la voz es la de Windows en español):
+// Uso (con ffmpeg instalado; la voz es neural de Microsoft con edge-tts —pip install edge-tts—,
+// que manda solo el texto de los carteles; si no está, usa la voz de Windows en español):
 //   DEMO_VIDEO=1 CHROME_PATH=... node tests/test-auth.mjs
 // Sale en tests/out/demo-app.mp4. No corre las pruebas y no usa la base real.
 import { execFileSync } from 'node:child_process';
@@ -29,8 +30,20 @@ const ESCENAS = {
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const hoyISO = (offset = 0) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('en-CA'); };
 
+const VOZ = process.env.DEMO_VOZ || 'es-CR-MariaNeural';
+const segundos = (archivo) => Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', archivo]).toString());
+// Voz neural (edge-tts); si no está instalada, la de Windows. Devuelve el archivo y sus segundos.
+function hablar(texto, base, dir) {
+  try {
+    execFileSync('edge-tts', ['--voice', VOZ, '--rate=+5%', '--text', texto, '--write-media', base + '.mp3'], { stdio: 'ignore' });
+    return { archivo: base + '.mp3', seg: segundos(base + '.mp3') };
+  } catch {
+    const wav = base + '.wav';
+    return { archivo: wav, seg: hablarWindows(texto, wav, dir) };
+  }
+}
 // Voz de Windows (System.Speech) en español; devuelve los segundos de audio.
-function hablar(texto, wav, dir) {
+function hablarWindows(texto, wav, dir) {
   const txt = wav.replace(/\.wav$/, '.txt');
   writeFileSync(txt, texto, 'utf8');
   const ps1 = dir + 'voz.ps1';
@@ -86,8 +99,8 @@ export async function grabarDemo({ browser, setup, login, getTables, users, rtPu
   mkdirSync(voz, { recursive: true });
   mkdirSync(raw, { recursive: true });
   console.log('Generando la voz…');
-  const dur = {};
-  for (const [id, texto] of Object.entries(ESCENAS)) dur[id] = hablar(texto, `${voz}${id}.wav`, voz);
+  const dur = {}, audio = {};
+  for (const [id, texto] of Object.entries(ESCENAS)) ({ archivo: audio[id], seg: dur[id] } = hablar(texto, voz + id, voz));
 
   const t = getTables(), leadId = users['lead@bcr.test'].id;
   prepararDatos(t, users, leadId, users['admin@bcr.test'].id);
@@ -227,7 +240,7 @@ export async function grabarDemo({ browser, setup, login, getTables, users, rtPu
   console.log('Uniendo video y voz…');
   const ids = Object.keys(ESCENAS);
   const args = ['-y', '-i', videoPath];
-  ids.forEach((id) => args.push('-i', `${voz}${id}.wav`));
+  ids.forEach((id) => args.push('-i', audio[id]));
   const mezcla = marcas.map((m, i) => `[${ids.indexOf(m.id) + 1}:a]adelay=${m.ms}|${m.ms}[a${i}]`).join(';')
     + ';' + marcas.map((_, i) => `[a${i}]`).join('') + `amix=inputs=${marcas.length}:normalize=0[voz]`;
   args.push('-filter_complex', mezcla, '-map', '0:v', '-map', '[voz]', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-c:a', 'aac', '-b:a', '160k', out + 'demo-app.mp4');
