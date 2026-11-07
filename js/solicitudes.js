@@ -111,6 +111,8 @@ function solOnChange(p){
   if(!r){SOL.push(n);if(!solEditing())renderSolicitudes();else renderSolStats();return;}
   Object.assign(r,n);
   const tr=body.querySelector(`tr[data-id="${CSS.escape(String(n.id))}"]`);
+  // Otro lead la cerró o la reabrió: sale del filtro (o entra) y se rehace la lista, salvo si estás editando.
+  if(!!tr!==solInFilter(r)&&!solEditing()){renderSolicitudes();return;}
   // En la fila que estás editando solo se actualiza el estado, para no pisar lo que escribís.
   if(tr){if(tr.contains(document.activeElement))updateSolRow(tr,r);else tr.replaceWith(solRow(r));}
   renderSolStats();
@@ -170,10 +172,10 @@ function renderSolStats(){
   const box=document.getElementById('sol-stats');box.replaceChildren();
   items.forEach(([cls,n,label])=>{const d=document.createElement('div');d.className='sol-stat '+cls;const b=document.createElement('b');b.textContent=n;d.append(b,label);box.appendChild(d);});
 }
+function solInFilter(r){const f=document.getElementById('sol-filter').value;return f==='all'||(f==='open')===!r.cerrada;}
 function renderSolicitudes(){
   const q=document.getElementById('sol-search').value.trim().toLowerCase();
-  const f=document.getElementById('sol-filter').value;
-  const rows=SOL.filter(r=>(!q||r.nombre.toLowerCase().includes(q))&&(f==='all'||(f==='open')===!r.cerrada)).sort(solCompare);
+  const rows=SOL.filter(r=>(!q||r.nombre.toLowerCase().includes(q))&&solInFilter(r)).sort(solCompare);
   const body=document.getElementById('sol-body');body.replaceChildren(...rows.map(solRow));
   document.getElementById('sol-empty').hidden=rows.length>0;
   renderSolStats();
@@ -206,9 +208,7 @@ function solRow(r){
     c.setAttribute('aria-label',label);
     // Marcar "Cierre enviado" cierra la solicitud (igual que el tracker anterior)
     // y la saca del informe semanal; la base hace lo mismo con un trigger.
-    c.addEventListener('change',()=>saveSolicitud(r.id,field==='cierre_enviado'
-      ?(c.checked?{cierre_enviado:true,cerrada:true,informe_semanal:false,encargados:[]}:{cierre_enviado:false,cerrada:false})
-      :{[field]:c.checked}));
+    c.addEventListener('change',()=>field==='cierre_enviado'?solSetCierre(r.id,c.checked):saveSolicitud(r.id,{[field]:c.checked}));
     checks[field]=c;
   });
   const horas=Object.assign(document.createElement('input'),{type:'number',min:'0',step:'0.5',placeholder:'0',value:r.horas??''});
@@ -300,6 +300,31 @@ async function saveSolicitud(id,patch,after){
   renderSolStats();
   const {data,error}=await supabaseClient.from('solicitudes').update(patch).eq('id',id).select('id');
   if(error||!data||!data.length){uiError(writeErrorMessage(error||{code:'42501'}));await loadSolicitudes();}
+}
+// Si al cerrarla (o reabrirla) ya no entra en el filtro, la fila se va y queda "Deshacer"
+// unos segundos, que le devuelve lo que tenía (cerrarla quita el informe y los encargados).
+let solUndoTimer=null;
+function solSetCierre(id,cerrar){
+  const r=SOL.find(x=>x.id===id);if(!r)return;
+  const patch=cerrar?{cierre_enviado:true,cerrada:true,informe_semanal:false,encargados:[]}:{cierre_enviado:false,cerrada:false};
+  const prev=Object.fromEntries(Object.keys(patch).map(k=>[k,r[k]]));
+  saveSolicitud(id,patch);
+  if(solInFilter(r))return;
+  const body=document.getElementById('sol-body');
+  body.querySelector(`tr[data-id="${CSS.escape(String(id))}"]`)?.remove();
+  document.getElementById('sol-empty').hidden=body.rows.length>0;
+  setSolStatus('ok',cerrar?'Solicitud cerrada.':'Solicitud reabierta.');
+  const undo=Object.assign(document.createElement('button'),{type:'button',className:'sol-undo',textContent:'Deshacer'});
+  undo.addEventListener('click',()=>{
+    clearTimeout(solUndoTimer);setSolStatus('');
+    saveSolicitud(id,prev);renderSolicitudes();
+    body.querySelector(`tr[data-id="${CSS.escape(String(id))}"] input[aria-label="Cierre enviado"]`)?.focus();
+  });
+  document.getElementById('sol-status').append(undo);
+  // La casilla con el foco se fue con la fila: el foco pasa a Deshacer.
+  undo.focus({preventScroll:true});
+  clearTimeout(solUndoTimer);
+  solUndoTimer=setTimeout(()=>{if(!undo.isConnected)return;const had=document.activeElement===undo;setSolStatus('');if(had)document.getElementById('sol-filter').focus();},8000);
 }
 /* ── Nueva solicitud: popup con lo que se sabe al crearla (solo el nombre es obligatorio) ── */
 // El estado se elige en un combo; en la base siguen siendo las casillas de la tabla.
