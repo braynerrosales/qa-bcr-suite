@@ -1613,6 +1613,36 @@ resetData();
   await page.fill('#sol-search', '');
   await page.selectOption('#sol-filter', 'open');
   ok('Solicitudes: buscador y filtro por estado');
+
+  // Orden por columna: ▲, ▼ y vuelta al de siempre; los vacíos siempre al final.
+  const [n1, n2, n3] = ['Solicitud P3_081 Gobierno <b>Digital</b>', 'Solicitud P3_070 Tucan vencida', 'QA_OPC_47 Proyecto Digitalizacion'];
+  const sortBtn = (k) => page.locator(`#page-solicitudes th[data-sort="${k}"] button`);
+  const ariaSort = (k) => page.getAttribute(`#page-solicitudes th[data-sort="${k}"]`, 'aria-sort');
+  assert.equal(await page.isVisible('#sol-sort'), false, 'en escritorio se ordena con los títulos');
+  assert.equal(await page.locator('#page-solicitudes th[data-sort] button').count(), 9);
+  await sortBtn('cierra').click();
+  assert.deepEqual(await names(), [n2, n1, n3]);
+  assert.equal(await ariaSort('cierra'), 'ascending');
+  await sortBtn('cierra').click();
+  assert.deepEqual(await names(), [n1, n2, n3], 'al invertir, sin fecha sigue al final');
+  assert.equal(await ariaSort('cierra'), 'descending');
+  await page.screenshot({ path: DIR + 'tests/shot-sol-orden.png' });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.screenshot({ path: DIR + 'tests/shot-sol-orden-oscuro.png' });
+  await page.emulateMedia({ colorScheme: 'light' });
+  await sortBtn('cierra').click();
+  assert.deepEqual(await names(), [n2, n1, n3]);
+  assert.equal(await ariaSort('cierra'), null);
+  await sortBtn('pend_plan').click();
+  assert.deepEqual(await names(), [n3, n2, n1], 'las marcadas primero');
+  await sortBtn('horas').click();
+  assert.deepEqual(await names(), [n2, n1, n3], 'sin horas al final');
+  assert.equal(await ariaSort('pend_plan'), null, 'una sola columna manda');
+  ok('Solicitudes: se ordena por columna (▲, ▼ y vuelta al orden de siempre), con los vacíos al final');
+  await page.evaluate(() => { showPage('home'); showPage('solicitudes'); });
+  await page.waitForFunction(() => !document.querySelector('#page-solicitudes th[aria-sort]'));
+  assert.deepEqual(await names(), [n2, n1, n3]);
+  ok('Solicitudes: al volver a entrar arranca en el orden de siempre');
   await page.click('.sol-toolbar button:has-text("Informes semanales")');
   await page.waitForSelector('#inf-dialog[open]');
   const inf = await page.locator('#inf-table tbody tr').evaluateAll((trs) => trs.map((t) => [...t.cells].map((c) => c.textContent)));
@@ -1839,6 +1869,19 @@ resetData();
   assert.ok(overflow <= 0, 'scroll horizontal en Solicitudes móvil: ' + overflow);
   await page.screenshot({ path: DIR + 'tests/shot-solicitudes-movil.png' });
   ok('ADMIN en móvil: ve la misma lista, la tabla se desplaza dentro de su recuadro');
+  // En móvil no hay títulos: se ordena con el selector.
+  assert.equal(await page.isVisible('#sol-sort'), true);
+  await page.selectOption('#sol-sort', 'cierra:-1');
+  const fechas = await page.locator('#sol-body input[aria-label="Fecha de cierre"]').evaluateAll((els) => els.map((e) => e.value));
+  const conFecha = fechas.filter(Boolean);
+  assert.deepEqual(conFecha, [...conFecha].sort().reverse(), 'la más lejana primero');
+  assert.deepEqual(fechas.slice(conFecha.length), fechas.filter((f) => !f), 'sin fecha al final');
+  await page.screenshot({ path: DIR + 'tests/shot-sol-orden-movil.png' });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.screenshot({ path: DIR + 'tests/shot-sol-orden-movil-oscuro.png' });
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.selectOption('#sol-sort', '');
+  ok('Solicitudes en móvil: se ordena con «Ordenar por»');
   await context.close();
 }
 
