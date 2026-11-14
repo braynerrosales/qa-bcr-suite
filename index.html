@@ -610,6 +610,7 @@
           <option value="done">Cerradas</option>
           <option value="all">Todas</option>
         </select>
+        <select class="user-role-select sol-sort-mobile" id="sol-sort" aria-label="Ordenar por" data-change="solSortPick"></select>
         <button class="btn-secondary" id="sol-inf-open" data-click="openInformes">Informes semanales</button>
         <button class="btn-secondary" data-click="exportSolicitudes">Exportar JSON</button>
       </div>
@@ -618,9 +619,18 @@
       <div class="sol-table-wrap" id="sol-table-wrap">
         <table class="sol-table">
           <thead><tr>
-            <th style="min-width:240px">Solicitud</th><th>Informe sem.</th><th>Encargado</th><th style="width:80px">Horas</th>
-            <th>Pend. plan</th><th>Pend. actualizar</th><th>Plan enviado</th><th>Cierre enviado</th>
-            <th style="width:130px">Cierra</th><th style="min-width:160px">Observaciones</th><th>Estado</th><th><span class="sr-only">Eliminar</span></th>
+            <th style="min-width:240px" data-sort="nombre"><button type="button" class="sol-sort-btn" data-click="solSortBy" data-args='["nombre"]'>Solicitud</button></th>
+            <th data-sort="informe_semanal"><button type="button" class="sol-sort-btn" data-click="solSortBy" data-args='["informe_semanal"]'>Informe sem.</button></th>
+            <th>Encargado</th>
+            <th style="width:80px" data-sort="horas"><button type="button" class="sol-sort-btn" data-click="solSortBy" data-args='["horas"]'>Horas</button></th>
+            <th data-sort="pend_plan"><button type="button" class="sol-sort-btn" data-click="solSortBy" data-args='["pend_plan"]'>Pend. plan</button></th>
+            <th data-sort="pend_actualizar"><button type="button" class="sol-sort-btn" data-click="solSortBy" data-args='["pend_actualizar"]'>Pend. actualizar</button></th>
+            <th data-sort="plan_enviado"><button type="button" class="sol-sort-btn" data-click="solSortBy" data-args='["plan_enviado"]'>Plan enviado</button></th>
+            <th data-sort="cierre_enviado"><button type="button" class="sol-sort-btn" data-click="solSortBy" data-args='["cierre_enviado"]'>Cierre enviado</button></th>
+            <th style="width:130px" data-sort="cierra"><button type="button" class="sol-sort-btn" data-click="solSortBy" data-args='["cierra"]'>Cierra</button></th>
+            <th style="min-width:160px">Observaciones</th>
+            <th data-sort="cerrada"><button type="button" class="sol-sort-btn" data-click="solSortBy" data-args='["cerrada"]'>Estado</button></th>
+            <th><span class="sr-only">Eliminar</span></th>
           </tr></thead>
           <tbody id="sol-body"></tbody>
         </table>

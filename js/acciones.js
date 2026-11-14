@@ -20,6 +20,7 @@ const ACCIONES={
   toggleLastFixed:el=>toggleLastFixed(el.dataset.daily,el.dataset.name,el.checked),
   hrsPickPerson:el=>hrsPickPerson(el.value),
   hrsSetMode:el=>hrsSetMode(el.value),
+  solSortPick:el=>solSortPick(el.value),
   removeCalcOff:el=>el.closest('.calc-off-entry').remove(),
   setFeedbackRead:el=>setFeedbackRead(+el.dataset.id,el.dataset.leido==='true',el),
   deleteFeedback:el=>deleteFeedback(+el.dataset.id,el),

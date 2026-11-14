@@ -254,6 +254,13 @@
   .sol-table thead { display: table-header-group; }
   .sol-table th { background: var(--sidebar-bg); color: var(--sidebar-ink); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 10px 4px; text-align: center; vertical-align: bottom; }
   .sol-table th:first-child { text-align: left; padding-left: 14px; }
+  .sol-sort-btn { min-height: 24px; padding: 2px 4px; border: 0; border-radius: 4px; background: none; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; text-align: inherit; cursor: pointer; }
+  .sol-sort-btn:hover { text-decoration: underline; }
+  .sol-sort-btn:focus-visible { outline-color: var(--mark); }
+  .sol-sort-btn::after { content: ''; display: inline-block; width: 1.1em; }
+  th[aria-sort=ascending] .sol-sort-btn::after { content: ' ▲'; }
+  th[aria-sort=descending] .sol-sort-btn::after { content: ' ▼'; }
+  .sol-sort-mobile { display: none; }
   .sol-table td { font-family: var(--font); font-size: 13px; padding: 6px 4px; border-top: 1px solid var(--rule); text-align: center; vertical-align: middle; }
   .sol-table td:first-child { text-align: left; padding-left: 10px; }
   .sol-table input[type=text], .sol-table input[type=number], .sol-table input[type=date], .sol-table textarea { width: 100%; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 5px 6px; font-size: 13px; min-height: 0; line-height: 1.4; font-family: var(--font); color: var(--ink); }
@@ -679,6 +686,7 @@
     .sol-table-wrap { overflow: visible; background: transparent; border: 0; }
     .sol-table { min-width: 0; width: 100%; }
     .sol-table thead { display: none; }
+    .sol-sort-mobile { display: block; flex: 1 1 100%; }
     .sol-table, .sol-table tbody { display: block; }
     .sol-table tr { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; padding: 12px 14px; margin-bottom: 10px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-sheet); }
     .sol-table td, .sol-table td:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; max-width: none; padding: 6px 0; border: 0; text-align: left; position: static; box-shadow: none; background: transparent !important; }

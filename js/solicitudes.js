@@ -165,6 +165,47 @@ function solSortKey(r){
   return [r.cerrada?1:0,p?0:o?2:1,p?+p[1]:o?+o[1]:0,r.id];
 }
 function solCompare(a,b){const x=solSortKey(a),y=solSortKey(b);for(let i=0;i<x.length;i++)if(x[i]!==y[i])return x[i]-y[i];return 0;}
+// Orden por columna: en escritorio con los títulos (▲, ▼ y vuelta al de siempre), en móvil con
+// «Ordenar por». No se recuerda: al entrar a la pantalla arranca en el de siempre.
+// Cada columna: [cómo se lee el valor (null = vacío, va al final), nombre, ▲, ▼].
+const SOL_SORTS={
+  nombre:[r=>{const k=solSortKey(r);return k[1]*1e9+k[2];},'Solicitud','por código','código al revés'],
+  informe_semanal:[r=>r.informe_semanal?0:1,'Informe semanal','marcadas primero','sin marcar primero'],
+  horas:[r=>r.horas??null,'Horas','menos primero','más primero'],
+  pend_plan:[r=>r.pend_plan?0:1,'Pend. plan','marcadas primero','sin marcar primero'],
+  pend_actualizar:[r=>r.pend_actualizar?0:1,'Pend. actualizar','marcadas primero','sin marcar primero'],
+  plan_enviado:[r=>r.plan_enviado?0:1,'Plan enviado','marcadas primero','sin marcar primero'],
+  cierre_enviado:[r=>r.cierre_enviado?0:1,'Cierre enviado','marcadas primero','sin marcar primero'],
+  cierra:[r=>r.cierra||null,'Cierra','la más próxima primero','la más lejana primero'],
+  cerrada:[r=>r.cerrada?1:0,'Estado','abiertas primero','cerradas primero'],
+};
+let solSort=null;   // {key,dir}: dir 1 = ▲, -1 = ▼
+function solCompareBy(a,b){
+  if(solSort){
+    const get=SOL_SORTS[solSort.key][0],x=get(a),y=get(b);
+    if(x===null||y===null){if(x!==y)return x===null?1:-1;}
+    else if(x!==y)return (x<y?-1:1)*solSort.dir;
+  }
+  return solCompare(a,b);
+}
+function solSetSort(s){
+  solSort=s;
+  document.querySelectorAll('#page-solicitudes th[data-sort]').forEach(th=>{
+    if(s&&th.dataset.sort===s.key)th.setAttribute('aria-sort',s.dir===1?'ascending':'descending');
+    else th.removeAttribute('aria-sort');
+  });
+  const sel=document.getElementById('sol-sort');
+  if(!sel.options.length){
+    sel.appendChild(new Option('Orden de siempre',''));
+    Object.entries(SOL_SORTS).forEach(([k,[,name,up,down]])=>{sel.appendChild(new Option(name+': '+up,k+':1'));sel.appendChild(new Option(name+': '+down,k+':-1'));});
+  }
+  sel.value=s?s.key+':'+s.dir:'';
+}
+function solSortBy(key){
+  solSetSort(solSort?.key!==key?{key,dir:1}:solSort.dir===1?{key,dir:-1}:null);
+  renderSolicitudes();
+}
+function solSortPick(v){const [key,dir]=v.split(':');solSetSort(key?{key,dir:+dir}:null);renderSolicitudes();}
 function solPeople(){return [...new Set([...DB.people.daily1,...DB.people.daily2])].sort((a,b)=>a.localeCompare(b,'es'));}
 function renderSolStats(){
   const open=SOL.filter(r=>!r.cerrada).length;
@@ -175,7 +216,7 @@ function renderSolStats(){
 function solInFilter(r){const f=document.getElementById('sol-filter').value;return f==='all'||(f==='open')===!r.cerrada;}
 function renderSolicitudes(){
   const q=document.getElementById('sol-search').value.trim().toLowerCase();
-  const rows=SOL.filter(r=>(!q||r.nombre.toLowerCase().includes(q))&&solInFilter(r)).sort(solCompare);
+  const rows=SOL.filter(r=>(!q||r.nombre.toLowerCase().includes(q))&&solInFilter(r)).sort(solCompareBy);
   const body=document.getElementById('sol-body');body.replaceChildren(...rows.map(solRow));
   document.getElementById('sol-empty').hidden=rows.length>0;
   renderSolStats();

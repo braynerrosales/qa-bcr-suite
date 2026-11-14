@@ -139,7 +139,7 @@ function showPage(id) {
   document.getElementById('nav-'+id).classList.add('active');
   if(id==='admin')renderAdmin();
   if(id==='proyectos')loadProyectos();
-  if(id==='solicitudes')SOL_LOADING=solMarkSeen().then(()=>loadSolicitudes());
+  if(id==='solicitudes'){solSetSort(null);SOL_LOADING=solMarkSeen().then(()=>loadSolicitudes());}
   if(id==='horas')openHoras();
   if(id==='daily')dlyShowTab(dlyTab);
   window.scrollTo({ top: 0, behavior: 'smooth' });
